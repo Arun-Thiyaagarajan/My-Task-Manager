@@ -8,7 +8,6 @@ import { getCachedBinnedTasks as getBinnedTasks, getCachedDuplicates as findExis
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -28,7 +27,6 @@ import {
   LayoutGrid,
   List,
   Plus,
-  Search,
   Download,
   Upload,
   FolderSearch,
@@ -36,7 +34,6 @@ import {
   ChevronRight,
   Trash2,
   CheckSquare,
-  Copy,
   X,
   HelpCircle,
   History,
@@ -48,21 +45,16 @@ import {
   Filter,
   ArrowDownWideNarrow,
   ChevronDown,
-  Save,
   Check,
   User,
   GitMerge,
   FileText,
-  ChevronRight as ChevronRightIcon,
-  SearchX,
   CalendarIcon,
   AlertTriangle,
   Fingerprint,
   Globe,
   FileSpreadsheet,
   BookmarkPlus,
-  Pin,
-  PinOff,
   FolderKanban,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
@@ -103,10 +95,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import {
   Tooltip,
   TooltipContent,
@@ -124,9 +113,16 @@ import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useTaskFiltering } from '@/hooks/use-task-filtering';
 import { TasksCalendarView } from '@/components/tasks-calendar-view';
 import { DesktopNotesShortcut } from '@/components/desktop-notes-shortcut';
 import { appendExcelExportMetadataSheet, buildExcelExportRows } from '@/lib/task-excel';
+import { BulkSelectionBar } from '@/components/home/bulk-selection-bar';
+import { DeletedMatchesSection } from '@/components/home/deleted-matches-section';
+import { DesktopFiltersSheet } from '@/components/home/desktop-filters-sheet';
+import { PinnedSavedViewsStrip } from '@/components/home/pinned-saved-views-strip';
+import { SavedViewDialogs } from '@/components/home/saved-view-dialogs';
+import { TaskSearchInput } from '@/components/home/task-search-input';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
@@ -136,17 +132,6 @@ const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
 const HOME_SKELETON_DELAY_MS = 250;
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 const HOME_RETURN_SKELETON_MS = 220;
-
-interface SearchSuggestion {
-    id: string;
-    title: string;
-    subLabel: string;
-    type: 'task' | 'user' | 'tag' | 'repo';
-    icon: any;
-    taskId: string;
-    matchType: string;
-    isBinned?: boolean;
-}
 
 export default function Home() {
   const { user, isUserLoading } = useFirebase();
@@ -163,7 +148,6 @@ export default function Home() {
   const [generalReminders, setGeneralReminders] = useState<GeneralReminder[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentAuthMode, setCurrentAuthMode] = useState<AuthMode>('localStorage');
   
@@ -206,15 +190,12 @@ export default function Home() {
 
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
 
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
   const importInFlightRef = useRef(false);
   const hasInitializedGroupStateRef = useRef(false);
   const hasVisibleTaskDataRef = useRef(false);
 
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
-  const [filteredBinnedTasks, setFilteredBinnedTasks] = useState<Task[]>([]);
   const [existingDuplicates, setExistingDuplicates] = useState<{ fieldLabel: string; value: string; tasks: Task[] }[]>([]);
   const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   const tutorialOpenedSelectModeRef = useRef(false);
@@ -597,6 +578,38 @@ export default function Home() {
     }
   }, [isUserLoading]);
 
+  const showRepositoryFilter = useMemo(() => isRepositoryFieldActive(uiConfig), [uiConfig]);
+
+  const {
+    filteredTasks,
+    filteredBinnedTasks,
+    searchError,
+    setSearchError,
+    hasInitialized,
+    searchSuggestions,
+  } = useTaskFiltering({
+    tasks,
+    binnedTasks,
+    developers,
+    testers,
+    executedSearchQuery,
+    searchQuery,
+    statusFilter,
+    statusGroupFilter,
+    repoFilter,
+    tagsFilter,
+    deploymentFilter,
+    favoritesOnly,
+    sortDescriptor,
+    uiConfig,
+    dateView,
+    selectedDate,
+    mounted,
+    isUserLoading,
+    showRepositoryFilter,
+    setIsSearching,
+  });
+
   useEffect(() => {
     if (tasks.length > 0 || filteredTasks.length > 0 || filteredBinnedTasks.length > 0) {
       hasVisibleTaskDataRef.current = true;
@@ -747,146 +760,33 @@ export default function Home() {
     searchInputRef.current?.focus();
   }, []);
 
-  const getDeploymentScore = (task: Task) => {
-    const deploymentOrder = ['production', 'stage', 'dev'];
-    for (let i = 0; i < deploymentOrder.length; i++) {
-      const env = deploymentOrder[i];
-      if (task.deploymentStatus?.[env]) {
-        return deploymentOrder.length - i;
-      }
-    }
-    return 0;
-  };
-
-  useEffect(() => {
-    const filterAndProcess = () => {
-        try {
-            if (isUserLoading || !mounted) return;
-
-            const results = tasks.filter((task: Task) => {
-                if (favoritesOnly && !task.isFavorite) return false;
-
-                const resolvedStatus = getStatusDisplayName(task.status, uiConfig);
-                const resolvedStatusConfig = resolveStatusConfig(task.status, uiConfig);
-                const statusMatch = statusFilter.length === 0 || statusFilter.includes(resolvedStatus);
-                const statusGroupMatch = statusGroupFilter.length === 0 || statusGroupFilter.includes(
-                  getStatusGroupId(resolvedStatusConfig.group, uiConfig, resolvedStatusConfig)
-                );
-                const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
-                const repoMatch = !showRepositoryFilter || repoFilter.length === 0 || (Array.isArray(task.repositories) && task.repositories?.some(repo => repoFilter.includes(repo)) || false);
-                const tagsMatch = tagsFilter.length === 0 || (task.tags?.some(tag => tagsFilter.includes(tag)) ?? false);
-
-                const developersById = new Map(developers.map(d => [d.id, d.name]));
-                const testersById = new Map(testers.map(t => [t.id, t.name]));
-
-                const searchMatch =
-                executedSearchQuery.trim() === '' ||
-                fuzzySearch(executedSearchQuery, task.title) ||
-                fuzzySearch(executedSearchQuery, task.description) ||
-                fuzzySearch(executedSearchQuery, task.id) ||
-                (task.azureWorkItemId && fuzzySearch(executedSearchQuery, task.azureWorkItemId)) ||
-                task.developers?.some((devId) => fuzzySearch(executedSearchQuery, developersById.get(devId) || '')) ||
-                task.testers?.some((testerId) => fuzzySearch(executedSearchQuery, testersById.get(testerId) || '')) ||
-                (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(executedSearchQuery, repo)));
-
-                const dateMatch = (() => {
-                if (dateView === 'all') return true;
-                if (dateView === 'monthly' || dateView === 'calendar') {
-                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
-                    if (!calendarAnchor) return false;
-                    const taskDate = new Date(calendarAnchor);
-                    const start = startOfMonth(selectedDate);
-                    const end = endOfMonth(selectedDate);
-                    return taskDate >= start && taskDate <= end;
-                }
-                if (dateView === 'yearly') {
-                    const calendarAnchor = task.devStartDate || task.qaStartDate || task.createdAt;
-                    if (!calendarAnchor) return false;
-                    const taskDate = new Date(calendarAnchor);
-                    const start = startOfYear(selectedDate);
-                    const end = endOfYear(selectedDate);
-                    return taskDate >= start && taskDate <= end;
-                }
-                return true;
-                })();
-                
-                const deploymentMatch = deploymentFilter.length === 0 || deploymentFilter.every(filter => {
-                const isNegative = filter.startsWith('not_');
-                const env = isNegative ? filter.substring(4) : filter;
-                const isDeployed = task.deploymentStatus?.[env] ?? false;
-                return isNegative ? !isDeployed : isDeployed;
-                });
-
-                return statusMatch && statusGroupMatch && repoMatch && searchMatch && dateMatch && deploymentMatch && tagsMatch;
-            });
-
-            const sorted = [...results].sort((a, b) => {
-                const [sortBy, sortDirection] = sortDescriptor.split('-');
-                const taskStatuses = uiConfig?.taskStatuses || [];
-
-                if (sortBy === 'title') {
-                    if (sortDirection === 'asc') return a.title.localeCompare(b.title);
-                    return b.title.localeCompare(a.title);
-                }
-
-                if (sortBy === 'status') {
-                    const aIndex = taskStatuses.indexOf(getStatusDisplayName(a.status, uiConfig));
-                    const bIndex = taskStatuses.indexOf(getStatusDisplayName(b.status, uiConfig));
-                    return sortDirection === 'asc' ? aIndex - bIndex : bIndex - aIndex;
-                }
-
-                if (sortBy === 'deployment') {
-                    const scoreA = getDeploymentScore(a);
-                    const scoreB = getDeploymentScore(b);
-                    return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
-                }
-
-                return 0;
-            });
-
-            setFilteredTasks(sorted);
-            if (executedSearchQuery.trim() === '') {
-                setFilteredBinnedTasks([]);
-            } else {
-                const developersById = new Map(developers.map(d => [d.id, d.name]));
-                const testersById = new Map(testers.map(t => [t.id, t.name]));
-                const deletedMatches = binnedTasks.filter((task: Task) =>
-                    fuzzySearch(executedSearchQuery, task.title) ||
-                    fuzzySearch(executedSearchQuery, task.description) ||
-                    fuzzySearch(executedSearchQuery, task.id) ||
-                    (task.azureWorkItemId && fuzzySearch(executedSearchQuery, task.azureWorkItemId)) ||
-                    task.developers?.some((devId) => fuzzySearch(executedSearchQuery, developersById.get(devId) || '')) ||
-                    task.testers?.some((testerId) => fuzzySearch(executedSearchQuery, testersById.get(testerId) || '')) ||
-                    (Array.isArray(task.repositories) && task.repositories?.some((repo) => fuzzySearch(executedSearchQuery, repo)))
-                );
-                setFilteredBinnedTasks(deletedMatches);
-            }
-            setSearchError(null);
-            
-            const mode = getAuthMode();
-            if (mode === 'authenticate') {
-                const activeCompanyId = getActiveCompanyId();
-                if (!activeCompanyId || !isInitialSyncComplete(activeCompanyId)) {
-                    return;
-                }
-            }
-            
-            setHasInitialized(true);
-        } catch (e) {
-            console.error("Filtering logic failed:", e);
-            setSearchError("Search temporarily unavailable. Please try again later.");
-        } finally {
-            // Artificial delay to make transition smooth and visible
-            setTimeout(() => {
-                setIsSearching(false);
-                window.dispatchEvent(new Event('sync-end'));
-            }, 300);
-        }
-    };
-
-    const rafId = requestAnimationFrame(filterAndProcess);
-    return () => cancelAnimationFrame(rafId);
-  }, [tasks, binnedTasks, statusFilter, statusGroupFilter, repoFilter, tagsFilter, developers, testers, executedSearchQuery, dateView, selectedDate, deploymentFilter, favoritesOnly, sortDescriptor, uiConfig, viewMode, isUserLoading, mounted]);
+  const showTagsFilter = useMemo(
+    () => (uiConfig?.fields || []).find((field) => field.key === 'tags')?.isActive,
+    [uiConfig]
+  );
+  const statusGroupOptions = useMemo(
+    () => getStatusGroupConfigs(uiConfig).map((group) => ({ value: group.id, label: group.name })),
+    [uiConfig]
+  );
+  const sortedStatusOptions = useMemo(
+    () => getSortedStatusOptions(uiConfig).map((option) => ({ value: option.value, label: option.label })),
+    [uiConfig]
+  );
+  const repositoryOptions = useMemo(
+    () => (uiConfig?.repositoryConfigs || []).map((repository) => ({ value: repository.name, label: repository.name })),
+    [uiConfig]
+  );
+  const tagOptions = useMemo(
+    () => [...new Set(tasks.flatMap((task) => task.tags || []))].map((tag) => ({ value: tag, label: tag })),
+    [tasks]
+  );
+  const deploymentOptions = useMemo(
+    () => (uiConfig?.environments || []).flatMap((env) => [
+      { value: env.name, label: `On ${env.name}` },
+      { value: `not_${env.name}`, label: `Not on ${env.name}` },
+    ]),
+    [uiConfig]
+  );
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
@@ -1096,6 +996,20 @@ export default function Home() {
   const handleViewModeChange = useCallback((mode: ViewMode) => {
       setViewMode(mode);
   }, []);
+
+  const handleContentViewChange = useCallback((mode: ViewMode | 'calendar') => {
+      if (mode === 'calendar') {
+        handleDateViewChange('calendar');
+        return;
+      }
+
+      if (dateView === 'calendar') {
+        setIsSearching(true);
+        setDateView('monthly');
+      }
+
+      setViewMode(mode);
+  }, [dateView, handleDateViewChange]);
 
   const handleSortChange = useCallback((val: string) => {
       setIsSearching(true);
@@ -1360,96 +1274,6 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [showReturnSkeleton]);
 
-  const searchSuggestions = useMemo((): SearchSuggestion[] => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q || q.length < 2) return [];
-
-    const suggestions: SearchSuggestion[] = [];
-    const devsById = new Map(developers.map(d => [d.id, d.name]));
-    const testersById = new Map(testers.map(t => [t.id, t.name]).map(([id, name]) => [id, { id, name } as Person]));
-
-    const allTasksForSearch = [
-        ...tasks.map(t => ({ ...t, isBinned: false })),
-        ...getBinnedTasks().map(t => ({ ...t, isBinned: true }))
-    ];
-
-    allTasksForSearch.forEach(task => {
-        if (fuzzySearch(q, task.title)) {
-            suggestions.push({
-                id: `task-title-${task.id}`,
-                title: task.title,
-                subLabel: task.status,
-                type: 'task',
-                icon: FileText,
-                taskId: task.id,
-                matchType: 'title',
-                isBinned: task.isBinned
-            });
-            return;
-        }
-
-        const matchedDev = task.developers?.find(id => fuzzySearch(q, devsById.get(id) || ''));
-        if (matchedDev) {
-            suggestions.push({
-                id: `task-dev-${task.id}`,
-                title: task.title,
-                subLabel: `Assigned to: ${devsById.get(matchedDev)}`,
-                type: 'user',
-                icon: User,
-                taskId: task.id,
-                matchType: 'user',
-                isBinned: task.isBinned
-            });
-            return;
-        }
-
-        const matchedTag = task.tags?.find(t => fuzzySearch(q, t));
-        if (matchedTag) {
-            suggestions.push({
-                id: `task-tag-${task.id}`,
-                title: task.title,
-                subLabel: `Tagged with: ${matchedTag}`,
-                type: 'tag',
-                icon: Tag,
-                taskId: task.id,
-                matchType: 'tag',
-                isBinned: task.isBinned
-            });
-            return;
-        }
-
-        const matchedRepo = Array.isArray(task.repositories) && task.repositories.find(r => fuzzySearch(q, r));
-        if (matchedRepo) {
-            suggestions.push({
-                id: `task-repo-${task.id}`,
-                title: task.title,
-                subLabel: `In Repository: ${matchedRepo}`,
-                type: 'repo',
-                icon: GitMerge,
-                taskId: task.id,
-                matchType: 'repo',
-                isBinned: task.isBinned
-            });
-            return;
-        }
-
-        if (fuzzySearch(q, task.description)) {
-            suggestions.push({
-                id: `task-desc-${task.id}`,
-                title: task.title,
-                subLabel: "Matched in description",
-                type: 'task',
-                icon: FileText,
-                taskId: task.id,
-                matchType: 'description',
-                isBinned: task.isBinned
-            });
-        }
-    });
-
-    return suggestions.slice(0, 10);
-  }, [searchQuery, tasks, developers, testers]);
-
   const handleSuggestionClick = (taskId: string) => {
     setIsSearchFocused(false);
     window.dispatchEvent(new Event('navigation-start'));
@@ -1474,9 +1298,6 @@ export default function Home() {
     desktopRepoFilterDraft.length +
     desktopDeploymentFilterDraft.length +
     desktopTagsFilterDraft.length;
-  const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
-  const showTagsFilter = (uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive;
-  const statusGroupOptions = getStatusGroupConfigs(uiConfig).map(group => ({ value: group.id, label: group.name }));
   const currentSavedViewState = buildCurrentSavedViewState();
 
   const areStringArraysEqual = (left: string[] = [], right: string[] = []) =>
@@ -1634,7 +1455,7 @@ export default function Home() {
         selected={statusFilter}
         className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={(val) => { setIsSearching(true); setStatusFilter(val); }}
-        options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))}
+        options={sortedStatusOptions}
         placeholder="Status..."
       />
       <MultiSelect
@@ -1649,7 +1470,7 @@ export default function Home() {
           selected={repoFilter}
           className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
           onChange={(val) => { setIsSearching(true); setRepoFilter(val); }}
-          options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))}
+          options={repositoryOptions}
           placeholder="Repository..."
         />
       )}
@@ -1658,7 +1479,7 @@ export default function Home() {
           selected={tagsFilter}
           className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
           onChange={(val) => { setIsSearching(true); setTagsFilter(val); }}
-          options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({ value: t, label: t }))}
+          options={tagOptions}
           placeholder="Tags..."
         />
       )}
@@ -1666,7 +1487,7 @@ export default function Home() {
         selected={deploymentFilter}
         className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }}
-        options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])}
+        options={deploymentOptions}
         placeholder="Deployment..."
       />
     </div>
@@ -1678,7 +1499,7 @@ export default function Home() {
         selected={desktopStatusFilterDraft}
         className={cn(desktopStatusFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={setDesktopStatusFilterDraft}
-        options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))}
+        options={sortedStatusOptions}
         placeholder="Status..."
         maxVisible={3}
       />
@@ -1695,7 +1516,7 @@ export default function Home() {
           selected={desktopRepoFilterDraft}
           className={cn(desktopRepoFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
           onChange={setDesktopRepoFilterDraft}
-          options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))}
+          options={repositoryOptions}
           placeholder="Repository..."
           maxVisible={3}
         />
@@ -1705,7 +1526,7 @@ export default function Home() {
           selected={desktopTagsFilterDraft}
           className={cn(desktopTagsFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
           onChange={setDesktopTagsFilterDraft}
-          options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({ value: t, label: t }))}
+          options={tagOptions}
           placeholder="Tags..."
           maxVisible={3}
         />
@@ -1714,7 +1535,7 @@ export default function Home() {
         selected={desktopDeploymentFilterDraft}
         className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={setDesktopDeploymentFilterDraft}
-        options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])}
+        options={deploymentOptions}
         placeholder="Deployment..."
         maxVisible={3}
       />
@@ -1722,260 +1543,44 @@ export default function Home() {
   );
 
   const selectionBarContent = (
-    <Card className="overflow-hidden border-primary/30 bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.92))] shadow-[0_22px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(15,23,42,0.94))] dark:shadow-[0_22px_60px_-34px_rgba(0,0,0,0.62)]">
-        <CardContent className="p-4 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:bg-white/[0.02] dark:shadow-none">
-                    <Checkbox 
-                        id="select-all-tasks" 
-                        checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length} 
-                        onCheckedChange={handleToggleSelectAll}
-                        className="h-5 w-5"
-                    />
-                    <Label htmlFor="select-all-tasks" className="text-sm font-semibold whitespace-nowrap cursor-pointer text-foreground">
-                        {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Selected` : `Select All`}
-                    </Label>
-                </div>
-                
-                {/* Desktop/Tablet Action buttons pulled to the right */}
-                <div className={cn(
-                    'hidden md:flex md:flex-row md:items-center items-stretch justify-end gap-2 w-full transition-opacity duration-300 ml-auto', 
-                    selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
-                )}>
-                    <Button id="bulk-tags-trigger" variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                        <Tag className="mr-2 h-4 w-4 text-primary" /> Tags
-                    </Button>
-                    <Button id="bulk-copy-trigger" variant="outline" size="sm" onClick={handleBulkCopyText} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                        <Copy className="mr-2 h-4 w-4 text-primary" /> Copy
-                    </Button>
-                    <Button id="bulk-pdf-trigger" variant="outline" size="sm" onClick={handleBulkExportPdf} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                        <Download className="mr-2 h-4 w-4 text-primary" /> PDF
-                    </Button>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button id="bulk-delete-trigger" variant="destructive" size="sm" className="h-10 rounded-2xl px-4 font-semibold shadow-[0_14px_30px_-22px_rgba(220,38,38,0.38)] transition-all duration-200 hover:-translate-y-0.5 dark:shadow-[0_14px_30px_-22px_rgba(127,29,29,0.55)]">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
-                                <AlertDialogDescription className="font-normal text-sm leading-relaxed">
-                                    You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="gap-2 pt-4">
-                                <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
-                                    Delete Tasks
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </div>
-            </div>
-
-            {/* Mobile Action buttons stacked below */}
-            <div className={cn(
-                'grid grid-cols-2 gap-2 md:hidden transition-opacity duration-300', 
-                selectedTaskIds.length > 0 ? 'opacity-100' : 'opacity-40 pointer-events-none'
-            )}>
-                <Button variant="outline" size="sm" onClick={() => setIsTagsDialogOpen(true)} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                    <Tag className="mr-2 h-4 w-4 text-primary" /> Tags
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleBulkCopyText} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                    <Copy className="mr-2 h-4 w-4 text-primary" /> Copy
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleBulkExportPdf} className="h-10 rounded-2xl border-border/60 bg-background/86 px-4 font-medium shadow-[0_10px_24px_-20px_rgba(15,23,42,0.12)] transition-all duration-200 hover:border-primary/25 hover:bg-background dark:shadow-[0_10px_24px_-20px_rgba(0,0,0,0.38)]">
-                    <Download className="mr-2 h-4 w-4 text-primary" /> PDF
-                </Button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="h-10 rounded-2xl px-4 font-semibold shadow-[0_14px_30px_-22px_rgba(220,38,38,0.38)] transition-all duration-200 dark:shadow-[0_14px_30px_-22px_rgba(127,29,29,0.55)]">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="font-semibold">Move to Bin?</AlertDialogTitle>
-                            <AlertDialogDescription className="font-normal text-sm leading-relaxed">
-                                You are about to move {selectedTaskIds.length} task(s) to the bin. You can restore them for up to 30 days.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter className="gap-2 pt-4">
-                            <AlertDialogCancel className="font-medium rounded-lg">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90 font-bold rounded-lg px-6">
-                                Delete Tasks
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        </CardContent>
-    </Card>
+    <BulkSelectionBar
+      filteredTasksCount={filteredTasks.length}
+      selectedTaskIds={selectedTaskIds}
+      onToggleSelectAll={handleToggleSelectAll}
+      onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
+      onBulkCopyText={handleBulkCopyText}
+      onBulkExportPdf={handleBulkExportPdf}
+      onBulkDelete={handleBulkDelete}
+    />
   );
 
   const searchInputContent = (
-    <div className="relative flex flex-col w-full">
-        <div className="relative flex items-center w-full">
-            <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-                ref={searchInputRef}
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => {
-                    if (isMobile) return;
-                    setTimeout(() => setIsSearchFocused(false), 200);
-                }}
-                onKeyDown={handleSearchKeyDown}
-                className={cn(
-                    "h-11 w-full rounded-2xl border-border/60 bg-background/85 pl-10 pr-16 font-normal shadow-[0_14px_30px_-24px_rgba(15,23,42,0.18)] transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
-                    executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
-                )}
-            />
-            <div className="absolute right-0 flex items-center h-full pr-1.5 gap-1">
-                {searchQuery && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                        onClick={clearSearch}
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
-                )}
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground cursor-help">
-                                Enter
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            <span>Press Enter to search tasks</span>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        </div>
-
-        {isSearchFocused && isSearchActive && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-2rem)] mx-auto sm:max-w-none">
-                <div className="px-4 py-2 border-b bg-muted/30">
-                    <p className="text-[11px] font-medium text-muted-foreground/70">Suggestions</p>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-                    {searchSuggestions.length > 0 ? (
-                        searchSuggestions.map((suggestion) => (
-                            <button
-                                key={suggestion.id}
-                                onClick={() => handleSuggestionClick(suggestion.taskId)}
-                                className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0 group"
-                            >
-                                <div className={cn(
-                                    "p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors",
-                                    suggestion.type === 'task' ? "text-primary" : 
-                                    suggestion.type === 'user' ? "text-amber-500" :
-                                    suggestion.type === 'tag' ? "text-green-500" : "text-blue-500"
-                                )}>
-                                    <suggestion.icon className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm font-bold truncate group-hover:text-primary transition-colors">{suggestion.title}</p>
-                                        {suggestion.isBinned && (
-                                            <Badge variant="secondary" className="bg-zinc-500/10 text-zinc-500 border-none h-4 px-1.5 text-[8px] font-bold shrink-0">Bin</Badge>
-                                        )}
-                                    </div>
-                                    <p className="text-[11px] text-muted-foreground truncate font-medium">{suggestion.subLabel}</p>
-                                </div>
-                                <ChevronRightIcon className="h-3 w-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center animate-in zoom-in-95 duration-300">
-                            <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                                <SearchX className="h-6 w-6 text-muted-foreground/40" />
-                            </div>
-                            <p className="text-sm font-bold text-foreground/80">No matches found</p>
-                            <p className="text-[11px] text-muted-foreground font-medium mt-1">Try a different keyword</p>
-                        </div>
-                    )}
-                </div>
-                {searchSuggestions.length > 0 && (
-                    <div className="p-3 bg-muted/10 text-center border-t">
-                        <p className="text-[10px] text-muted-foreground font-medium">Press <span className="font-bold">Enter</span> for all results</p>
-                    </div>
-                )}
-            </div>
-        )}
-    </div>
+    <TaskSearchInput
+      searchInputRef={searchInputRef}
+      searchQuery={searchQuery}
+      executedSearchQuery={executedSearchQuery}
+      isSearchFocused={isSearchFocused}
+      isSearchActive={isSearchActive}
+      isMobile={isMobile}
+      searchSuggestions={searchSuggestions}
+      onSearchQueryChange={handleSearchInputChange}
+      onSearchFocus={() => setIsSearchFocused(true)}
+      onSearchBlur={() => setIsSearchFocused(false)}
+      onSearchKeyDown={handleSearchKeyDown}
+      onClearSearch={clearSearch}
+      onSuggestionClick={handleSuggestionClick}
+    />
   );
 
   const deletedMatchesSection = executedSearchQuery.trim() !== '' && filteredBinnedTasks.length > 0 && (
-    <Card className="mt-6 border-amber-200/60 bg-amber-50/40 dark:bg-amber-950/10 dark:border-amber-900/40 shadow-sm">
-        <CardContent className="p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <Trash2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm sm:text-base font-semibold text-foreground">Matching items in bin</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground font-normal">
-                            {filteredBinnedTasks.length} deleted {filteredBinnedTasks.length === 1 ? 'item matches' : 'items match'} your search.
-                        </p>
-                    </div>
-                </div>
-                <Button asChild variant="outline" size="sm" className="font-medium border-amber-300/60 bg-background/80 hover:bg-background">
-                    <Link href="/bin">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Open Bin
-                    </Link>
-                </Button>
-            </div>
-
-            <div className="space-y-3">
-                {filteredBinnedTasks.slice(0, 6).map((task) => (
-                    <button
-                        key={task.id}
-                        type="button"
-                        onClick={() => {
-                            window.dispatchEvent(new Event('navigation-start'));
-                            router.push(`/tasks/${task.id}`);
-                        }}
-                        className="w-full text-left rounded-2xl border border-amber-200/70 bg-background/80 hover:bg-background transition-colors p-4 group"
-                    >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                        {task.title}
-                                    </span>
-                                    <Badge variant="outline" className="border-amber-300/70 bg-amber-500/5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                                        In bin
-                                    </Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2 font-normal">
-                                    {task.summary || task.description}
-                                </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                                <p className="text-[11px] font-medium text-amber-700/80 dark:text-amber-400/80">
-                                    Deleted
-                                </p>
-                                <p className="text-xs text-muted-foreground font-medium mt-1 whitespace-nowrap">
-                                    {task.deletedAt ? formatTimestamp(task.deletedAt, uiConfig?.timeFormat) : 'Recently'}
-                                </p>
-                            </div>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </CardContent>
-    </Card>
+    <DeletedMatchesSection
+      filteredBinnedTasks={filteredBinnedTasks}
+      timeFormat={uiConfig?.timeFormat}
+      onTaskOpen={(taskId) => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push(`/tasks/${taskId}`);
+      }}
+    />
   );
 
   if (!mounted) {
@@ -2532,11 +2137,11 @@ export default function Home() {
 
                   {/* 5. View toggles row */}
                   <div className="w-full px-1 pb-1">
-                      <div className="flex h-11 w-full items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm">
+                      <div className="mx-auto flex h-10 w-fit items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
                           <button
                               onClick={() => handleDateViewChange('all')}
                               className={cn(
-                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-xs font-medium transition-all",
+                                  "inline-flex min-w-[72px] items-center justify-center h-8 px-3 rounded-lg text-[11px] font-medium transition-all",
                                   dateView === 'all' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
@@ -2545,49 +2150,98 @@ export default function Home() {
                           <button
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
-                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-xs font-medium transition-all",
+                                  "inline-flex min-w-[88px] items-center justify-center h-8 px-3 rounded-lg text-[11px] font-medium transition-all",
                                   dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
-                          </button>
-                          <button
-                              onClick={() => handleDateViewChange('calendar')}
-                              className={cn(
-                                  "inline-flex flex-1 items-center justify-center h-9 px-3 rounded-lg text-xs font-medium transition-all",
-                                  dateView === 'calendar' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
-                              )}
-                          >
-                              Calendar
                           </button>
                       </div>
                   </div>
 
                   {/* 6. Sort / Favourites / Select row */}
                   <div className="flex items-center gap-2 px-1 w-full">
+                      <div className="flex h-11 shrink-0 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')}
+                                  onClick={() => handleContentViewChange('grid')}
+                              >
+                                  <LayoutGrid className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>Grid view</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'table' && 'bg-card text-foreground shadow-sm')}
+                                  onClick={() => handleContentViewChange('table')}
+                              >
+                                  <List className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>List view</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn("h-9 w-9 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')}
+                                  onClick={() => handleContentViewChange('calendar')}
+                              >
+                                  <CalendarIcon className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>Calendar view</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
 
                       {dateView !== 'calendar' && (
-                        <Button 
-                            variant={favoritesOnly ? 'secondary' : 'outline'} 
-                            size="icon" 
-                            onClick={handleFavoritesToggle} 
-                            className="h-11 w-11 rounded-xl shadow-sm shrink-0"
-                        >
-                            <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                  variant={favoritesOnly ? 'secondary' : 'outline'} 
+                                  size="icon" 
+                                  onClick={handleFavoritesToggle} 
+                                  className="h-11 w-11 rounded-xl shadow-sm shrink-0"
+                              >
+                                  <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       
                       <DropdownMenu>
                         <TooltipProvider>
                           <Tooltip>
-                            <TooltipTrigger asChild>
-                              <DropdownMenuTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <TooltipTrigger asChild>
                                 <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shadow-sm">
                                   <ArrowDownWideNarrow className="h-4.5 w-4.5" />
                                   <span className="sr-only">Sort tasks</span>
                                 </Button>
-                              </DropdownMenuTrigger>
-                            </TooltipTrigger>
+                              </TooltipTrigger>
+                            </DropdownMenuTrigger>
                             <TooltipContent side="top">
                               <p>Sort tasks</p>
                             </TooltipContent>
@@ -2614,26 +2268,35 @@ export default function Home() {
                       </DropdownMenu>
 
                       {dateView !== 'calendar' && (
-                        <Button 
-                            variant={isSelectMode ? 'secondary' : 'outline'} 
-                            onClick={handleToggleSelectMode} 
-                            className={cn(
-                                "h-11 rounded-xl px-3 shadow-sm transition-all active:scale-95 text-xs font-medium",
-                                isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
-                            )}
-                        >
-                            {isSelectMode ? (
-                                <>
-                                    <X className="h-3.5 w-3.5 mr-1.5" />
-                                    Cancel
-                                </>
-                            ) : (
-                                <>
-                                    <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-                                    Select multiple
-                                </>
-                            )}
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                  variant={isSelectMode ? 'secondary' : 'outline'} 
+                                  onClick={handleToggleSelectMode} 
+                                  className={cn(
+                                      "h-11 rounded-xl px-3 shadow-sm transition-all active:scale-95 text-xs font-medium",
+                                      isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                  )}
+                              >
+                                  {isSelectMode ? (
+                                      <>
+                                          <X className="h-3.5 w-3.5 mr-1.5" />
+                                          Cancel
+                                      </>
+                                  ) : (
+                                      <>
+                                          <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                                          Select multiple
+                                      </>
+                                  )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                   </div>
 
@@ -2656,61 +2319,13 @@ export default function Home() {
                 </div>
 
                 <div className="md:col-span-9">
-                  <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-2xl border border-border/60 bg-background/70 px-3 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)]">
-                    <div className="flex shrink-0 items-center gap-2 pr-1 text-sm font-medium text-muted-foreground">
-                      <BookmarkPlus className="h-4 w-4 text-primary" />
-                      <span>Saved views</span>
-                    </div>
-                    {visiblePinnedSavedTaskViews.length > 0 ? (
-                      <div className="flex min-w-0 items-center gap-2">
-                        {visiblePinnedSavedTaskViews.map((view) => {
-                          const isActive = activeSavedView?.id === view.id;
-                          return (
-                            <div
-                              key={view.id}
-                              className={cn(
-                                "flex h-9 items-center gap-1 rounded-xl border px-2.5 shadow-sm transition-all",
-                                isActive
-                                  ? "border-primary/25 bg-primary/10 text-primary"
-                                  : "border-border/60 bg-background"
-                              )}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!isActive) {
-                                  applySavedTaskView(view);
-                                }
-                                }}
-                                className={cn(
-                                  "max-w-[180px] truncate text-sm font-medium outline-none transition-colors",
-                                  isActive ? "cursor-default text-primary" : "hover:text-primary"
-                                )}
-                              >
-                                {view.name}
-                              </button>
-                              {isActive ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleClearActiveSavedView(view.id)}
-                                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-primary/80 transition-colors hover:bg-primary/12 hover:text-primary"
-                                >
-                                <X className="h-3.5 w-3.5" />
-                                <span className="sr-only">Clear active saved view</span>
-                              </button>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                      </div>
-                    ) : (
-                      <div className="flex min-h-9 min-w-0 items-center rounded-xl border border-dashed border-border/60 bg-background/55 px-3 text-sm text-muted-foreground">
-                        {savedTaskViews.length > 0
-                          ? 'Pin a saved view to keep it here.'
-                          : 'Create and pin a saved view to keep it here.'}
-                      </div>
-                    )}
-                  </div>
+                  <PinnedSavedViewsStrip
+                    savedTaskViewsCount={savedTaskViews.length}
+                    visiblePinnedSavedTaskViews={visiblePinnedSavedTaskViews}
+                    activeSavedViewId={activeSavedView?.id || null}
+                    onApplySavedTaskView={applySavedTaskView}
+                    onClearActiveSavedView={handleClearActiveSavedView}
+                  />
                 </div>
               </div>
           </div>
@@ -2900,25 +2515,30 @@ export default function Home() {
                                 >
                                     Monthly
                                 </button>
-                                <button
-                                    onClick={() => handleDateViewChange('calendar')}
-                                    className={cn(
-                                        "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
-                                        dateView === 'calendar' 
-                                            ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
-                                            : "text-muted-foreground hover:bg-background/50"
-                                    )}
-                                >
-                                    Calendar
-                                </button>
                             </div>
 
-                            {dateView !== 'calendar' && (
-                              <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleViewModeChange('table')}><List className="h-4 w-4" /></Button>
-                              </div>
-                            )}
+                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleContentViewChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top"><p>Grid view</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleContentViewChange('table')}><List className="h-4 w-4" /></Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top"><p>List view</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')} onClick={() => handleContentViewChange('calendar')}><CalendarIcon className="h-4 w-4" /></Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top"><p>Calendar view</p></TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
                             
                             <div className="hidden md:flex items-center gap-2">
                                 {dateView !== 'calendar' && (
@@ -2940,31 +2560,45 @@ export default function Home() {
                                 )}
 
                                 {dateView !== 'calendar' && (
-                                  <Button 
-                                      id="home-select-multiple-trigger"
-                                      variant={isSelectMode ? 'secondary' : 'outline'} 
-                                      size="icon"
-                                      onClick={handleToggleSelectMode} 
-                                      className={cn(
-                                          "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
-                                          isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
-                                      )}
-                                  >
-                                      {isSelectMode ? <X className="h-4.5 w-4.5" /> : <CheckSquare className="h-4.5 w-4.5" />}
-                                  </Button>
+                                  <TooltipProvider>
+                                      <Tooltip>
+                                          <TooltipTrigger asChild>
+                                              <Button 
+                                                  id="home-select-multiple-trigger"
+                                                  variant={isSelectMode ? 'secondary' : 'outline'} 
+                                                  size="icon"
+                                                  onClick={handleToggleSelectMode} 
+                                                  className={cn(
+                                                      "h-11 w-11 rounded-xl shadow-sm transition-all active:scale-95",
+                                                      isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
+                                                  )}
+                                              >
+                                                  {isSelectMode ? <X className="h-4.5 w-4.5" /> : <CheckSquare className="h-4.5 w-4.5" />}
+                                              </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent className="font-bold"><p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p></TooltipContent>
+                                      </Tooltip>
+                                  </TooltipProvider>
                                 )}
 
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-11 w-11 rounded-xl shadow-sm"
-                                    >
-                                      <BookmarkPlus className="h-4.5 w-4.5" />
-                                      <span className="sr-only">Saved views</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <DropdownMenuTrigger asChild>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-11 w-11 rounded-xl shadow-sm"
+                                          >
+                                            <BookmarkPlus className="h-4.5 w-4.5" />
+                                            <span className="sr-only">Saved views</span>
+                                          </Button>
+                                        </TooltipTrigger>
+                                      </DropdownMenuTrigger>
+                                      <TooltipContent className="font-bold"><p>Saved views</p></TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
                                     <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                                       Saved Views
@@ -3004,21 +2638,28 @@ export default function Home() {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => setIsDesktopFiltersOpen(true)}
-                                  className="relative h-11 w-11 rounded-xl shadow-sm text-muted-foreground"
-                                >
-                                  <Filter className="h-4.5 w-4.5" />
-                                  {activeFilterCount > 0 && (
-                                    <>
-                                      <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
-                                      <span className="animate-ping absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary/80" />
-                                    </>
-                                  )}
-                                  <span className="sr-only">Open filters</span>
-                                </Button>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => setIsDesktopFiltersOpen(true)}
+                                        className="relative h-11 w-11 rounded-xl shadow-sm text-muted-foreground"
+                                      >
+                                        <Filter className="h-4.5 w-4.5" />
+                                        {activeFilterCount > 0 && (
+                                          <>
+                                            <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                                            <span className="animate-ping absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary/80" />
+                                          </>
+                                        )}
+                                        <span className="sr-only">Open filters</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="font-bold"><p>Filters</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </div>
                     </div>
@@ -3118,288 +2759,41 @@ export default function Home() {
         </DialogContent>
      </Dialog>
 
-     <Dialog open={isSaveViewDialogOpen} onOpenChange={setIsSaveViewDialogOpen}>
-        <DialogContent className="sm:max-w-md rounded-[1.75rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.94))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.35)]">
-            <div className="border-b border-border/50 px-6 py-5">
-                <DialogHeader>
-                    <div className="mb-2 flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                            <BookmarkPlus className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <DialogTitle>Save Current View</DialogTitle>
-                            <DialogDescription>
-                                Save the current search, filters, layout, and date mode as a reusable view.
-                            </DialogDescription>
-                        </div>
-                    </div>
-                </DialogHeader>
-            </div>
-            <div className="space-y-4 px-6 py-5">
-                <div className="space-y-2">
-                    <Label htmlFor="saved-view-name" className="text-sm font-semibold">View name</Label>
-                    <Input
-                      id="saved-view-name"
-                      value={newSavedViewName}
-                      onChange={(e) => setNewSavedViewName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSaveCurrentView();
-                        }
-                      }}
-                      placeholder="QA this month"
-                      className="h-11 rounded-xl"
-                    />
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-muted/[0.35] p-4 text-sm text-muted-foreground">
-                    This view will remember your current search text, selected filters, favorites mode, date mode, sort order, and status-group accordion state.
-                </div>
-            </div>
-            <DialogFooter className="border-t border-border/50 px-6 pb-6 pt-4">
-                <Button variant="ghost" onClick={() => setIsSaveViewDialogOpen(false)} className="font-medium">Cancel</Button>
-                <Button onClick={handleSaveCurrentView} className="rounded-xl px-6 font-semibold">
-                    Save view
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-     </Dialog>
+     <SavedViewDialogs
+        isSaveViewDialogOpen={isSaveViewDialogOpen}
+        onSaveViewDialogOpenChange={setIsSaveViewDialogOpen}
+        isManageViewsDialogOpen={isManageViewsDialogOpen}
+        onManageViewsDialogOpenChange={setIsManageViewsDialogOpen}
+        newSavedViewName={newSavedViewName}
+        onNewSavedViewNameChange={setNewSavedViewName}
+        onSaveCurrentView={handleSaveCurrentView}
+        onCloseSaveDialog={() => setIsSaveViewDialogOpen(false)}
+        savedTaskViews={savedTaskViews}
+        isSavedViewActive={isSavedViewActive}
+        getSavedViewSummary={getSavedViewSummary}
+        onApplySavedTaskView={applySavedTaskView}
+        onToggleSavedViewPin={handleToggleSavedViewPin}
+        onStartUpdateSavedView={handleStartUpdateSavedView}
+        onDeleteSavedView={handleDeleteSavedView}
+        onStartCreateSavedView={() => {
+          setNewSavedViewName('');
+          setIsManageViewsDialogOpen(false);
+          setIsSaveViewDialogOpen(true);
+        }}
+        onCloseManageDialog={() => setIsManageViewsDialogOpen(false)}
+     />
 
-     <Dialog open={isManageViewsDialogOpen} onOpenChange={setIsManageViewsDialogOpen}>
-        <DialogContent className="max-h-[min(84vh,720px)] overflow-hidden rounded-[1.9rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.95))] p-0 shadow-[0_34px_90px_-44px_rgba(15,23,42,0.42)] sm:max-w-2xl">
-            <div className="border-b border-border/50 px-6 py-5">
-                <DialogHeader>
-                    <div className="mb-2 flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                            <FolderKanban className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <DialogTitle>Saved Views</DialogTitle>
-                            <DialogDescription>
-                                Pin the views you use often so they stay one tap away on the home page.
-                            </DialogDescription>
-                        </div>
-                    </div>
-                </DialogHeader>
-            </div>
-            <div className="max-h-[min(84vh,540px)] space-y-3 overflow-y-auto px-6 py-5">
-                {savedTaskViews.length > 0 ? savedTaskViews.map((view) => {
-                    const isActive = isSavedViewActive(view);
-                    return (
-                      <div
-                        key={view.id}
-                        className="flex items-center justify-between gap-3 rounded-[1.2rem] border border-border/60 bg-background/85 px-4 py-3 shadow-[0_14px_32px_-28px_rgba(15,23,42,0.22)]"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-foreground sm:text-[15px]">{view.name}</p>
-                            {isActive ? (
-                              <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Active</Badge>
-                            ) : null}
-                            {view.pinned ? (
-                              <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Pinned</Badge>
-                            ) : null}
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                            <span className="truncate">{getSavedViewSummary(view)}</span>
-                            <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-flex" />
-                            <span className="shrink-0">
-                            {format(new Date(view.updatedAt), 'dd MMM yyyy')}
-                            </span>
-                          </div>
-                        </div>
-                        <TooltipProvider>
-                          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant={isActive ? 'secondary' : 'outline'}
-                                  size="icon"
-                                  onClick={() => !isActive && applySavedTaskView(view)}
-                                  className={cn(
-                                    "h-9 w-9 rounded-xl shadow-sm",
-                                    isActive && "bg-primary/15 text-primary hover:bg-primary/15"
-                                  )}
-                                >
-                                  <Check className="h-4 w-4" />
-                                  <span className="sr-only">{isActive ? 'Current view' : 'Apply view'}</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p>{isActive ? 'Current view' : 'Apply this view'}</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleToggleSavedViewPin(view.id)}
-                                  className="h-9 w-9 rounded-xl"
-                                >
-                                  {view.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                                  <span className="sr-only">{view.pinned ? 'Unpin view' : 'Pin view'}</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p>{view.pinned ? 'Unpin from top bar' : 'Pin to top bar'}</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleStartUpdateSavedView(view)}
-                                  className="h-9 w-9 rounded-xl text-muted-foreground"
-                                >
-                                  <Save className="h-4 w-4" />
-                                  <span className="sr-only">Update saved view</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[220px]">
-                                <p>Update this saved view with your current filters and layout.</p>
-                              </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteSavedView(view.id)}
-                                  className="h-9 w-9 rounded-xl text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Delete saved view</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top">
-                                <p>Delete this saved view</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TooltipProvider>
-                        </div>
-                    );
-                  }) : (
-                  <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-muted/[0.24] px-5 py-10 text-center">
-                    <FolderKanban className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
-                    <p className="text-base font-semibold">No saved views yet.</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Save your current filters and layout to reuse them later.
-                    </p>
-                  </div>
-                )}
-            </div>
-            <DialogFooter className="border-t border-border/50 px-6 pb-6 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setNewSavedViewName('');
-                    setIsManageViewsDialogOpen(false);
-                    setIsSaveViewDialogOpen(true);
-                  }}
-                  className="rounded-xl px-4 font-medium"
-                >
-                  <BookmarkPlus className="mr-2 h-4 w-4" />
-                  New saved view
-                </Button>
-                <Button variant="ghost" onClick={() => setIsManageViewsDialogOpen(false)} className="font-medium">
-                  Close
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-     </Dialog>
-
-     <Sheet open={isDesktopFiltersOpen} onOpenChange={setIsDesktopFiltersOpen}>
-        <SheetContent
-          side="right"
-          hideClose
-          className="hidden w-[min(34rem,92vw)] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.96))] px-0 py-0 shadow-[0_30px_90px_-44px_rgba(15,23,42,0.42)] md:flex md:max-w-none md:flex-col"
-        >
-          <div className="border-b border-border/50 px-6 py-5">
-            <SheetHeader className="space-y-0 text-left">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <SheetTitle className="flex items-center gap-2">
-                    <Filter className="h-5 w-5 text-primary" />
-                    Filters
-                    {desktopDraftFilterCount > 0 ? (
-                      <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)]">
-                        <span className="mr-1.5 inline-flex h-2 w-2 rounded-full bg-primary shadow-[0_0_12px_rgba(59,130,246,0.8)]" />
-                        {desktopDraftFilterCount} active
-                      </Badge>
-                    ) : null}
-                  </SheetTitle>
-                </div>
-                <div className="flex items-center gap-2">
-                  <SheetClose asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-10 w-10 rounded-2xl border-border/60 bg-background/90 shadow-sm"
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Close filters</span>
-                    </Button>
-                  </SheetClose>
-                </div>
-              </div>
-              <SheetDescription className="mt-3 pl-8 text-xs leading-relaxed text-muted-foreground/80 sm:text-[13px]">
-                Refine tasks by status, group, repository, tags, and deployment without crowding the main page.
-              </SheetDescription>
-            </SheetHeader>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            {activeFilterSections.length > 0 && (
-              <div className="mb-5 flex flex-wrap items-center gap-2">
-                {visibleActiveFilterSections.map((section) => (
-                  <Badge
-                    key={section.label}
-                    variant="secondary"
-                    className="max-w-full rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground"
-                  >
-                    <span className="mr-1 text-muted-foreground">{section.label}:</span>
-                    <span>{buildFilterSummary(section.values)}</span>
-                  </Badge>
-                ))}
-                {hiddenActiveFilterSectionsCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground"
-                  >
-                    +{hiddenActiveFilterSectionsCount} more
-                  </Badge>
-                )}
-              </div>
-            )}
-            {desktopFilterControlsContent}
-          </div>
-
-          <div className="border-t border-border/50 px-6 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <Button
-                variant="ghost"
-                onClick={handleResetDesktopFilterDraft}
-                disabled={desktopDraftFilterCount === 0}
-                className="rounded-xl px-3 font-medium text-muted-foreground"
-              >
-                Reset selections
-              </Button>
-              <Button
-                onClick={handleApplyDesktopFilters}
-                className="rounded-xl px-4 font-semibold"
-              >
-                Apply filters
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-     </Sheet>
+     <DesktopFiltersSheet
+        isOpen={isDesktopFiltersOpen}
+        onOpenChange={setIsDesktopFiltersOpen}
+        desktopDraftFilterCount={desktopDraftFilterCount}
+        activeFilterSections={activeFilterSections}
+        hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
+        buildFilterSummary={buildFilterSummary}
+        controls={desktopFilterControlsContent}
+        onResetSelections={handleResetDesktopFilterDraft}
+        onApplyFilters={handleApplyDesktopFilters}
+     />
     </div>
   );
 }

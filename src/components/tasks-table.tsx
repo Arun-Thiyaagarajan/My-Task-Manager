@@ -453,15 +453,43 @@ export const TasksTable = memo(function TasksTable({
   favoritesOnly?: boolean;
   isLoading?: boolean;
 }) {
+  const PAGE_SIZE = 7;
+  const getShowMoreLabel = React.useCallback((count: number) => {
+    if (count <= 1) return 'Show 1 more';
+    return `Show ${count} more`;
+  }, []);
   const [personInView, setPersonInView] = useState<{
     person: Person;
     isDeveloper: boolean;
   } | null>(null);
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
+  const [loadingGroupKey, setLoadingGroupKey] = useState<string | null>(null);
+  const [loadingBatchCount, setLoadingBatchCount] = useState(0);
+  const expandTimerRef = useRef<number | null>(null);
 
   const groups = React.useMemo(
     () => getOrderedTaskStatusGroups(tasks, uiConfig, favoritesOnly),
     [tasks, uiConfig, favoritesOnly]
   );
+
+  useEffect(() => {
+    setVisibleCounts((current) => {
+      const next: Record<string, number> = {};
+      groups.forEach(({ key, tasks: tasksInGroup }) => {
+        const existing = current[key] ?? PAGE_SIZE;
+        next[key] = Math.min(Math.max(existing, PAGE_SIZE), tasksInGroup.length);
+      });
+      return next;
+    });
+  }, [groups]);
+
+  useEffect(() => {
+    return () => {
+      if (expandTimerRef.current) {
+        window.clearTimeout(expandTimerRef.current);
+      }
+    };
+  }, []);
 
   const fieldLabels = new Map((uiConfig?.fields || []).map((f) => [f.key, f.label]));
   const developersLabel = fieldLabels.get('developers') || 'Developers';
@@ -508,6 +536,36 @@ export const TasksTable = memo(function TasksTable({
         currentQueryString={currentQueryString}
       />
     ));
+  };
+
+  const handleShowMore = (groupKey: string, totalCount: number) => {
+    if (loadingGroupKey) return;
+
+    const currentlyVisible = visibleCounts[groupKey] ?? PAGE_SIZE;
+    const nextBatch = Math.min(PAGE_SIZE, totalCount - currentlyVisible);
+    if (nextBatch <= 0) return;
+
+    setLoadingGroupKey(groupKey);
+    setLoadingBatchCount(nextBatch);
+
+    expandTimerRef.current = window.setTimeout(() => {
+      setVisibleCounts((current) => ({
+        ...current,
+        [groupKey]: Math.min((current[groupKey] ?? PAGE_SIZE) + PAGE_SIZE, totalCount),
+      }));
+      setLoadingGroupKey(null);
+      setLoadingBatchCount(0);
+      expandTimerRef.current = null;
+    }, 280);
+  };
+
+  const handleShowFewer = (groupKey: string, totalCount: number) => {
+    if (loadingGroupKey === groupKey) return;
+
+    setVisibleCounts((current) => ({
+      ...current,
+      [groupKey]: Math.min(PAGE_SIZE, totalCount),
+    }));
   };
   
   if (isLoading) {
@@ -572,6 +630,10 @@ export const TasksTable = memo(function TasksTable({
         <TableBody>
            {groups.map(({ key, title, tasks: tasksInGroup }) => {
             const isOpen = openGroups.includes(key);
+            const visibleCount = visibleCounts[key] ?? Math.min(PAGE_SIZE, tasksInGroup.length);
+            const visibleTasks = tasksInGroup.slice(0, visibleCount);
+            const remainingCount = tasksInGroup.length - visibleTasks.length;
+            const canShowFewer = visibleCount > Math.min(PAGE_SIZE, tasksInGroup.length);
             return (
               <React.Fragment key={key}>
                 <TableRow 
@@ -586,12 +648,74 @@ export const TasksTable = memo(function TasksTable({
                           <span className="flex items-center gap-3 font-semibold text-foreground tracking-tight">
                               {title}
                               <Badge className="shrink-0 bg-border text-foreground font-semibold">{tasksInGroup.length}</Badge>
+                              {loadingGroupKey === key ? (
+                                <span className="inline-flex items-center text-xs font-medium text-primary">
+                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  Loading more
+                                </span>
+                              ) : null}
                           </span>
                           <ChevronDown className={cn("h-5 w-5 text-muted-foreground transition-transform duration-300 ease-in-out", isOpen && "rotate-180")} />
                       </div>
                   </TableCell>
                 </TableRow>
-                {isOpen && renderTaskRows(tasksInGroup)}
+                {isOpen && renderTaskRows(visibleTasks)}
+                {isOpen && (remainingCount > 0 || canShowFewer) && loadingGroupKey !== key ? (
+                  <TableRow className="border-b bg-background/70">
+                    <TableCell colSpan={colSpan} className="px-4 py-4">
+                      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 bg-background/65 px-4 py-5 text-center transition-all duration-300 hover:border-primary/30 hover:bg-background">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {remainingCount > 0 ? getShowMoreLabel(Math.min(PAGE_SIZE, remainingCount)) : 'Showing expanded tasks'}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {remainingCount > 0
+                              ? `${remainingCount} more in this status group.`
+                              : 'Collapse back to the first 7 tasks any time.'}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {canShowFewer ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleShowFewer(key, tasksInGroup.length);
+                              }}
+                              className="rounded-xl px-4 text-muted-foreground hover:text-foreground"
+                            >
+                              Show fewer
+                            </Button>
+                          ) : null}
+                          {remainingCount > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleShowMore(key, tasksInGroup.length);
+                              }}
+                              className="rounded-xl px-4 shadow-sm"
+                            >
+                              <ChevronDown className="mr-2 h-4 w-4" />
+                              {getShowMoreLabel(Math.min(PAGE_SIZE, remainingCount))}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {isOpen && loadingGroupKey === key
+                  ? Array.from({ length: loadingBatchCount }).map((_, index) => (
+                      <TaskTableRowSkeleton
+                        key={`${key}-loading-${index}`}
+                        isSelectMode={isSelectMode}
+                        showRepositoryColumn={showRepositoryColumn}
+                      />
+                    ))
+                  : null}
               </React.Fragment>
           )})}
         </TableBody>
