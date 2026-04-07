@@ -46,6 +46,7 @@ import {
   Loader2,
   AlertCircle,
   Filter,
+  ArrowDownWideNarrow,
   ChevronDown,
   Save,
   Check,
@@ -59,10 +60,14 @@ import {
   Fingerprint,
   Globe,
   FileSpreadsheet,
+  BookmarkPlus,
+  Pin,
+  PinOff,
+  FolderKanban,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
-import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode } from '@/lib/types';
+import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode, SavedTaskView, SavedTaskViewState } from '@/lib/types';
 import {
   Popover,
   PopoverContent,
@@ -98,6 +103,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { generateTaskPdf, generateTasksText } from '@/lib/share-utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -115,7 +121,6 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirebase } from '@/firebase';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -182,6 +187,12 @@ export default function Home() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(false);
+  const [desktopStatusFilterDraft, setDesktopStatusFilterDraft] = useState<string[]>([]);
+  const [desktopStatusGroupFilterDraft, setDesktopStatusGroupFilterDraft] = useState<string[]>([]);
+  const [desktopRepoFilterDraft, setDesktopRepoFilterDraft] = useState<string[]>([]);
+  const [desktopDeploymentFilterDraft, setDesktopDeploymentFilterDraft] = useState<string[]>([]);
+  const [desktopTagsFilterDraft, setDesktopTagsFilterDraft] = useState<string[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -210,6 +221,11 @@ export default function Home() {
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
   const [showReturnSkeleton, setShowReturnSkeleton] = useState(false);
   const [isExcelExporting, setIsExcelExporting] = useState(false);
+  const [savedTaskViews, setSavedTaskViews] = useState<SavedTaskView[]>([]);
+  const [isSaveViewDialogOpen, setIsSaveViewDialogOpen] = useState(false);
+  const [isManageViewsDialogOpen, setIsManageViewsDialogOpen] = useState(false);
+  const [newSavedViewName, setNewSavedViewName] = useState('');
+  const [dismissedActiveSavedViewId, setDismissedActiveSavedViewId] = useState<string | null>(null);
   
   useEffect(() => {
     setMounted(true);
@@ -246,6 +262,7 @@ export default function Home() {
     setSearchQuery(urlSearch);
     setExecutedSearchQuery(urlSearch);
     setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
+    setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
 
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
@@ -307,6 +324,218 @@ export default function Home() {
         }
     });
   }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
+
+  const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[]) => {
+    setSavedTaskViews(nextViews);
+    updateUserPreferences({
+      savedTaskViews: nextViews,
+    });
+  }, []);
+
+  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => ({
+    viewMode,
+    sortDescriptor,
+    dateView,
+    favoritesOnly,
+    openGroups,
+    searchQuery: executedSearchQuery,
+    selectedDate: selectedDate?.toISOString(),
+    filters: {
+      status: statusFilter,
+      statusGroup: statusGroupFilter,
+      repo: repoFilter,
+      deployment: deploymentFilter,
+      tags: tagsFilter,
+    },
+  }), [
+    viewMode,
+    sortDescriptor,
+    dateView,
+    favoritesOnly,
+    openGroups,
+    executedSearchQuery,
+    selectedDate,
+    statusFilter,
+    statusGroupFilter,
+    repoFilter,
+    deploymentFilter,
+    tagsFilter,
+  ]);
+
+  const applySavedTaskView = useCallback((view: SavedTaskView) => {
+    const { state } = view;
+    const nextFilters = {
+      status: state.filters?.status || [],
+      statusGroup: state.filters?.statusGroup || [],
+      repo: state.filters?.repo || [],
+      deployment: state.filters?.deployment || [],
+      tags: state.filters?.tags || [],
+    };
+
+    setIsSearching(true);
+    if (state.dateView === 'calendar') {
+      setIsSelectMode(false);
+      setSelectedTaskIds([]);
+    }
+    setViewMode(state.viewMode);
+    setSortDescriptor(state.sortDescriptor);
+    setDateView(state.dateView);
+    setFavoritesOnly(state.favoritesOnly);
+    setOpenGroups(Array.isArray(state.openGroups) ? state.openGroups : []);
+    setSearchQuery(state.searchQuery || '');
+    setExecutedSearchQuery(state.searchQuery || '');
+    setStatusFilter(nextFilters.status);
+    setStatusGroupFilter(nextFilters.statusGroup);
+    setRepoFilter(nextFilters.repo);
+    setDeploymentFilter(nextFilters.deployment);
+    setTagsFilter(nextFilters.tags);
+
+    const nextDate = state.selectedDate ? new Date(state.selectedDate) : new Date();
+    setSelectedDate(isValid(nextDate) ? nextDate : new Date());
+    setDismissedActiveSavedViewId(null);
+    setIsManageViewsDialogOpen(false);
+
+    toast({
+      variant: 'success',
+      title: 'Saved view applied',
+      description: `"${view.name}" is now active.`,
+      duration: 2200,
+    });
+  }, [toast]);
+
+  const handleSaveCurrentView = useCallback(() => {
+    const trimmedName = newSavedViewName.trim();
+    const hasAnySelectedFilters =
+      statusFilter.length > 0 ||
+      statusGroupFilter.length > 0 ||
+      repoFilter.length > 0 ||
+      deploymentFilter.length > 0 ||
+      tagsFilter.length > 0 ||
+      executedSearchQuery.trim().length > 0;
+
+    if (!trimmedName) {
+      toast({
+        variant: 'warning',
+        title: 'Add a view name',
+        description: 'Name this saved view so you can find it later.',
+      });
+      return;
+    }
+
+    if (!hasAnySelectedFilters) {
+      toast({
+        variant: 'warning',
+        title: 'No filters selected',
+        description: 'Add a search or at least one filter before saving this view.',
+      });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const currentState = buildCurrentSavedViewState();
+    const existingView = savedTaskViews.find(view => view.name.trim().toLowerCase() === trimmedName.toLowerCase());
+
+    const nextViews = existingView
+      ? savedTaskViews.map(view => view.id === existingView.id ? { ...view, name: trimmedName, updatedAt: now, state: currentState } : view)
+      : [
+          {
+            id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `saved_view_${Date.now()}`,
+            name: trimmedName,
+            createdAt: now,
+            updatedAt: now,
+            pinned: savedTaskViews.length === 0,
+            state: currentState,
+          },
+          ...savedTaskViews,
+        ];
+
+    persistSavedTaskViews(nextViews);
+    setIsSaveViewDialogOpen(false);
+    setNewSavedViewName('');
+    toast({
+      variant: 'success',
+      title: existingView ? 'Saved view updated' : 'Saved view created',
+      description: `"${trimmedName}" is ready to reuse.`,
+      duration: 2200,
+    });
+  }, [buildCurrentSavedViewState, deploymentFilter, executedSearchQuery, newSavedViewName, persistSavedTaskViews, repoFilter, savedTaskViews, statusFilter, statusGroupFilter, tagsFilter, toast]);
+
+  const handleToggleSavedViewPin = useCallback((viewId: string) => {
+    const nextViews = savedTaskViews.map(view =>
+      view.id === viewId
+        ? { ...view, pinned: !view.pinned, updatedAt: new Date().toISOString() }
+        : view
+    );
+    persistSavedTaskViews(nextViews);
+  }, [persistSavedTaskViews, savedTaskViews]);
+
+  const handleDeleteSavedView = useCallback((viewId: string) => {
+    const nextViews = savedTaskViews.filter(view => view.id !== viewId);
+    persistSavedTaskViews(nextViews);
+    toast({
+      title: 'Saved view removed',
+      duration: 1800,
+    });
+  }, [persistSavedTaskViews, savedTaskViews, toast]);
+
+  const handleClearAllTaskFilters = useCallback(() => {
+    setIsSearching(true);
+    setStatusFilter([]);
+    setRepoFilter([]);
+    setDeploymentFilter([]);
+    setTagsFilter([]);
+    setStatusGroupFilter([]);
+    setSearchQuery('');
+    setExecutedSearchQuery('');
+  }, []);
+
+  const handleClearActiveSavedView = useCallback((viewId: string) => {
+    setDismissedActiveSavedViewId(viewId);
+    handleClearAllTaskFilters();
+  }, [handleClearAllTaskFilters]);
+
+  useEffect(() => {
+    if (!isDesktopFiltersOpen) return;
+
+    setDesktopStatusFilterDraft(statusFilter);
+    setDesktopStatusGroupFilterDraft(statusGroupFilter);
+    setDesktopRepoFilterDraft(repoFilter);
+    setDesktopDeploymentFilterDraft(deploymentFilter);
+    setDesktopTagsFilterDraft(tagsFilter);
+  }, [
+    isDesktopFiltersOpen,
+    statusFilter,
+    statusGroupFilter,
+    repoFilter,
+    deploymentFilter,
+    tagsFilter,
+  ]);
+
+  const handleApplyDesktopFilters = useCallback(() => {
+    setIsSearching(true);
+    setStatusFilter(desktopStatusFilterDraft);
+    setStatusGroupFilter(desktopStatusGroupFilterDraft);
+    setRepoFilter(desktopRepoFilterDraft);
+    setDeploymentFilter(desktopDeploymentFilterDraft);
+    setTagsFilter(desktopTagsFilterDraft);
+    setIsDesktopFiltersOpen(false);
+  }, [
+    desktopStatusFilterDraft,
+    desktopStatusGroupFilterDraft,
+    desktopRepoFilterDraft,
+    desktopDeploymentFilterDraft,
+    desktopTagsFilterDraft,
+  ]);
+
+  const handleResetDesktopFilterDraft = useCallback(() => {
+    setDesktopStatusFilterDraft([]);
+    setDesktopStatusGroupFilterDraft([]);
+    setDesktopRepoFilterDraft([]);
+    setDesktopDeploymentFilterDraft([]);
+    setDesktopTagsFilterDraft([]);
+  }, []);
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
@@ -1237,19 +1466,260 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
-  const totalActiveFilters = statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length + (executedSearchQuery ? 1 : 0);
+  const activeFilterCount = statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length;
+  const totalActiveFilters = activeFilterCount + (executedSearchQuery ? 1 : 0);
+  const desktopDraftFilterCount =
+    desktopStatusFilterDraft.length +
+    desktopStatusGroupFilterDraft.length +
+    desktopRepoFilterDraft.length +
+    desktopDeploymentFilterDraft.length +
+    desktopTagsFilterDraft.length;
   const showRepositoryFilter = isRepositoryFieldActive(uiConfig);
   const showTagsFilter = (uiConfig?.fields || []).find(f => f.key === 'tags')?.isActive;
   const statusGroupOptions = getStatusGroupConfigs(uiConfig).map(group => ({ value: group.id, label: group.name }));
-  const desktopFilterColumnCount = 4 + (showRepositoryFilter ? 1 : 0) + (showTagsFilter ? 1 : 0);
-  const desktopFilterGridClassName =
-    desktopFilterColumnCount <= 3
-      ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
-      : desktopFilterColumnCount === 4
-        ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'
-        : desktopFilterColumnCount === 5
-          ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-5'
-          : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-6';
+  const currentSavedViewState = buildCurrentSavedViewState();
+
+  const areStringArraysEqual = (left: string[] = [], right: string[] = []) =>
+    left.length === right.length && left.every((value, index) => value === right[index]);
+
+  const isSavedViewActive = (view: SavedTaskView) => {
+    const viewFilters = view.state.filters || {
+      status: [],
+      statusGroup: [],
+      repo: [],
+      deployment: [],
+      tags: [],
+    };
+    const currentFilters = currentSavedViewState.filters;
+
+    return (
+      view.state.viewMode === currentSavedViewState.viewMode &&
+      view.state.sortDescriptor === currentSavedViewState.sortDescriptor &&
+      view.state.dateView === currentSavedViewState.dateView &&
+      view.state.favoritesOnly === currentSavedViewState.favoritesOnly &&
+      (view.state.searchQuery || '') === currentSavedViewState.searchQuery &&
+      (view.state.selectedDate || '') === (currentSavedViewState.selectedDate || '') &&
+      areStringArraysEqual(view.state.openGroups || [], currentSavedViewState.openGroups) &&
+      areStringArraysEqual(viewFilters.status || [], currentFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup || [], currentFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo || [], currentFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment || [], currentFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags || [], currentFilters.tags)
+    );
+  };
+
+  const buildFilterSummary = (values: string[]) => {
+    if (values.length === 0) return null;
+    return values.join(', ');
+  };
+
+  const activeFilterSections = [
+    { label: 'Status', values: desktopStatusFilterDraft },
+    { label: 'Group', values: desktopStatusGroupFilterDraft.map((groupId) => statusGroupOptions.find(option => option.value === groupId)?.label || groupId) },
+    { label: 'Repo', values: desktopRepoFilterDraft },
+    { label: 'Tags', values: desktopTagsFilterDraft },
+    { label: 'Deploy', values: desktopDeploymentFilterDraft.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value) },
+  ].filter(section => section.values.length > 0);
+  const visibleActiveFilterSections = activeFilterSections.slice(0, 3);
+  const hiddenActiveFilterSectionsCount = Math.max(activeFilterSections.length - visibleActiveFilterSections.length, 0);
+
+  const getSavedViewSummary = (view: SavedTaskView) => {
+    const filters = {
+      status: view.state.filters?.status || [],
+      statusGroup: view.state.filters?.statusGroup || [],
+      repo: view.state.filters?.repo || [],
+      deployment: view.state.filters?.deployment || [],
+      tags: view.state.filters?.tags || [],
+    };
+    const filtersCount =
+      filters.status.length +
+      filters.statusGroup.length +
+      filters.repo.length +
+      filters.deployment.length +
+      filters.tags.length +
+      (view.state.searchQuery ? 1 : 0);
+
+    if (view.state.dateView === 'calendar') {
+      return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Calendar`;
+    }
+
+    if (view.state.dateView === 'monthly') {
+      return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Monthly`;
+    }
+
+    if (view.state.dateView === 'yearly') {
+      return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Yearly`;
+    }
+
+    return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${view.state.favoritesOnly ? 'Favorites' : 'All tasks'}`;
+  };
+  const matchingSavedView = savedTaskViews.find((view) => isSavedViewActive(view)) || null;
+  const activeSavedView = matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView;
+
+  useEffect(() => {
+    if (!dismissedActiveSavedViewId) return;
+    if (!matchingSavedView || matchingSavedView.id !== dismissedActiveSavedViewId) {
+      setDismissedActiveSavedViewId(null);
+    }
+  }, [dismissedActiveSavedViewId, matchingSavedView]);
+
+  const handleStartSaveCurrentView = useCallback(() => {
+    if (activeSavedView) {
+      toast({
+        variant: 'warning',
+        title: 'View already saved',
+        description: `"${activeSavedView.name}" already matches the current filters.`,
+        duration: 2200,
+      });
+      return;
+    }
+
+    if (activeFilterCount === 0 && !executedSearchQuery.trim()) {
+      toast({
+        variant: 'warning',
+        title: 'Nothing to save yet',
+        description: 'Add a search or at least one filter before creating a saved view.',
+        duration: 2400,
+      });
+      return;
+    }
+
+    setNewSavedViewName('');
+    setIsSaveViewDialogOpen(true);
+  }, [activeFilterCount, activeSavedView, executedSearchQuery, toast]);
+
+  const handleStartUpdateSavedView = useCallback((view: SavedTaskView) => {
+    if (activeFilterCount === 0 && !executedSearchQuery.trim()) {
+      toast({
+        variant: 'warning',
+        title: 'Nothing to update yet',
+        description: 'Add a search or at least one filter before updating this saved view.',
+        duration: 2400,
+      });
+      return;
+    }
+
+    setNewSavedViewName(view.name);
+    setIsManageViewsDialogOpen(false);
+    setIsSaveViewDialogOpen(true);
+  }, [activeFilterCount, executedSearchQuery, toast]);
+
+  const pinnedSavedTaskViews = useMemo(() => {
+    return [...savedTaskViews]
+      .filter((view) => view.pinned)
+      .sort((a, b) => {
+        const aPriority = a.id === activeSavedView?.id ? 1 : 0;
+        const bPriority = b.id === activeSavedView?.id ? 1 : 0;
+        if (aPriority !== bPriority) return bPriority - aPriority;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }, [activeSavedView?.id, savedTaskViews]);
+
+  const visiblePinnedSavedTaskViews = useMemo(() => {
+    return pinnedSavedTaskViews.slice(0, 3);
+  }, [pinnedSavedTaskViews]);
+
+  const sortOptions = useMemo(() => ([
+    { value: 'status-asc', label: 'Status (Asc)' },
+    { value: 'status-desc', label: 'Status (Desc)' },
+    { value: 'title-asc', label: 'Title (A-Z)' },
+    { value: 'title-desc', label: 'Title (Z-A)' },
+  ]), []);
+
+  const selectedSortLabel = sortOptions.find((option) => option.value === sortDescriptor)?.label || 'Status (Asc)';
+
+  const filterControlsContent = (
+    <div className="space-y-4">
+      <MultiSelect
+        selected={statusFilter}
+        className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={(val) => { setIsSearching(true); setStatusFilter(val); }}
+        options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))}
+        placeholder="Status..."
+      />
+      <MultiSelect
+        selected={statusGroupFilter}
+        className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }}
+        options={statusGroupOptions}
+        placeholder="Status Group..."
+      />
+      {showRepositoryFilter && (
+        <MultiSelect
+          selected={repoFilter}
+          className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={(val) => { setIsSearching(true); setRepoFilter(val); }}
+          options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))}
+          placeholder="Repository..."
+        />
+      )}
+      {showTagsFilter && (
+        <MultiSelect
+          selected={tagsFilter}
+          className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={(val) => { setIsSearching(true); setTagsFilter(val); }}
+          options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({ value: t, label: t }))}
+          placeholder="Tags..."
+        />
+      )}
+      <MultiSelect
+        selected={deploymentFilter}
+        className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }}
+        options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])}
+        placeholder="Deployment..."
+      />
+    </div>
+  );
+
+  const desktopFilterControlsContent = (
+    <div className="space-y-4">
+      <MultiSelect
+        selected={desktopStatusFilterDraft}
+        className={cn(desktopStatusFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopStatusFilterDraft}
+        options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))}
+        placeholder="Status..."
+        maxVisible={3}
+      />
+      <MultiSelect
+        selected={desktopStatusGroupFilterDraft}
+        className={cn(desktopStatusGroupFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopStatusGroupFilterDraft}
+        options={statusGroupOptions}
+        placeholder="Status Group..."
+        maxVisible={3}
+      />
+      {showRepositoryFilter && (
+        <MultiSelect
+          selected={desktopRepoFilterDraft}
+          className={cn(desktopRepoFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={setDesktopRepoFilterDraft}
+          options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))}
+          placeholder="Repository..."
+          maxVisible={3}
+        />
+      )}
+      {showTagsFilter && (
+        <MultiSelect
+          selected={desktopTagsFilterDraft}
+          className={cn(desktopTagsFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={setDesktopTagsFilterDraft}
+          options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({ value: t, label: t }))}
+          placeholder="Tags..."
+          maxVisible={3}
+        />
+      )}
+      <MultiSelect
+        selected={desktopDeploymentFilterDraft}
+        className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDeploymentFilterDraft}
+        options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])}
+        placeholder="Deployment..."
+        maxVisible={3}
+      />
+    </div>
+  );
 
   const selectionBarContent = (
     <Card className="overflow-hidden border-primary/30 bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.92))] shadow-[0_22px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-[linear-gradient(180deg,rgba(17,24,39,0.98),rgba(15,23,42,0.94))] dark:shadow-[0_22px_60px_-34px_rgba(0,0,0,0.62)]">
@@ -1361,7 +1831,7 @@ export default function Home() {
                 }}
                 onKeyDown={handleSearchKeyDown}
                 className={cn(
-                    "w-full pl-10 pr-16 h-11 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
+                    "h-11 w-full rounded-2xl border-border/60 bg-background/85 pl-10 pr-16 font-normal shadow-[0_14px_30px_-24px_rgba(15,23,42,0.18)] transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40",
                     executedSearchQuery && "border-primary/40 bg-primary/5 shadow-sm"
                 )}
             />
@@ -1942,9 +2412,9 @@ export default function Home() {
                         <span className="flex items-center gap-2">
                             <Filter className="h-4 w-4" />
                             Filters
-                            {(statusFilter.length > 0 || statusGroupFilter.length > 0 || repoFilter.length > 0 || deploymentFilter.length > 0 || tagsFilter.length > 0) && (
+                            {activeFilterCount > 0 && (
                                 <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-bold">
-                                    {statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length}
+                                    {activeFilterCount}
                                 </Badge>
                             )}
                         </span>
@@ -1952,51 +2422,13 @@ export default function Home() {
                       </Button>
 
                       {/* Filter Grid - Mobile Positioning Fix (Directly below trigger) */}
-                      <div className={cn(
+                              <div className={cn(
                           "transition-all duration-300 overflow-hidden mt-2",
                           isFiltersOpen ? "opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0 pointer-events-none"
                       )}>
                         <Card className="border shadow-lg bg-card">
-                            <CardContent className="p-4 space-y-4">
-                                <MultiSelect 
-                                    selected={statusFilter} 
-                                    className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                    onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} 
-                                    options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} 
-                                    placeholder="Status..." 
-                                />
-                                <MultiSelect
-                                    selected={statusGroupFilter}
-                                    className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                    onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }}
-                                    options={statusGroupOptions}
-                                    placeholder="Status Group..."
-                                />
-                                {showRepositoryFilter && (
-                                    <MultiSelect 
-                                        selected={repoFilter} 
-                                        className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                        onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} 
-                                        options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} 
-                                        placeholder="Repository..." 
-                                    />
-                                )}
-                                {showTagsFilter && (
-                                    <MultiSelect 
-                                        selected={tagsFilter} 
-                                        className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                        onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} 
-                                        options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} 
-                                        placeholder="Tags..." 
-                                    />
-                                )}
-                                <MultiSelect 
-                                    selected={deploymentFilter} 
-                                    className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-                                    onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} 
-                                    options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} 
-                                    placeholder="Deployment..." 
-                                />
+                            <CardContent className="p-4">
+                                {filterControlsContent}
                             </CardContent>
                         </Card>
                       </div>
@@ -2145,15 +2577,41 @@ export default function Home() {
                         </Button>
                       )}
                       
-                      <Select value={sortDescriptor} onValueChange={handleSortChange}>
-                          <SelectTrigger className="flex-1 min-w-0 h-11 rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                              <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                              <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                              <SelectItem value="title-desc">Title (Z-A)</SelectItem>
-                          </SelectContent>
-                      </Select>
+                      <DropdownMenu>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shadow-sm">
+                                  <ArrowDownWideNarrow className="h-4.5 w-4.5" />
+                                  <span className="sr-only">Sort tasks</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p>Sort tasks</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <DropdownMenuContent align="start" className="w-56 rounded-2xl p-2">
+                          <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-muted-foreground">
+                            Sort: {selectedSortLabel}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator className="my-1" />
+                          {sortOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onSelect={() => handleSortChange(option.value)}
+                              className="rounded-xl px-3 py-2.5"
+                            >
+                              <div className="flex w-full items-center justify-between gap-3">
+                                <span className="text-sm font-medium">{option.label}</span>
+                                {sortDescriptor === option.value ? <Check className="h-4 w-4 text-primary" /> : null}
+                              </div>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
                       {dateView !== 'calendar' && (
                         <Button 
@@ -2192,24 +2650,68 @@ export default function Home() {
                   </div>
               </div>
 
-              {/* DESKTOP FILTER BAR - Restored to be persistently visible */}
-              <div className="hidden md:block overflow-visible mb-4">
-                <Card id="task-filters" className="border-none bg-transparent overflow-visible">
-                    <CardContent className="p-0 overflow-visible">
-                        <div className={cn("grid gap-4", desktopFilterGridClassName)}>
-                            <div className="hidden md:flex flex-col w-full col-span-1 sm:col-span-2 md:col-span-1">
-                                {searchInputContent}
-                            </div>
-                            <MultiSelect selected={statusFilter} className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusFilter(val); }} options={getSortedStatusOptions(uiConfig).map(option => ({ value: option.value, label: option.label }))} placeholder="Status..." />
-                            <MultiSelect selected={statusGroupFilter} className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }} options={statusGroupOptions} placeholder="Status Group..." />
-                            {showRepositoryFilter && <MultiSelect selected={repoFilter} className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setRepoFilter(val); }} options={(uiConfig?.repositoryConfigs || []).map(r => ({ value: r.name, label: r.name }))} placeholder="Repository..." />}
-                            {showTagsFilter && (
-                                <MultiSelect selected={tagsFilter} className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setTagsFilter(val); }} options={[...new Set(tasks.flatMap(t => t.tags || []))].map(t => ({value: t, label: t}))} placeholder="Tags..." />
-                            )}
-                            <MultiSelect selected={deploymentFilter} className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")} onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }} options={(uiConfig?.environments || []).flatMap(env => [{ value: env.name, label: `On ${env.name}` }, { value: `not_${env.name}`, label: `Not on ${env.name}` }])} placeholder="Deployment..." />
-                        </div>
-                    </CardContent>
-                </Card>
+              <div className="mb-4 hidden md:grid md:grid-cols-12 md:items-center md:gap-4">
+                <div className="md:col-span-3">
+                  {searchInputContent}
+                </div>
+
+                <div className="md:col-span-9">
+                  <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-2xl border border-border/60 bg-background/70 px-3 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)]">
+                    <div className="flex shrink-0 items-center gap-2 pr-1 text-sm font-medium text-muted-foreground">
+                      <BookmarkPlus className="h-4 w-4 text-primary" />
+                      <span>Saved views</span>
+                    </div>
+                    {visiblePinnedSavedTaskViews.length > 0 ? (
+                      <div className="flex min-w-0 items-center gap-2">
+                        {visiblePinnedSavedTaskViews.map((view) => {
+                          const isActive = activeSavedView?.id === view.id;
+                          return (
+                            <div
+                              key={view.id}
+                              className={cn(
+                                "flex h-9 items-center gap-1 rounded-xl border px-2.5 shadow-sm transition-all",
+                                isActive
+                                  ? "border-primary/25 bg-primary/10 text-primary"
+                                  : "border-border/60 bg-background"
+                              )}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isActive) {
+                                  applySavedTaskView(view);
+                                }
+                                }}
+                                className={cn(
+                                  "max-w-[180px] truncate text-sm font-medium outline-none transition-colors",
+                                  isActive ? "cursor-default text-primary" : "hover:text-primary"
+                                )}
+                              >
+                                {view.name}
+                              </button>
+                              {isActive ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearActiveSavedView(view.id)}
+                                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-primary/80 transition-colors hover:bg-primary/12 hover:text-primary"
+                                >
+                                <X className="h-3.5 w-3.5" />
+                                <span className="sr-only">Clear active saved view</span>
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-9 min-w-0 items-center rounded-xl border border-dashed border-border/60 bg-background/55 px-3 text-sm text-muted-foreground">
+                        {savedTaskViews.length > 0
+                          ? 'Pin a saved view to keep it here.'
+                          : 'Create and pin a saved view to keep it here.'}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
           </div>
           
@@ -2222,14 +2724,14 @@ export default function Home() {
            )}
 
            <div className="flex flex-col gap-4">
-                <div className="hidden md:flex flex-col md:flex-row md:flex-wrap lg:flex-nowrap md:items-center md:justify-between gap-4 md:gap-6">
-                    <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-4 md:gap-6">
+                <div className="hidden md:grid md:grid-cols-12 md:items-center md:gap-4 lg:gap-6">
+                    <div className="min-w-0 md:col-span-6 lg:col-span-6 flex items-center gap-3 lg:gap-4">
                         {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
-                            <div className="hidden md:flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+                            <div className="hidden md:flex items-center gap-2 lg:gap-3 shrink-0">
                                 <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl active:scale-95 transition-transform"><ChevronLeft className="h-5 w-5" /></Button>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="text-base font-semibold flex-1 sm:w-48 whitespace-nowrap h-11 rounded-xl shadow-sm">
+                                        <Button variant="outline" className="h-11 min-w-[168px] lg:min-w-[196px] whitespace-nowrap rounded-xl shadow-sm text-base font-semibold lg:text-lg">
                                             {dateView === 'yearly' ? format(selectedDate, 'yyyy') : format(selectedDate, 'MMMM yyyy')}
                                         </Button>
                                     </PopoverTrigger>
@@ -2307,30 +2809,21 @@ export default function Home() {
                             </div>
                         )}
                         
-                        <div className="hidden md:block px-1 md:px-0">
-                            <div className="flex items-center gap-3">
-                                <h2 className="text-xl font-bold text-foreground/90 leading-tight">
+                        <div className="hidden min-w-0 md:block">
+                            <div className="flex items-center gap-2 lg:gap-3">
+                                <h2 className="truncate text-base font-bold leading-tight text-foreground/90 lg:text-lg">
                                     {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
                                 </h2>
                                 {totalActiveFilters > 0 && (
-                                    <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
-                                        <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 h-5 px-2 text-xs font-medium rounded-full">
+                                    <div className="flex min-w-0 items-center gap-1.5 animate-in fade-in zoom-in duration-300 lg:gap-2">
+                                        <Badge variant="secondary" className="h-5 shrink-0 rounded-full border-primary/20 bg-primary/10 px-2 text-[10px] font-medium text-primary lg:text-xs">
                                             {totalActiveFilters} {totalActiveFilters === 1 ? 'Filter' : 'Filters'} Active
                                         </Badge>
                                         <Button 
                                             variant="ghost" 
                                             size="sm" 
-                                            onClick={() => {
-                                                setIsSearching(true);
-                                                setStatusFilter([]);
-                                                setRepoFilter([]);
-                                                setDeploymentFilter([]);
-                                                setTagsFilter([]);
-                                                setStatusGroupFilter([]);
-                                                setSearchQuery('');
-                                                setExecutedSearchQuery('');
-                                            }}
-                                            className="h-5 px-1.5 text-[10px] font-medium text-muted-foreground hover:text-destructive transition-colors rounded-md"
+                                            onClick={handleClearAllTaskFilters}
+                                            className="h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-destructive"
                                         >
                                             <X className="h-3 w-3 mr-1" />
                                             Clear
@@ -2338,7 +2831,7 @@ export default function Home() {
                                     </div>
                                 )}
                             </div>
-                            <p className="text-xs font-medium text-muted-foreground/70 mt-0.5 whitespace-nowrap">
+                            <p className="mt-0.5 truncate text-[10px] font-medium text-muted-foreground/70 lg:text-[11px]">
                                 {favoritesOnly 
                                     ? `Showing ${filteredTasks.length} favorited items.` 
                                     : (dateView === 'all' ? 'Based on active filters.' : dateView === 'calendar' ? `Calendar month ${format(selectedDate, 'MMM yyyy')}` : dateView === 'monthly' ? `Start date in ${format(selectedDate, 'MMM yyyy')}` : `Start date in ${format(selectedDate, 'yyyy')}`)}
@@ -2346,23 +2839,49 @@ export default function Home() {
                         </div>
                     </div>
 
-                    <div id="view-mode-toggle" className="flex flex-col md:flex-row md:flex-wrap items-center gap-4">
-                        <div className="hidden md:flex items-center gap-2 w-full md:auto overflow-x-auto md:overflow-visible md:flex-wrap pb-1 no-scrollbar md:pb-0">
-                            <Select value={sortDescriptor} onValueChange={handleSortChange}>
-                                <SelectTrigger className="flex-1 min-w-[140px] sm:w-[180px] h-11 rounded-xl shadow-sm"><SelectValue placeholder="Sort by" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="status-asc">Status (Asc)</SelectItem>
-                                    <SelectItem value="status-desc">Status (Desc)</SelectItem>
-                                    <SelectItem value="title-asc">Title (A-Z)</SelectItem>
-                                    <SelectItem value="title-desc">Title (Z-A)</SelectItem>
-                                </SelectContent>
-                            </Select>
+                    <div id="view-mode-toggle" className="min-w-0 md:col-span-6 lg:col-span-6">
+                        <div className="hidden md:flex items-center justify-end gap-2 lg:gap-3">
+                            <DropdownMenu>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl shadow-sm">
+                                        <ArrowDownWideNarrow className="h-4.5 w-4.5" />
+                                        <span className="sr-only">Sort tasks</span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>Sort tasks</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
+                                <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-muted-foreground">
+                                  Sort: {selectedSortLabel}
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="my-1" />
+                                {sortOptions.map((option) => (
+                                  <DropdownMenuItem
+                                    key={option.value}
+                                    onSelect={() => handleSortChange(option.value)}
+                                    className="rounded-xl px-3 py-2.5"
+                                  >
+                                    <div className="flex w-full items-center justify-between gap-3">
+                                      <span className="text-sm font-medium">{option.label}</span>
+                                      {sortDescriptor === option.value ? <Check className="h-4 w-4 text-primary" /> : null}
+                                    </div>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
 
                             <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
                                 <button
                                     onClick={() => handleDateViewChange('all')}
                                     className={cn(
-                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium transition-all",
+                                        "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
                                         dateView === 'all' 
                                             ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
                                             : "text-muted-foreground hover:bg-background/50"
@@ -2373,7 +2892,7 @@ export default function Home() {
                                 <button
                                     onClick={() => handleDateViewChange('monthly')}
                                     className={cn(
-                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium transition-all",
+                                        "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
                                         dateView === 'monthly' 
                                             ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
                                             : "text-muted-foreground hover:bg-background/50"
@@ -2384,7 +2903,7 @@ export default function Home() {
                                 <button
                                     onClick={() => handleDateViewChange('calendar')}
                                     className={cn(
-                                        "flex-1 md:flex-none inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium transition-all",
+                                        "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
                                         dateView === 'calendar' 
                                             ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
                                             : "text-muted-foreground hover:bg-background/50"
@@ -2431,9 +2950,75 @@ export default function Home() {
                                           isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
                                       )}
                                   >
-                                      {isSelectMode ? <X className="h-5 w-5" /> : <CheckSquare className="h-5 w-5" />}
+                                      {isSelectMode ? <X className="h-4.5 w-4.5" /> : <CheckSquare className="h-4.5 w-4.5" />}
                                   </Button>
                                 )}
+
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-11 w-11 rounded-xl shadow-sm"
+                                    >
+                                      <BookmarkPlus className="h-4.5 w-4.5" />
+                                      <span className="sr-only">Saved views</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
+                                    <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                      Saved Views
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                      onSelect={() => {
+                                        handleStartSaveCurrentView();
+                                      }}
+                                      className="rounded-xl px-3 py-3"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                          <BookmarkPlus className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-foreground">Save current view</p>
+                                          <p className="text-[11px] text-muted-foreground">Store the current filters and layout.</p>
+                                        </div>
+                                      </div>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onSelect={() => {
+                                        setIsManageViewsDialogOpen(true);
+                                      }}
+                                      className="rounded-xl px-3 py-3"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                          <FolderKanban className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-foreground">View saved</p>
+                                          <p className="text-[11px] text-muted-foreground">Open and manage saved task views.</p>
+                                        </div>
+                                      </div>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => setIsDesktopFiltersOpen(true)}
+                                  className="relative h-11 w-11 rounded-xl shadow-sm text-muted-foreground"
+                                >
+                                  <Filter className="h-4.5 w-4.5" />
+                                  {activeFilterCount > 0 && (
+                                    <>
+                                      <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                                      <span className="animate-ping absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary/80" />
+                                    </>
+                                  )}
+                                  <span className="sr-only">Open filters</span>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -2532,6 +3117,289 @@ export default function Home() {
             </DialogFooter>
         </DialogContent>
      </Dialog>
+
+     <Dialog open={isSaveViewDialogOpen} onOpenChange={setIsSaveViewDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-[1.75rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.94))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.35)]">
+            <div className="border-b border-border/50 px-6 py-5">
+                <DialogHeader>
+                    <div className="mb-2 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <BookmarkPlus className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle>Save Current View</DialogTitle>
+                            <DialogDescription>
+                                Save the current search, filters, layout, and date mode as a reusable view.
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+                <div className="space-y-2">
+                    <Label htmlFor="saved-view-name" className="text-sm font-semibold">View name</Label>
+                    <Input
+                      id="saved-view-name"
+                      value={newSavedViewName}
+                      onChange={(e) => setNewSavedViewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveCurrentView();
+                        }
+                      }}
+                      placeholder="QA this month"
+                      className="h-11 rounded-xl"
+                    />
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-muted/[0.35] p-4 text-sm text-muted-foreground">
+                    This view will remember your current search text, selected filters, favorites mode, date mode, sort order, and status-group accordion state.
+                </div>
+            </div>
+            <DialogFooter className="border-t border-border/50 px-6 pb-6 pt-4">
+                <Button variant="ghost" onClick={() => setIsSaveViewDialogOpen(false)} className="font-medium">Cancel</Button>
+                <Button onClick={handleSaveCurrentView} className="rounded-xl px-6 font-semibold">
+                    Save view
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+     </Dialog>
+
+     <Dialog open={isManageViewsDialogOpen} onOpenChange={setIsManageViewsDialogOpen}>
+        <DialogContent className="max-h-[min(84vh,720px)] overflow-hidden rounded-[1.9rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.95))] p-0 shadow-[0_34px_90px_-44px_rgba(15,23,42,0.42)] sm:max-w-2xl">
+            <div className="border-b border-border/50 px-6 py-5">
+                <DialogHeader>
+                    <div className="mb-2 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <FolderKanban className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle>Saved Views</DialogTitle>
+                            <DialogDescription>
+                                Pin the views you use often so they stay one tap away on the home page.
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+            </div>
+            <div className="max-h-[min(84vh,540px)] space-y-3 overflow-y-auto px-6 py-5">
+                {savedTaskViews.length > 0 ? savedTaskViews.map((view) => {
+                    const isActive = isSavedViewActive(view);
+                    return (
+                      <div
+                        key={view.id}
+                        className="flex items-center justify-between gap-3 rounded-[1.2rem] border border-border/60 bg-background/85 px-4 py-3 shadow-[0_14px_32px_-28px_rgba(15,23,42,0.22)]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-foreground sm:text-[15px]">{view.name}</p>
+                            {isActive ? (
+                              <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Active</Badge>
+                            ) : null}
+                            {view.pinned ? (
+                              <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Pinned</Badge>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <span className="truncate">{getSavedViewSummary(view)}</span>
+                            <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-flex" />
+                            <span className="shrink-0">
+                            {format(new Date(view.updatedAt), 'dd MMM yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                        <TooltipProvider>
+                          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant={isActive ? 'secondary' : 'outline'}
+                                  size="icon"
+                                  onClick={() => !isActive && applySavedTaskView(view)}
+                                  className={cn(
+                                    "h-9 w-9 rounded-xl shadow-sm",
+                                    isActive && "bg-primary/15 text-primary hover:bg-primary/15"
+                                  )}
+                                >
+                                  <Check className="h-4 w-4" />
+                                  <span className="sr-only">{isActive ? 'Current view' : 'Apply view'}</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{isActive ? 'Current view' : 'Apply this view'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleToggleSavedViewPin(view.id)}
+                                  className="h-9 w-9 rounded-xl"
+                                >
+                                  {view.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                                  <span className="sr-only">{view.pinned ? 'Unpin view' : 'Pin view'}</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{view.pinned ? 'Unpin from top bar' : 'Pin to top bar'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleStartUpdateSavedView(view)}
+                                  className="h-9 w-9 rounded-xl text-muted-foreground"
+                                >
+                                  <Save className="h-4 w-4" />
+                                  <span className="sr-only">Update saved view</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px]">
+                                <p>Update this saved view with your current filters and layout.</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteSavedView(view.id)}
+                                  className="h-9 w-9 rounded-xl text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete saved view</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>Delete this saved view</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                        </div>
+                    );
+                  }) : (
+                  <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-muted/[0.24] px-5 py-10 text-center">
+                    <FolderKanban className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+                    <p className="text-base font-semibold">No saved views yet.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Save your current filters and layout to reuse them later.
+                    </p>
+                  </div>
+                )}
+            </div>
+            <DialogFooter className="border-t border-border/50 px-6 pb-6 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setNewSavedViewName('');
+                    setIsManageViewsDialogOpen(false);
+                    setIsSaveViewDialogOpen(true);
+                  }}
+                  className="rounded-xl px-4 font-medium"
+                >
+                  <BookmarkPlus className="mr-2 h-4 w-4" />
+                  New saved view
+                </Button>
+                <Button variant="ghost" onClick={() => setIsManageViewsDialogOpen(false)} className="font-medium">
+                  Close
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+     </Dialog>
+
+     <Sheet open={isDesktopFiltersOpen} onOpenChange={setIsDesktopFiltersOpen}>
+        <SheetContent
+          side="right"
+          hideClose
+          className="hidden w-[min(34rem,92vw)] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.96))] px-0 py-0 shadow-[0_30px_90px_-44px_rgba(15,23,42,0.42)] md:flex md:max-w-none md:flex-col"
+        >
+          <div className="border-b border-border/50 px-6 py-5">
+            <SheetHeader className="space-y-0 text-left">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <SheetTitle className="flex items-center gap-2">
+                    <Filter className="h-5 w-5 text-primary" />
+                    Filters
+                    {desktopDraftFilterCount > 0 ? (
+                      <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)]">
+                        <span className="mr-1.5 inline-flex h-2 w-2 rounded-full bg-primary shadow-[0_0_12px_rgba(59,130,246,0.8)]" />
+                        {desktopDraftFilterCount} active
+                      </Badge>
+                    ) : null}
+                  </SheetTitle>
+                </div>
+                <div className="flex items-center gap-2">
+                  <SheetClose asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 rounded-2xl border-border/60 bg-background/90 shadow-sm"
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Close filters</span>
+                    </Button>
+                  </SheetClose>
+                </div>
+              </div>
+              <SheetDescription className="mt-3 pl-8 text-xs leading-relaxed text-muted-foreground/80 sm:text-[13px]">
+                Refine tasks by status, group, repository, tags, and deployment without crowding the main page.
+              </SheetDescription>
+            </SheetHeader>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {activeFilterSections.length > 0 && (
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                {visibleActiveFilterSections.map((section) => (
+                  <Badge
+                    key={section.label}
+                    variant="secondary"
+                    className="max-w-full rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground"
+                  >
+                    <span className="mr-1 text-muted-foreground">{section.label}:</span>
+                    <span>{buildFilterSummary(section.values)}</span>
+                  </Badge>
+                ))}
+                {hiddenActiveFilterSectionsCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full border-border/60 bg-background/90 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+                  >
+                    +{hiddenActiveFilterSectionsCount} more
+                  </Badge>
+                )}
+              </div>
+            )}
+            {desktopFilterControlsContent}
+          </div>
+
+          <div className="border-t border-border/50 px-6 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                variant="ghost"
+                onClick={handleResetDesktopFilterDraft}
+                disabled={desktopDraftFilterCount === 0}
+                className="rounded-xl px-3 font-medium text-muted-foreground"
+              >
+                Reset selections
+              </Button>
+              <Button
+                onClick={handleApplyDesktopFilters}
+                className="rounded-xl px-4 font-semibold"
+              >
+                Apply filters
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+     </Sheet>
     </div>
   );
 }

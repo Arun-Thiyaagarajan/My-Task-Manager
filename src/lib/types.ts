@@ -84,6 +84,32 @@ export interface Note {
   layout: NoteLayout;
 }
 
+export interface SavedTaskViewState {
+  viewMode: 'grid' | 'table';
+  sortDescriptor: string;
+  dateView: 'all' | 'monthly' | 'calendar' | 'yearly';
+  favoritesOnly: boolean;
+  openGroups: string[];
+  searchQuery: string;
+  selectedDate?: string;
+  filters: {
+    status: string[];
+    statusGroup: string[];
+    repo: string[];
+    deployment: string[];
+    tags: string[];
+  };
+}
+
+export interface SavedTaskView {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  pinned?: boolean;
+  state: SavedTaskViewState;
+}
+
 export type ReleaseItemType = 'feature' | 'improvement' | 'fix';
 
 export interface ReleaseItem {
@@ -119,6 +145,7 @@ export interface UserPreferences {
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
   taskOpenGroups?: string[];
+  savedTaskViews?: SavedTaskView[];
   taskFilters?: {
     status?: string[];
     statusGroup?: string[];
