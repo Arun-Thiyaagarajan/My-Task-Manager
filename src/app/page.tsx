@@ -377,8 +377,14 @@ export default function Home() {
   useEffect(() => {
     if (!uiConfig) return;
 
-    const validGroupIds = getOrderedTaskStatusGroups(filteredTasks.length > 0 ? filteredTasks : tasks, uiConfig, favoritesOnly).map(group => group.key);
-    if (validGroupIds.length === 0) {
+    const configuredGroupIds = getStatusGroupConfigs(uiConfig).map(group => group.id);
+    const visibleGroupIds = getOrderedTaskStatusGroups(
+      filteredTasks.length > 0 ? filteredTasks : tasks,
+      uiConfig,
+      favoritesOnly
+    ).map(group => group.key);
+
+    if (configuredGroupIds.length === 0) {
       setOpenGroups([]);
       return;
     }
@@ -386,13 +392,13 @@ export default function Home() {
     setOpenGroups((current) => {
       if (!hasInitializedGroupStateRef.current) {
         hasInitializedGroupStateRef.current = true;
-        const preferred = current.filter(groupId => validGroupIds.includes(groupId));
-        return preferred.length > 0 ? preferred : validGroupIds;
+        const preferred = current.filter(groupId => configuredGroupIds.includes(groupId));
+        if (preferred.length > 0) return preferred;
+        return visibleGroupIds.length > 0 ? visibleGroupIds : configuredGroupIds;
       }
 
-      const stillValid = current.filter(groupId => validGroupIds.includes(groupId));
-      if (stillValid.length === current.length) return stillValid;
-      return validGroupIds;
+      const stillValid = current.filter(groupId => configuredGroupIds.includes(groupId));
+      return stillValid.length === current.length ? current : stillValid;
     });
   }, [favoritesOnly, filteredTasks, tasks, uiConfig]);
 
