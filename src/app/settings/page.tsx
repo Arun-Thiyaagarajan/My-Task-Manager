@@ -1300,7 +1300,7 @@ export default function SettingsPage() {
                 </Alert>
             )}
 
-            <Card id="settings-field-config-card" className="border-none shadow-xl bg-card">
+            <Card id="settings-field-config-card" className="border border-border/75 shadow-xl bg-card">
                 <CardHeader className="pb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-1">
@@ -1341,7 +1341,7 @@ export default function SettingsPage() {
                                         {fields.map(field => {
                                             const isMandatory = !field.isCustom && ['title', 'description', 'status', 'developers'].includes(field.key);
                                             return (
-                                                <div key={field.id} className="flex items-center justify-between p-3 bg-muted/20 border rounded-xl hover:bg-muted/40 transition-all group border-transparent hover:border-border">
+                                                <div key={field.id} className="flex items-center justify-between rounded-xl border border-border/75 bg-muted/28 p-3 transition-all group hover:border-border hover:bg-muted/42">
                                                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                                                         <GripVertical className="h-5 w-5 text-muted-foreground/30 cursor-grab active:cursor-grabbing shrink-0" />
                                                         <div className="min-w-0 flex-1">
@@ -1387,7 +1387,7 @@ export default function SettingsPage() {
                         {filteredAndGroupedFields.inactiveFields.length > 0 ? (
                             <div className="grid gap-2">
                                 {filteredAndGroupedFields.inactiveFields.map(field => (
-                                    <div key={field.id} className="flex items-center justify-between p-3 bg-muted/5 border border-dashed rounded-xl opacity-60 hover:opacity-100 transition-opacity">
+                                    <div key={field.id} className="flex items-center justify-between rounded-xl border border-dashed border-border/70 bg-muted/12 p-3 opacity-75 transition-[opacity,border-color,background-color] hover:opacity-100 hover:border-border">
                                         <div className="flex items-center gap-2">
                                             <span className="truncate pr-4 text-sm sm:text-base font-normal">{field.label}</span>
                                             {field.isUnique && <Badge variant="outline" className="h-4 border-amber-200/50 text-[8px] font-medium text-amber-600/50">Unique</Badge>}
@@ -1401,7 +1401,7 @@ export default function SettingsPage() {
                                     </div>
                                 ))}
                             </div>
-                        ) : (<div className="text-center py-10 bg-muted/5 rounded-xl border border-dashed"><p className="text-sm text-muted-foreground font-normal">No inactive fields match your search.</p></div>)}
+                        ) : (<div className="rounded-xl border border-dashed border-border/70 bg-muted/12 py-10 text-center"><p className="text-sm font-normal text-muted-foreground">No inactive fields match your search.</p></div>)}
                     </div>
                 </CardContent>
             </Card>

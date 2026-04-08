@@ -239,7 +239,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
       >
         <Card
           className={cn(
-            "group/card relative flex h-full flex-col overflow-hidden rounded-xl border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] transition-all duration-300",
+            "group/card relative flex h-full flex-col overflow-hidden rounded-xl border-border/85 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_16px_36px_-28px_rgba(15,23,42,0.28)] transition-all duration-300 dark:border-border/70 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] dark:shadow-sm",
             cardClassName,
             !isSelectMode && !isOpening && "hover:-translate-y-1 hover:shadow-[0_24px_52px_-34px_rgba(15,23,42,0.7)]",
             isSelected && "selected-card",
@@ -247,7 +247,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           )}
           style={statusConfig.cardStyle}
         >
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0))] opacity-60" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0))] opacity-70 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0))] dark:opacity-60" />
           {isOpening && (
             <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-background/60 backdrop-blur-[2px] animate-in fade-in duration-200">
                 <div className="flex flex-col items-center gap-2">

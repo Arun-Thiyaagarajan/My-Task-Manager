@@ -1896,7 +1896,7 @@ export default function Home() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-8 min-h-0 shrink-0 rounded-full px-3 py-0 text-xs shadow-sm md:hidden"
+                                className="h-8 min-h-0 shrink-0 rounded-full border-border/70 bg-muted/45 px-3 py-0 text-xs shadow-sm hover:bg-muted/65 dark:border-border dark:bg-background md:hidden"
                                 onClick={openGlobalSpotlightSearch}
                                 aria-label="Open global search"
                             >
@@ -1940,7 +1940,7 @@ export default function Home() {
                                 variant="outline"
                                 size="sm"
                                 onClick={openGlobalSpotlightSearch}
-                                className="w-full sm:w-auto h-11 rounded-2xl px-5 font-medium shadow-sm shadow-black/5 transition-all hover:shadow-md hover:shadow-black/10"
+                                className="h-11 w-full rounded-2xl border-border/70 bg-muted/42 px-5 font-medium shadow-sm shadow-black/5 transition-all hover:bg-muted/58 hover:shadow-md hover:shadow-black/10 dark:border-border dark:bg-background sm:w-auto"
                                 aria-label="Open global search"
                             >
                                 <Globe className="mr-2 h-4 w-4" />
@@ -2269,7 +2269,7 @@ export default function Home() {
                           </button>
                       </div>
 
-                      <div className="flex h-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
+                      <div className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/36 p-1 shadow-sm dark:border-border dark:bg-muted/50">
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -2278,7 +2278,7 @@ export default function Home() {
                                   size="icon"
                                   className={cn(
                                     "h-8 w-8 rounded-lg text-muted-foreground transition-all",
-                                    dateView !== 'calendar' && viewMode === 'grid' && 'bg-background text-primary shadow-sm ring-1 ring-black/5'
+                                    dateView !== 'calendar' && viewMode === 'grid' && 'bg-secondary text-foreground shadow-sm ring-1 ring-border/60 dark:bg-background dark:text-primary dark:ring-black/5'
                                   )}
                                   onClick={() => handleContentViewChange('grid')}
                               >
@@ -2296,7 +2296,7 @@ export default function Home() {
                                   size="icon"
                                   className={cn(
                                     "h-8 w-8 rounded-lg text-muted-foreground transition-all",
-                                    dateView === 'calendar' && 'bg-background text-primary shadow-sm ring-1 ring-black/5'
+                                    dateView === 'calendar' && 'bg-secondary text-foreground shadow-sm ring-1 ring-border/60 dark:bg-background dark:text-primary dark:ring-black/5'
                                   )}
                                   onClick={() => handleContentViewChange('calendar')}
                               >
@@ -2661,23 +2661,23 @@ export default function Home() {
                                 </button>
                             </div>
 
-                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted p-1 border shadow-sm">
+                            <div className="hidden md:flex h-11 items-center justify-center rounded-xl border border-border/70 bg-muted/36 p-1 shadow-sm dark:border-border dark:bg-muted">
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')} onClick={() => handleContentViewChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-secondary text-foreground shadow-sm ring-1 ring-border/60 dark:bg-card dark:ring-0')} onClick={() => handleContentViewChange('grid')}><LayoutGrid className="h-4 w-4" /></Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top"><p>Grid view</p></TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'table' && 'bg-card text-foreground shadow-sm')} onClick={() => handleContentViewChange('table')}><List className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView !== 'calendar' && viewMode === 'table' && 'bg-secondary text-foreground shadow-sm ring-1 ring-border/60 dark:bg-card dark:ring-0')} onClick={() => handleContentViewChange('table')}><List className="h-4 w-4" /></Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top"><p>List view</p></TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')} onClick={() => handleContentViewChange('calendar')}><CalendarIcon className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className={cn("h-9 w-9 rounded-lg", dateView === 'calendar' && 'bg-secondary text-foreground shadow-sm ring-1 ring-border/60 dark:bg-card dark:text-primary dark:ring-0')} onClick={() => handleContentViewChange('calendar')}><CalendarIcon className="h-4 w-4" /></Button>
                                   </TooltipTrigger>
                                   <TooltipContent side="top"><p>Calendar view</p></TooltipContent>
                                 </Tooltip>
