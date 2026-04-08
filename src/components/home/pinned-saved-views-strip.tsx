@@ -1,8 +1,9 @@
 'use client';
 
-import { BookmarkPlus, X } from 'lucide-react';
+import { BookmarkPlus, CalendarIcon, Search, Sparkles, X } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 import type { PinnedSavedViewsStripProps } from '@/components/home/types';
@@ -13,6 +14,8 @@ export function PinnedSavedViewsStrip({
   activeSavedViewId,
   onApplySavedTaskView,
   onClearActiveSavedView,
+  getSavedViewSummary,
+  getSavedViewPreviewGroups,
   isLoading = false,
   skeletonCount = 0,
   isHighlighted = false,
@@ -47,42 +50,102 @@ export function PinnedSavedViewsStrip({
         <div className="flex min-w-0 items-center gap-2">
           {visiblePinnedSavedTaskViews.map((view) => {
             const isActive = activeSavedViewId === view.id;
+            const previewGroups = getSavedViewPreviewGroups(view);
 
             return (
-              <div
-                key={view.id}
-                className={cn(
-                  'flex h-9 items-center gap-1 rounded-xl border px-2.5 shadow-sm transition-all',
-                  isActive
-                    ? 'border-primary/25 bg-primary/10 text-primary'
-                    : 'border-border/60 bg-background'
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isActive) {
-                      onApplySavedTaskView(view);
-                    }
-                  }}
-                  className={cn(
-                    'max-w-[180px] truncate text-sm font-medium outline-none transition-colors',
-                    isActive ? 'cursor-default text-primary' : 'hover:text-primary'
-                  )}
-                >
-                  {view.name}
-                </button>
-                {isActive ? (
-                  <button
-                    type="button"
-                    onClick={() => onClearActiveSavedView(view.id)}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-primary/80 transition-colors hover:bg-primary/12 hover:text-primary"
+              <TooltipProvider key={view.id}>
+                <Tooltip delayDuration={120}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={cn(
+                        'flex h-9 items-center gap-1 rounded-xl border px-2.5 shadow-sm transition-all',
+                        isActive
+                          ? 'border-primary/25 bg-primary/10 text-primary'
+                          : 'border-border/60 bg-background'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isActive) {
+                            onApplySavedTaskView(view);
+                          }
+                        }}
+                        className={cn(
+                          'max-w-[180px] truncate text-sm font-medium outline-none transition-colors',
+                          isActive ? 'cursor-default text-primary' : 'hover:text-primary'
+                        )}
+                      >
+                        {view.name}
+                      </button>
+                      {isActive ? (
+                        <button
+                          type="button"
+                          onClick={() => onClearActiveSavedView(view.id)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-primary/80 transition-colors hover:bg-primary/12 hover:text-primary"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          <span className="sr-only">Clear active saved view</span>
+                        </button>
+                      ) : null}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    align="start"
+                    className="w-[min(24rem,calc(100vw-2rem))] rounded-[1.4rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.97))] p-0 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.48)]"
                   >
-                    <X className="h-3.5 w-3.5" />
-                    <span className="sr-only">Clear active saved view</span>
-                  </button>
-                ) : null}
-              </div>
+                    <div className="border-b border-border/50 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{view.name}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                              <Sparkles className="h-3 w-3" />
+                              {getSavedViewSummary(view)}
+                            </span>
+                            {view.state.searchQuery ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                                <Search className="h-3 w-3" />
+                                Search saved
+                              </span>
+                            ) : null}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
+                              <CalendarIcon className="h-3 w-3" />
+                              {view.state.dateView === 'all' ? 'All tasks' : view.state.dateView}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3 px-4 py-3">
+                      {previewGroups.length > 0 ? (
+                        previewGroups.map((group) => (
+                          <div key={`${view.id}-${group.label}`} className="space-y-1.5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/75">
+                              {group.label}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {group.values.map((value) => (
+                                <span
+                                  key={`${view.id}-${group.label}-${value}`}
+                                  className="inline-flex max-w-full items-center rounded-full border border-border/60 bg-background/80 px-2.5 py-1 text-[11px] font-medium text-foreground"
+                                >
+                                  <span className="truncate">{value}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          This view keeps your current layout, sort, and date mode ready to reuse.
+                        </p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             );
           })}
         </div>

@@ -123,7 +123,9 @@ import { DesktopFiltersSheet } from '@/components/home/desktop-filters-sheet';
 import { MobileFiltersSheet } from '@/components/home/mobile-filters-sheet';
 import { PinnedSavedViewsStrip } from '@/components/home/pinned-saved-views-strip';
 import { SavedViewDialogs } from '@/components/home/saved-view-dialogs';
+import { SavedViewsMenuContent } from '@/components/home/saved-views-menu-content';
 import { TaskSearchInput } from '@/components/home/task-search-input';
+import { TaskSortMenuContent } from '@/components/home/task-sort-menu-content';
 
 type ViewMode = 'grid' | 'table';
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
@@ -1428,6 +1430,32 @@ export default function Home() {
     return values.join(', ');
   };
 
+  const getSavedViewPreviewGroups = useCallback((view: SavedTaskView) => {
+    const viewFilters = view.state.filters || {
+      status: [],
+      statusGroup: [],
+      repo: [],
+      deployment: [],
+      tags: [],
+    };
+
+    return [
+      view.state.searchQuery ? { label: 'Search', values: [view.state.searchQuery] } : null,
+      viewFilters.status.length > 0 ? { label: 'Status', values: viewFilters.status } : null,
+      viewFilters.statusGroup.length > 0 ? {
+        label: 'Status Group',
+        values: viewFilters.statusGroup.map((groupId) => statusGroupOptions.find((option) => option.value === groupId)?.label || groupId),
+      } : null,
+      viewFilters.repo.length > 0 ? { label: 'Repository', values: viewFilters.repo } : null,
+      viewFilters.tags.length > 0 ? { label: 'Tags', values: viewFilters.tags } : null,
+      viewFilters.deployment.length > 0 ? {
+        label: 'Deployment',
+        values: viewFilters.deployment.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value),
+      } : null,
+      view.state.favoritesOnly ? { label: 'Mode', values: ['Favorites only'] } : null,
+    ].filter((group): group is { label: string; values: string[] } => !!group && group.values.length > 0);
+  }, [statusGroupOptions]);
+
   const activeFilterSections = [
     { label: 'Status', values: desktopStatusFilterDraft },
     { label: 'Group', values: desktopStatusGroupFilterDraft.map((groupId) => statusGroupOptions.find(option => option.value === groupId)?.label || groupId) },
@@ -2324,24 +2352,13 @@ export default function Home() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <DropdownMenuContent align="start" className="w-56 rounded-2xl p-2">
-                          <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-muted-foreground">
-                            Sort: {selectedSortLabel}
-                          </DropdownMenuLabel>
-                          <DropdownMenuSeparator className="my-1" />
-                          {sortOptions.map((option) => (
-                            <DropdownMenuItem
-                              key={option.value}
-                              onSelect={() => handleSortChange(option.value)}
-                              className="rounded-xl px-3 py-2.5"
-                            >
-                              <div className="flex w-full items-center justify-between gap-3">
-                                <span className="text-sm font-medium">{option.label}</span>
-                                {sortDescriptor === option.value ? <Check className="h-4 w-4 text-primary" /> : null}
-                              </div>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
+                        <TaskSortMenuContent
+                          align="start"
+                          selectedSortLabel={selectedSortLabel}
+                          sortDescriptor={sortDescriptor}
+                          sortOptions={sortOptions}
+                          onSortChange={handleSortChange}
+                        />
                       </DropdownMenu>
 
                       {dateView !== 'calendar' && (
@@ -2397,43 +2414,11 @@ export default function Home() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
-                          <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                            Saved Views
-                          </DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              handleStartSaveCurrentView();
-                            }}
-                            className="rounded-xl px-3 py-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <BookmarkPlus className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-foreground">Save current view</p>
-                                <p className="text-[11px] text-muted-foreground">Store the current filters and layout.</p>
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setIsManageViewsDialogOpen(true);
-                            }}
-                            className="rounded-xl px-3 py-3"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <FolderKanban className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold text-foreground">View saved</p>
-                                <p className="text-[11px] text-muted-foreground">Open and manage saved task views.</p>
-                              </div>
-                            </div>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
+                        <SavedViewsMenuContent
+                          align="end"
+                          onSaveCurrentView={handleStartSaveCurrentView}
+                          onOpenManageViews={() => setIsManageViewsDialogOpen(true)}
+                        />
                       </DropdownMenu>
 
                       <TooltipProvider>
@@ -2488,6 +2473,8 @@ export default function Home() {
                     activeSavedViewId={activeSavedView?.id || null}
                     onApplySavedTaskView={applySavedTaskView}
                     onClearActiveSavedView={handleClearActiveSavedView}
+                    getSavedViewSummary={getSavedViewSummary}
+                    getSavedViewPreviewGroups={getSavedViewPreviewGroups}
                     isLoading={shouldShowListSkeleton}
                     skeletonCount={visiblePinnedSavedTaskViews.length > 0 ? visiblePinnedSavedTaskViews.length : Math.min(savedTaskViews.length, 3)}
                   />
@@ -2640,24 +2627,13 @@ export default function Home() {
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
-                              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                                <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-muted-foreground">
-                                  Sort: {selectedSortLabel}
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator className="my-1" />
-                                {sortOptions.map((option) => (
-                                  <DropdownMenuItem
-                                    key={option.value}
-                                    onSelect={() => handleSortChange(option.value)}
-                                    className="rounded-xl px-3 py-2.5"
-                                  >
-                                    <div className="flex w-full items-center justify-between gap-3">
-                                      <span className="text-sm font-medium">{option.label}</span>
-                                      {sortDescriptor === option.value ? <Check className="h-4 w-4 text-primary" /> : null}
-                                    </div>
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
+                              <TaskSortMenuContent
+                                align="end"
+                                selectedSortLabel={selectedSortLabel}
+                                sortDescriptor={sortDescriptor}
+                                sortOptions={sortOptions}
+                                onSortChange={handleSortChange}
+                              />
                             </DropdownMenu>
 
                             <div className="hidden md:flex h-11 items-center justify-center rounded-xl bg-muted/50 p-1 border shadow-sm shrink-0">
@@ -2768,43 +2744,11 @@ export default function Home() {
                                       <TooltipContent className="font-bold"><p>Saved views</p></TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-                                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
-                                    <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                                      Saved Views
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                      onSelect={() => {
-                                        handleStartSaveCurrentView();
-                                      }}
-                                      className="rounded-xl px-3 py-3"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                          <BookmarkPlus className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                          <p className="text-sm font-semibold text-foreground">Save current view</p>
-                                          <p className="text-[11px] text-muted-foreground">Store the current filters and layout.</p>
-                                        </div>
-                                      </div>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onSelect={() => {
-                                        setIsManageViewsDialogOpen(true);
-                                      }}
-                                      className="rounded-xl px-3 py-3"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                          <FolderKanban className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                          <p className="text-sm font-semibold text-foreground">View saved</p>
-                                          <p className="text-[11px] text-muted-foreground">Open and manage saved task views.</p>
-                                        </div>
-                                      </div>
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
+                                  <SavedViewsMenuContent
+                                    align="end"
+                                    onSaveCurrentView={handleStartSaveCurrentView}
+                                    onOpenManageViews={() => setIsManageViewsDialogOpen(true)}
+                                  />
                                 </DropdownMenu>
 
                                 <TooltipProvider>

@@ -110,6 +110,16 @@ export interface SavedTaskView {
   state: SavedTaskViewState;
 }
 
+export interface StarterContentMeta {
+  isAvailable: boolean;
+  taskIds: string[];
+  noteIds: string[];
+  templateIds: string[];
+  developerIds?: string[];
+  testerIds?: string[];
+  repositoryIds?: string[];
+}
+
 export type ReleaseItemType = 'feature' | 'improvement' | 'fix';
 
 export interface ReleaseItem {
@@ -164,6 +174,8 @@ export interface UserPreferences {
   tutorialButtonHintSeen?: boolean;
   featureDiscoverySeen?: boolean;
   notificationSounds?: boolean;
+  starterSavedTaskViewIds?: string[];
+  starterContentAvailable?: boolean;
 }
 
 export interface Task {
@@ -294,6 +306,7 @@ export interface CompanyData {
     logs: Log[];
     generalReminders: GeneralReminder[];
     releaseUpdates: ReleaseUpdate[];
+    starterContent?: StarterContentMeta;
 }
 
 export interface MyTaskManagerData {

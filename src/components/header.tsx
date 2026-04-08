@@ -458,8 +458,11 @@ export function Header() {
   const handleFeatureDiscoveryExplore = () => {
     setIsFeatureDiscoveryOpen(false);
     updateUserPreferences({ featureDiscoverySeen: true });
+    setIsGlobalLoading(true);
     window.dispatchEvent(new Event('navigation-start'));
-    router.push('/help-center');
+    window.requestAnimationFrame(() => {
+      router.push('/help-center');
+    });
   };
 
   return (

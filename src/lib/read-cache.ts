@@ -9,6 +9,7 @@ type ReadCacheEntry<T = unknown> = {
 
 type GetOrComputeOptions = {
   scopeKey?: string;
+  cacheNullish?: boolean;
 };
 
 const DEFAULT_SCOPE = 'global';
@@ -96,6 +97,9 @@ export function getOrCompute<T>(
 
   logReadCache(existing ? 'CACHE EXPIRED' : 'CACHE MISS', key);
   const data = compute();
+  if (options.cacheNullish === false && (data === null || data === undefined)) {
+    return data;
+  }
   entries.set(key, {
     key,
     data,

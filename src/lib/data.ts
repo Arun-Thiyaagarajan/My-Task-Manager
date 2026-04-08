@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate, RepositoryConfig } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate, RepositoryConfig, SavedTaskView, StarterContentMeta } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -124,52 +124,504 @@ const getEmptyAppData = (): MyTaskManagerData => ({
     localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
 });
 
+function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
+    return [
+        {
+            id: createId('starter-view-'),
+            name: 'Active Tasks',
+            createdAt: now,
+            updatedAt: now,
+            pinned: true,
+            state: {
+                viewMode: 'grid',
+                sortDescriptor: 'status-asc',
+                dateView: 'all',
+                favoritesOnly: false,
+                openGroups: ['active', 'testing'],
+                searchQuery: '',
+                filters: {
+                    status: ['In Progress', 'Code Review', 'QA'],
+                    statusGroup: [],
+                    repo: [],
+                    deployment: [],
+                    tags: [],
+                },
+            },
+        },
+        {
+            id: createId('starter-view-'),
+            name: 'This Month',
+            createdAt: now,
+            updatedAt: now,
+            pinned: true,
+            state: {
+                viewMode: 'grid',
+                sortDescriptor: 'start-asc',
+                dateView: 'monthly',
+                favoritesOnly: false,
+                openGroups: ['backlog', 'active'],
+                searchQuery: '',
+                selectedDate: new Date(now).toISOString(),
+                filters: {
+                    status: [],
+                    statusGroup: [],
+                    repo: [],
+                    deployment: [],
+                    tags: [],
+                },
+            },
+        },
+        {
+            id: createId('starter-view-'),
+            name: 'Testing Focus',
+            createdAt: now,
+            updatedAt: now,
+            pinned: false,
+            state: {
+                viewMode: 'table',
+                sortDescriptor: 'updated-desc',
+                dateView: 'all',
+                favoritesOnly: false,
+                openGroups: ['testing'],
+                searchQuery: '',
+                filters: {
+                    status: ['QA'],
+                    statusGroup: ['testing'],
+                    repo: [],
+                    deployment: [],
+                    tags: [],
+                },
+            },
+        },
+    ];
+}
+
+function buildStarterCompanyData(companyName: string): CompanyData {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const tomorrowIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const threeDaysIso = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    const nextWeekIso = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const starterRepositories: RepositoryConfig[] = [
+        {
+            id: createId('starter-repo-'),
+            name: 'UI-Dashboard',
+            baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/UI-Dashboard/pullrequest/',
+        },
+        {
+            id: createId('starter-repo-'),
+            name: 'API-Platform',
+            baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/API-Platform/pullrequest/',
+        },
+        {
+            id: createId('starter-repo-'),
+            name: 'Templates',
+            baseUrl: 'https://dev.azure.com/ideaelan/Infinity/_git/Templates/pullrequest/',
+        },
+    ];
+    const starterDevelopers: Person[] = [
+        {
+            id: createId('starter-dev-'),
+            name: 'Aarav Dev',
+            email: 'aarav.dev@taskflow.app',
+        },
+        {
+            id: createId('starter-dev-'),
+            name: 'Meera Frontend',
+            email: 'meera.frontend@taskflow.app',
+        },
+    ];
+    const starterTesters: Person[] = [
+        {
+            id: createId('starter-tester-'),
+            name: 'Riya QA',
+            email: 'riya.qa@taskflow.app',
+        },
+        {
+            id: createId('starter-tester-'),
+            name: 'Kabir TestOps',
+            email: 'kabir.testops@taskflow.app',
+        },
+    ];
+    const starterDeveloperIds = starterDevelopers.map((developer) => developer.id);
+    const starterTesterIds = starterTesters.map((tester) => tester.id);
+
+    const starterTasks: Task[] = [
+        {
+            id: createId('starter-task-'),
+            title: 'Plan the next release checklist',
+            description: 'Use this sample task to see status changes, reminders, tags, and saved views working together.',
+            summary: 'Sample backlog task for release planning.',
+            status: 'To Do',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            tags: ['planning', 'sample'],
+            repositories: ['UI-Dashboard', 'Templates'],
+            developers: [starterDevelopers[0].id],
+            testers: [starterTesters[0].id],
+            azureWorkItemId: '8421',
+            prLinks: {
+                dev: {
+                    'UI-Dashboard': '412',
+                    Templates: '91',
+                },
+            },
+            deploymentStatus: { dev: false, stage: false, production: false },
+            comments: [
+                {
+                    text: 'Kickoff note: review the saved views, open groups, and monthly planning flow after you tour the sample workspace.',
+                    timestamp: nowIso,
+                },
+            ],
+            attachments: [
+                {
+                    name: 'Release checklist brief',
+                    url: 'https://example.com/release-checklist',
+                    type: 'link',
+                    uploadedAt: nowIso,
+                },
+            ],
+            reminder: 'Review priorities before the next sprint starts.',
+            reminderExpiresAt: tomorrowIso,
+            devStartDate: tomorrowIso,
+            relevantEnvironments: ['dev', 'stage', 'production'],
+        },
+        {
+            id: createId('starter-task-'),
+            title: 'Polish the mobile filter drawer',
+            description: 'This sample task shows an in-progress workflow item with deployment tracking and ownership.',
+            summary: 'Example in-progress item for mobile UX work.',
+            status: 'In Progress',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            tags: ['mobile', 'ux'],
+            repositories: ['UI-Dashboard', 'API-Platform'],
+            developers: [starterDevelopers[1].id],
+            testers: [starterTesters[0].id],
+            azureWorkItemId: '8457',
+            prLinks: {
+                dev: {
+                    'UI-Dashboard': '428',
+                    'API-Platform': '233',
+                },
+                stage: {
+                    'UI-Dashboard': '428',
+                },
+            },
+            relevantEnvironments: ['dev', 'stage'],
+            deploymentStatus: { dev: true, stage: false, production: false },
+            deploymentDates: { dev: nowIso },
+            comments: [
+                {
+                    text: 'The mobile drawer now keeps draft filters. Next pass is smoothing the transition between grid and calendar.',
+                    timestamp: nowIso,
+                },
+            ],
+            attachments: [
+                {
+                    name: 'Mobile filter polish spec',
+                    url: 'https://example.com/mobile-filter-spec',
+                    type: 'link',
+                    uploadedAt: nowIso,
+                },
+            ],
+            devStartDate: nowIso,
+            qaStartDate: threeDaysIso,
+        },
+        {
+            id: createId('starter-task-'),
+            title: 'Review saved view interactions',
+            description: 'Use this example to see how grouped statuses and saved views behave in review.',
+            summary: 'Sample code review item.',
+            status: 'Code Review',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            tags: ['saved-views', 'review'],
+            repositories: ['UI-Dashboard'],
+            developers: starterDeveloperIds,
+            testers: [starterTesters[1].id],
+            azureWorkItemId: '8484',
+            prLinks: {
+                dev: {
+                    'UI-Dashboard': '437',
+                },
+            },
+            comments: [
+                {
+                    text: 'Check that the active saved view highlight and clear action feel obvious before merging.',
+                    timestamp: threeDaysIso,
+                },
+            ],
+            relevantEnvironments: ['dev', 'stage'],
+            devStartDate: nowIso,
+            devEndDate: threeDaysIso,
+        },
+        {
+            id: createId('starter-task-'),
+            title: 'Validate release notes popup on mobile',
+            description: 'A QA sample task to demonstrate testing-focused saved views and date-based planning.',
+            summary: 'Sample QA-ready task.',
+            status: 'QA',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            tags: ['qa', 'release'],
+            repositories: ['UI-Dashboard', 'API-Platform'],
+            developers: [starterDevelopers[0].id],
+            testers: starterTesterIds,
+            azureWorkItemId: '8510',
+            prLinks: {
+                stage: {
+                    'UI-Dashboard': '441',
+                    'API-Platform': '238',
+                },
+                production: {
+                    'UI-Dashboard': '441',
+                },
+            },
+            relevantEnvironments: ['stage', 'production'],
+            deploymentStatus: { dev: true, stage: true, production: false },
+            deploymentDates: { dev: nowIso, stage: threeDaysIso },
+            comments: [
+                {
+                    text: 'Please verify the new release popup on both desktop refresh and mobile reopen flows.',
+                    timestamp: nextWeekIso,
+                },
+            ],
+            attachments: [
+                {
+                    name: 'Release notes capture',
+                    url: 'https://example.com/release-notes-mobile',
+                    type: 'link',
+                    uploadedAt: threeDaysIso,
+                },
+            ],
+            qaStartDate: threeDaysIso,
+            qaEndDate: nextWeekIso,
+        },
+    ];
+
+    const starterNotes: Note[] = [
+        {
+            id: createId('starter-note-'),
+            title: 'Welcome to your workspace',
+            content: `This starter workspace helps you explore ${companyName || 'TaskFlow'} quickly.\n\nTry opening saved views, editing sample tasks, and resetting layouts from Settings when you are ready.`,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            layout: { i: '', x: 0, y: 0, w: 4, h: 4 },
+        },
+        {
+            id: createId('starter-note-'),
+            title: 'Good first customizations',
+            content: '1. Rename your app in Settings.\n2. Add your environments and repositories.\n3. Save your favorite filtered task views.',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            layout: { i: '', x: 4, y: 0, w: 4, h: 4 },
+        },
+        {
+            id: createId('starter-note-'),
+            title: 'Starter content can be removed',
+            content: 'If you want a clean slate, open Settings and use the one-time option to remove only the starter tasks, notes, templates, and saved views.',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            layout: { i: '', x: 8, y: 0, w: 4, h: 4 },
+        },
+    ].map((note) => ({
+        ...note,
+        layout: { ...note.layout, i: note.id },
+    }));
+
+    const starterTemplates: TaskTemplate[] = [
+        {
+            id: createId('starter-template-'),
+            name: 'Bug Fix',
+            description: 'A simple starting point for product or QA bugs.',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            taskData: {
+                status: 'To Do',
+                tags: ['bug'],
+                repositories: ['UI-Dashboard'],
+                developers: [starterDevelopers[0].id],
+                testers: [starterTesters[0].id],
+                azureWorkItemId: '9001',
+                prLinks: {
+                    dev: {
+                        'UI-Dashboard': '501',
+                    },
+                },
+                relevantEnvironments: ['dev', 'stage', 'production'],
+                summary: 'Starter bug workflow with owners and release path.',
+            },
+        },
+        {
+            id: createId('starter-template-'),
+            name: 'Feature Enhancement',
+            description: 'Starter structure for feature work with planning and QA stages.',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            taskData: {
+                status: 'To Do',
+                tags: ['feature'],
+                repositories: ['UI-Dashboard', 'API-Platform'],
+                developers: starterDeveloperIds,
+                testers: [starterTesters[1].id],
+                azureWorkItemId: '9008',
+                prLinks: {
+                    dev: {
+                        'UI-Dashboard': '518',
+                        'API-Platform': '260',
+                    },
+                },
+                relevantEnvironments: ['dev', 'stage'],
+                summary: 'Starter feature flow with frontend, backend, and QA ownership.',
+            },
+        },
+        {
+            id: createId('starter-template-'),
+            name: 'Release Validation',
+            description: 'A first-time template for stage-to-production validation work.',
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            taskData: {
+                status: 'QA',
+                tags: ['release', 'qa'],
+                repositories: ['UI-Dashboard', 'Templates'],
+                developers: [starterDevelopers[1].id],
+                testers: starterTesterIds,
+                azureWorkItemId: '9014',
+                prLinks: {
+                    stage: {
+                        'UI-Dashboard': '530',
+                        Templates: '109',
+                    },
+                },
+                relevantEnvironments: ['stage', 'production'],
+                summary: 'Starter release checklist with PR and deployment context.',
+            },
+        },
+    ];
+
+    const starterContent: StarterContentMeta = {
+        isAvailable: true,
+        taskIds: starterTasks.map((task) => task.id),
+        noteIds: starterNotes.map((note) => note.id),
+        templateIds: starterTemplates.map((template) => template.id),
+        developerIds: starterDeveloperIds,
+        testerIds: starterTesterIds,
+        repositoryIds: starterRepositories.map((repo) => repo.id),
+    };
+
+    return {
+        tasks: starterTasks,
+        trash: [],
+        taskTemplates: starterTemplates,
+        taskTemplateBin: [],
+        developers: starterDevelopers,
+        testers: starterTesters,
+        notes: starterNotes,
+        uiConfig: syncTaskStatuses({
+            fields: INITIAL_UI_CONFIG.map((f) => {
+                if (f.key === 'status') {
+                    return { ...f, options: TASK_STATUSES.map((s) => ({ id: s, value: s, label: s })) };
+                }
+                if (f.key === 'repositories') {
+                    return {
+                        ...f,
+                        options: starterRepositories.map((repository) => ({
+                            id: repository.id,
+                            value: repository.name,
+                            label: repository.name,
+                        })),
+                        defaultValue: ['UI-Dashboard'],
+                    };
+                }
+                if (f.key === 'developers') {
+                    return {
+                        ...f,
+                        options: starterDevelopers.map((developer) => ({
+                            id: developer.id,
+                            value: developer.id,
+                            label: developer.name,
+                        })),
+                        defaultValue: [starterDevelopers[0].id],
+                    };
+                }
+                if (f.key === 'testers') {
+                    return {
+                        ...f,
+                        options: starterTesters.map((tester) => ({
+                            id: tester.id,
+                            value: tester.id,
+                            label: tester.name,
+                        })),
+                        defaultValue: [starterTesters[0].id],
+                    };
+                }
+                if (f.key === 'azureWorkItemId') {
+                    return { ...f, defaultValue: '9000' };
+                }
+                if (f.key === 'tags') {
+                    return { ...f, defaultValue: ['sample', 'starter'] };
+                }
+                if (f.key === 'relevantEnvironments') {
+                    return {
+                        ...f,
+                        options: ENVIRONMENTS.map((e) => ({ id: e.id, value: e.name, label: e.name })),
+                        defaultValue: ['dev', 'stage'],
+                    };
+                }
+                return f;
+            }),
+            environments: [...ENVIRONMENTS],
+            repositoryConfigs: starterRepositories,
+            taskStatuses: [...TASK_STATUSES],
+            statusGroups: [...DEFAULT_STATUS_GROUPS],
+            statusConfigs: [...DEFAULT_STATUS_CONFIGS],
+            appName: 'TaskFlow',
+            appIcon: null,
+            remindersEnabled: true,
+            tutorialEnabled: true,
+            aiAssistantEnabled: true,
+            timeFormat: '12h',
+            autoBackupFrequency: 'weekly',
+            autoBackupTime: 6,
+            currentVersion: '1.1.0',
+            authenticationMode: 'localStorage',
+        }),
+        logs: [],
+        generalReminders: [],
+        releaseUpdates: [...INITIAL_RELEASES],
+        starterContent,
+    };
+}
+
+function buildInitialUserPreferences(): UserPreferences {
+    const appData = getAppData();
+    const companyId = appData.activeCompanyId;
+    const starterMeta = companyId ? appData.companyData[companyId]?.starterContent : null;
+
+    if (!starterMeta?.isAvailable) {
+        return { starterContentAvailable: false, starterSavedTaskViewIds: [] };
+    }
+
+    const now = new Date().toISOString();
+    const starterViews = buildStarterSavedTaskViews(now);
+
+    return {
+        savedTaskViews: starterViews,
+        starterSavedTaskViewIds: starterViews.map((view) => view.id),
+        starterContentAvailable: true,
+    };
+}
+
 const getInitialData = (): MyTaskManagerData => {
     const defaultCompanyId = `company-default`;
-    const initialFields = INITIAL_UI_CONFIG.map(f => {
-        if (f.key === 'status') {
-            return { ...f, options: TASK_STATUSES.map(s => ({id: s, value: s, label: s})) };
-        }
-        if (f.key === 'relevantEnvironments') {
-            return { ...f, options: ENVIRONMENTS.map(e => ({ id: e.id, value: e.name, label: e.name})) };
-        }
-        return f;
-    });
 
     return {
         companies: [{ id: defaultCompanyId, name: 'Default Company' }],
         activeCompanyId: defaultCompanyId,
         companyData: {
-             [defaultCompanyId]: {
-                tasks: [],
-                trash: [],
-                taskTemplates: [],
-                taskTemplateBin: [],
-                developers: [],
-                testers: [],
-                notes: [],
-                uiConfig: syncTaskStatuses({ 
-                    fields: initialFields,
-                    environments: [...ENVIRONMENTS],
-                    repositoryConfigs: INITIAL_REPOSITORY_CONFIGS,
-                    taskStatuses: [...TASK_STATUSES],
-                    statusGroups: [...DEFAULT_STATUS_GROUPS],
-                    statusConfigs: [...DEFAULT_STATUS_CONFIGS],
-                    appName: 'My Task Manager',
-                    appIcon: null,
-                    remindersEnabled: true,
-                    tutorialEnabled: true,
-                    aiAssistantEnabled: true,
-                    timeFormat: '12h',
-                    autoBackupFrequency: 'weekly',
-                    autoBackupTime: 6,
-                    currentVersion: '1.1.0',
-                    authenticationMode: 'localStorage',
-                }),
-                logs: [],
-                generalReminders: [],
-                releaseUpdates: [...INITIAL_RELEASES],
-            },
+             [defaultCompanyId]: buildStarterCompanyData('Default Company'),
         },
         notifications: [],
         localProfile: { username: 'Guest User', photoURL: null, previousPhotoURL: null },
@@ -187,11 +639,17 @@ export const getAppData = (): MyTaskManagerData => {
     
     if (typeof window === 'undefined') return getInitialData();
     const stored = window.localStorage.getItem(DATA_KEY);
-    if (!stored) return getInitialData();
+    if (!stored) {
+        const initialData = getInitialData();
+        window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
+        return initialData;
+    }
     try {
         return JSON.parse(stored);
     } catch (e) {
-        return getInitialData();
+        const initialData = getInitialData();
+        window.localStorage.setItem(DATA_KEY, JSON.stringify(initialData));
+        return initialData;
     }
 };
 
@@ -253,11 +711,17 @@ export function setLocalProfile(profile: LocalProfile) {
 export function getUserPreferences(): UserPreferences {
     if (typeof window === 'undefined') return {};
     const stored = window.localStorage.getItem(PREFERENCES_KEY);
-    if (!stored) return {};
+    if (!stored) {
+        const initialPrefs = buildInitialUserPreferences();
+        window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(initialPrefs));
+        return initialPrefs;
+    }
     try {
         return JSON.parse(stored);
     } catch (e) {
-        return {};
+        const initialPrefs = buildInitialUserPreferences();
+        window.localStorage.setItem(PREFERENCES_KEY, JSON.stringify(initialPrefs));
+        return initialPrefs;
     }
 }
 
@@ -2565,6 +3029,96 @@ export async function clearAllData() {
         console.error("Clear Data Error:", error);
         throw new Error("An error occurred while clearing data. Please try again later.");
     }
+}
+
+export async function clearStarterContent(): Promise<boolean> {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const companyData = data.companyData[companyId];
+    const starterMeta = companyData?.starterContent;
+
+    if (!companyData || !starterMeta?.isAvailable) {
+        return false;
+    }
+
+    companyData.tasks = companyData.tasks.filter(task => !starterMeta.taskIds.includes(task.id));
+    companyData.notes = companyData.notes.filter(note => !starterMeta.noteIds.includes(note.id));
+    companyData.taskTemplates = companyData.taskTemplates.filter(template => !starterMeta.templateIds.includes(template.id));
+    companyData.developers = companyData.developers.filter(
+        developer => !starterMeta.developerIds?.includes(developer.id)
+    );
+    companyData.testers = companyData.testers.filter(
+        tester => !starterMeta.testerIds?.includes(tester.id)
+    );
+    companyData.uiConfig.repositoryConfigs = companyData.uiConfig.repositoryConfigs.filter(
+        repository => !starterMeta.repositoryIds?.includes(repository.id)
+    );
+    companyData.uiConfig.fields = companyData.uiConfig.fields.map((field) => {
+        if (field.key === 'repositories') {
+            return {
+                ...field,
+                options: (field.options || []).filter(
+                    option => !starterMeta.repositoryIds?.includes(option.id)
+                ),
+                defaultValue: undefined,
+            };
+        }
+
+        if (field.key === 'developers') {
+            return {
+                ...field,
+                options: (field.options || []).filter(
+                    option => !starterMeta.developerIds?.includes(option.id)
+                ),
+                defaultValue: undefined,
+            };
+        }
+
+        if (field.key === 'testers') {
+            return {
+                ...field,
+                options: (field.options || []).filter(
+                    option => !starterMeta.testerIds?.includes(option.id)
+                ),
+                defaultValue: undefined,
+            };
+        }
+
+        if (field.key === 'azureWorkItemId' || field.key === 'tags' || field.key === 'relevantEnvironments') {
+            return {
+                ...field,
+                defaultValue: undefined,
+            };
+        }
+
+        return field;
+    });
+    companyData.starterContent = {
+        ...starterMeta,
+        isAvailable: false,
+        taskIds: [],
+        noteIds: [],
+        templateIds: [],
+        developerIds: [],
+        testerIds: [],
+        repositoryIds: [],
+    };
+
+    setAppData(data);
+    clearAllReadCache();
+
+    const currentPrefs = getUserPreferences();
+    const starterSavedIds = currentPrefs.starterSavedTaskViewIds || [];
+    await updateUserPreferences({
+        savedTaskViews: (currentPrefs.savedTaskViews || []).filter(view => !starterSavedIds.includes(view.id)),
+        starterSavedTaskViewIds: [],
+        starterContentAvailable: false,
+    });
+
+    addLog({ message: 'Removed starter workspace content for a clean first-time setup.' });
+    window.dispatchEvent(new Event('notes-updated'));
+    window.dispatchEvent(new Event('config-changed'));
+    return true;
 }
 
 function chunkArray<T>(array: T[], size: number): T[][] {

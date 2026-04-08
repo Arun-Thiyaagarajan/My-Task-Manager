@@ -6,6 +6,7 @@ import {
     getUiConfig, 
     setUiConfig, 
     clearAllData, 
+    clearStarterContent,
     getDevelopers, 
     getTesters,
     getAuthMode,
@@ -149,6 +150,8 @@ export default function SettingsPage() {
   const [localPendingStatusConversions, setLocalPendingStatusConversions] = useState<PendingStatusConversion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
+  const [isClearingStarter, setIsClearingStarter] = useState(false);
+  const [isStarterCleanupVisible, setIsStarterCleanupVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
@@ -219,6 +222,17 @@ export default function SettingsPage() {
     window.addEventListener('preferences-changed', loadPrefs);
     return () => window.removeEventListener('preferences-changed', loadPrefs);
   }, []);
+
+  useEffect(() => {
+    if (preferences.starterContentAvailable) {
+      setIsStarterCleanupVisible(true);
+      return;
+    }
+
+    if (!isClearingStarter) {
+      setIsStarterCleanupVisible(false);
+    }
+  }, [preferences.starterContentAvailable, isClearingStarter]);
 
   const loadConfig = () => {
     const config = getUiConfig();
@@ -619,6 +633,47 @@ export default function SettingsPage() {
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Reset Failed', description: error.message });
       setIsClearing(false);
+    }
+  };
+
+  const handleClearStarterContent = async () => {
+    setIsClearingStarter(true);
+    try {
+      const cleared = await clearStarterContent();
+      if (!cleared) {
+        toast({
+          variant: 'warning',
+          title: 'Starter content already removed',
+          description: 'This workspace is already using your own content only.',
+        });
+        setIsClearingStarter(false);
+        return;
+      }
+
+      setIsStarterCleanupVisible(false);
+      setPreferences(prev => ({
+        ...prev,
+        starterContentAvailable: false,
+        starterSavedTaskViewIds: [],
+      }));
+      toast({
+        variant: 'success',
+        title: 'Starter content removed',
+        description: 'Your workspace is clean now. Sample tasks, notes, templates, and saved views were removed.',
+      });
+
+      window.setTimeout(() => {
+        loadConfig();
+        router.refresh();
+      }, 260);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not remove starter content',
+        description: error?.message || 'Please try again.',
+      });
+    } finally {
+      setIsClearingStarter(false);
     }
   };
 
@@ -1527,7 +1582,49 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader> <AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
             <Card id="settings-data-card" className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2 text-destructive"><Database className="h-5 w-5" />Danger zone</CardTitle></CardHeader>
-            <CardContent className="space-y-2"><Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export settings</Button><Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import configuration</Button><input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" /><AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 justify-start rounded-xl bg-destructive px-4 text-xs font-semibold shadow-lg hover:bg-destructive/90"><Trash2 className="h-4 w-4 mr-3" /> Clear all data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="rounded-xl bg-destructive px-6 font-semibold hover:bg-destructive/90" disabled={isClearing}>Clear data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></CardContent></Card>
+            <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export settings</Button>
+                <Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import configuration</Button>
+                <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
+
+                <div
+                  className={cn(
+                    "overflow-hidden transition-all duration-300 ease-out",
+                    isStarterCleanupVisible ? "max-h-48 opacity-100 translate-y-0" : "pointer-events-none max-h-0 opacity-0 -translate-y-2"
+                  )}
+                >
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="w-full h-auto min-h-[5.25rem] justify-start rounded-xl border-primary/20 bg-primary/[0.04] px-4 py-3 text-left text-xs font-medium shadow-sm hover:bg-primary/[0.08] whitespace-normal">
+                        <div className="flex w-full items-start gap-3 text-left">
+                          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="font-semibold text-foreground">Clear starter defaults</div>
+                            <div className="break-words text-[11px] font-normal leading-5 text-muted-foreground">Remove the example tasks, notes, templates, and saved views once you are comfortable with the app flow.</div>
+                          </div>
+                        </div>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Did you get the app flow?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will remove the starter tasks, notes, templates, and saved views so you can begin with a clean workspace. Your own real data will stay untouched.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="mt-4 gap-3">
+                        <AlertDialogCancel className="rounded-xl font-medium" disabled={isClearingStarter}>Keep starter defaults</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearStarterContent} className="rounded-xl bg-primary px-6 font-semibold hover:bg-primary/90" disabled={isClearingStarter}>
+                          {isClearingStarter ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Yes, clear starter defaults
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+
+                <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-10 justify-start rounded-xl bg-destructive px-4 text-xs font-semibold shadow-lg hover:bg-destructive/90"><Trash2 className="h-4 w-4 mr-3" /> Clear all data</Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader><AlertDialogTitle>Clear all data?</AlertDialogTitle><AlertDialogDescription>Permanently delete all tasks, notes, and settings?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="rounded-xl font-medium" disabled={isClearing}>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleClearAllData} className="rounded-xl bg-destructive px-6 font-semibold hover:bg-destructive/90" disabled={isClearing}>Clear data</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+            </CardContent></Card>
         </div>
       </div>
       <EditFieldDialog 

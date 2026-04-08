@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { useFirebase } from '@/firebase';
 import { NotesSkeleton } from '@/components/notes-skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useProgressiveList } from '@/hooks/use-progressive-list';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -527,6 +528,21 @@ export default function NotesPage() {
   const authMode = getAuthMode();
   const activeCompanyId = getActiveCompanyId();
   const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
+  const {
+    visibleItems: visibleNotes,
+    remainingCount: remainingNotesCount,
+    nextCount: nextNotesCount,
+    canShowMore: canShowMoreNotes,
+    canShowFewer: canShowFewerNotes,
+    showMore: handleShowMoreNotes,
+    showFewer: handleShowFewerNotes,
+  } = useProgressiveList({
+    items: filteredNotes,
+    initialCount: isMobile ? 8 : 12,
+    step: isMobile ? 8 : 12,
+    resetKey: `${executedSearchQuery}|${dateFilter?.from?.toISOString() || ''}|${dateFilter?.to?.toISOString() || ''}|${filteredNotes.length}`,
+  });
+  const notesToRender = areFiltersActive ? filteredNotes : visibleNotes;
   const activeSkeletons = !mounted || isLoading || isUserLoading || isSyncing;
 
   if (activeSkeletons || !uiConfig) {
@@ -873,7 +889,7 @@ export default function NotesPage() {
               isDraggable={!areFiltersActive}
               isResizable={!areFiltersActive}
           >
-              {filteredNotes.map(note => (
+              {notesToRender.map(note => (
                   <div key={note.id} data-grid={areFiltersActive ? layouts.lg.find(l => l.i === note.id) : note.layout} className="relative group/card-wrapper">
                       {isSelectMode && (
                           <div className="absolute top-2 left-2 z-10">
@@ -899,6 +915,33 @@ export default function NotesPage() {
               ))}
           </ResponsiveGridLayout>
         )}
+
+        {!areFiltersActive && (canShowMoreNotes || canShowFewerNotes) ? (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {canShowFewerNotes ? (
+              <Button
+                variant="ghost"
+                onClick={handleShowFewerNotes}
+                className="rounded-2xl px-5 text-muted-foreground hover:text-foreground"
+              >
+                Show fewer
+              </Button>
+            ) : null}
+            {canShowMoreNotes ? (
+              <Button
+                variant="outline"
+                onClick={handleShowMoreNotes}
+                className="rounded-2xl px-5 shadow-sm"
+              >
+                <ChevronDown className="mr-2 h-4 w-4" />
+                Show {nextNotesCount} more notes
+                <span className="ml-2 text-xs text-muted-foreground">
+                  ({remainingNotesCount} left)
+                </span>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       
       <NoteViewerDialog

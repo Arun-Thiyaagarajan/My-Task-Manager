@@ -40,6 +40,8 @@ export interface PinnedSavedViewsStripProps {
   activeSavedViewId: string | null;
   onApplySavedTaskView: (view: SavedTaskView) => void;
   onClearActiveSavedView: (viewId: string) => void;
+  getSavedViewSummary: (view: SavedTaskView) => string;
+  getSavedViewPreviewGroups: (view: SavedTaskView) => Array<{ label: string; values: string[] }>;
   isLoading?: boolean;
   skeletonCount?: number;
   isHighlighted?: boolean;

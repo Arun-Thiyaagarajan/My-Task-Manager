@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDevelopers, updateTask, getTesters, getUiConfig } from '@/lib/data';
+import { getDevelopers, updateTask, getTesters, getUiConfig, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
@@ -45,15 +45,17 @@ export default function EditTaskPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (taskId) {
-      const foundTask = getTaskById(taskId);
+    const loadTask = () => {
+      if (!taskId) return;
+
+      const foundTask = getTaskById(taskId) || getDirectTaskById(taskId);
       const allTasksData = getTasks();
       const devs = getDevelopers();
       const testers = getTesters();
       const config = getUiConfig();
 
       setTask(foundTask || null);
-      setAllTasks(allTasksData);
+      setAllTasks(allTasksData.length > 0 ? allTasksData : getDirectTasks());
       setDevelopersList(devs);
       setTestersList(testers);
       setIsLoading(false);
@@ -64,7 +66,18 @@ export default function EditTaskPage() {
       } else {
         document.title = `Task Not Found | ${config.appName || 'My Task Manager'}`;
       }
-    }
+    };
+
+    loadTask();
+    window.addEventListener('storage', loadTask);
+    window.addEventListener('company-changed', loadTask);
+    window.addEventListener('sync-complete', loadTask);
+
+    return () => {
+      window.removeEventListener('storage', loadTask);
+      window.removeEventListener('company-changed', loadTask);
+      window.removeEventListener('sync-complete', loadTask);
+    };
   }, [taskId]);
 
   const handleUpdateTask = async (data: any) => {

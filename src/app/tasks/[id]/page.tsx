@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders } from '@/lib/data';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -143,7 +143,7 @@ export default function TaskPage() {
       const allDevs = getDevelopers();
       const allTesters = getTesters();
       const allTasksData = getTasks();
-      const foundTask = getTaskById(taskId);
+      const foundTask = getTaskById(taskId) || getDirectTaskById(taskId);
       const config = getUiConfig();
       
       setTask(foundTask || null);
@@ -153,7 +153,7 @@ export default function TaskPage() {
       setUiConfig(config);
       setDevelopers(allDevs);
       setTesters(allTesters);
-      setAllTasks(allTasksData);
+      setAllTasks(allTasksData.length > 0 ? allTasksData : getDirectTasks());
 
       if (foundTask) {
         document.title = `${foundTask.title} | ${config.appName || 'My Task Manager'}`;

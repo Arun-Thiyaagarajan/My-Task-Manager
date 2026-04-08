@@ -27,7 +27,10 @@ export function getCachedTasks(): Task[] {
 
 export function getCachedTaskById(id: string): Task | undefined {
   const scopeKey = getCurrentScopeKey();
-  return getOrCompute(buildReadCacheKey(scopeKey, 'task', id), DETAIL_TTL_MS, () => getTaskById(id), { scopeKey });
+  return getOrCompute(buildReadCacheKey(scopeKey, 'task', id), DETAIL_TTL_MS, () => getTaskById(id), {
+    scopeKey,
+    cacheNullish: false,
+  });
 }
 
 export function getCachedBinnedTasks(): Task[] {
