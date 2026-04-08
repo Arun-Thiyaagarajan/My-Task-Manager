@@ -332,6 +332,7 @@ export default function ProfilePage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const activeCompanyId = useActiveCompany();
 
   const authMode = getAuthMode();
@@ -365,6 +366,22 @@ export default function ProfilePage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isWorkspaceDialogOpen, setIsWorkspaceDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isSearchFocused) return;
+
+    const handlePointerDown = (event: PointerEvent | MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (searchContainerRef.current?.contains(target)) return;
+      setIsSearchFocused(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isSearchFocused]);
 
   useEffect(() => {
     if (!isLocal && !isUserLoading && !user) {
@@ -844,7 +861,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Smart Search Bar */}
-            <div className="px-6 mb-6 relative">
+            <div ref={searchContainerRef} className="px-6 mb-6 relative">
                 <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
@@ -853,7 +870,12 @@ export default function ProfilePage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
-                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                        onBlur={(e) => {
+                          const nextTarget = e.relatedTarget as Node | null;
+                          if (nextTarget && searchContainerRef.current?.contains(nextTarget)) return;
+                          if (isMobile) return;
+                          window.setTimeout(() => setIsSearchFocused(false), 200);
+                        }}
                     />
                     {searchQuery && (
                         <button 
@@ -868,50 +890,52 @@ export default function ProfilePage() {
                 {/* Deep Navigation Suggestions Dropdown */}
                 {isSearchFocused && isSearchActive && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-popover border rounded-2xl shadow-2xl z-[150] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 w-full max-w-[calc(100vw-2rem)] mx-auto">
-                        {filteredSearchItems.length > 0 ? (
-                            filteredSearchItems.map(item => (
-                                <button
-                                    key={item.id}
-                                    className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
-                                    onClick={() => {
-                                        if (item.type === 'tab') {
-                                            router.push(`/profile?tab=${item.id}`);
-                                        } else if (item.type === 'link') {
-                                            if (item.href === '/about' && pathname === '/about') return;
-                                            if (item.href) {
-                                                router.push(getMobileProfileChildHref(item.href));
+                        <div className="max-h-[min(26rem,calc(100vh-13rem))] overflow-y-auto overscroll-contain no-scrollbar">
+                            {filteredSearchItems.length > 0 ? (
+                                filteredSearchItems.map(item => (
+                                    <button
+                                        key={item.id}
+                                        className="w-full flex items-center gap-3 p-3 hover:bg-muted active:bg-muted/80 transition-colors text-left border-b last:border-0"
+                                        onClick={() => {
+                                            if (item.type === 'tab') {
+                                                router.push(`/profile?tab=${item.id}`);
+                                            } else if (item.type === 'link') {
+                                                if (item.href === '/about' && pathname === '/about') return;
+                                                if (item.href) {
+                                                    router.push(getMobileProfileChildHref(item.href));
+                                                }
+                                            } else if (item.type === 'settings') {
+                                                router.push(getMobileProfileChildHref(`/settings?section=${item.section}`));
+                                            } else if (item.type === 'event' && 'event' in item) {
+                                                const eventName = typeof item.event === 'string' ? item.event : null;
+                                                if (eventName) {
+                                                    window.dispatchEvent(new Event(eventName));
+                                                }
                                             }
-                                        } else if (item.type === 'settings') {
-                                            router.push(getMobileProfileChildHref(`/settings?section=${item.section}`));
-                                        } else if (item.type === 'event' && 'event' in item) {
-                                            const eventName = typeof item.event === 'string' ? item.event : null;
-                                            if (eventName) {
-                                                window.dispatchEvent(new Event(eventName));
-                                            }
-                                        }
-                                        setSearchQuery('');
-                                    }}
-                                >
-                                    <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
-                                        <item.icon className="h-4 w-4" />
+                                            setSearchQuery('');
+                                        }}
+                                    >
+                                        <div className={cn("p-2 rounded-lg bg-muted/50", item.color)}>
+                                            <item.icon className="h-4 w-4" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">{item.category}</p>
+                                            <p className="text-sm font-bold truncate">{item.title}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
+                                        </div>
+                                        <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="p-8 text-center animate-in zoom-in-95 duration-300">
+                                    <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                                        <SearchX className="h-6 w-6 text-muted-foreground/40" />
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 mb-0.5">{item.category}</p>
-                                        <p className="text-sm font-bold truncate">{item.title}</p>
-                                        <p className="text-[10px] text-muted-foreground truncate">{item.subLabel}</p>
-                                    </div>
-                                    <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
-                                </button>
-                            ))
-                        ) : (
-                            <div className="p-8 text-center animate-in zoom-in-95 duration-300">
-                                <div className="mx-auto w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                                    <SearchX className="h-6 w-6 text-muted-foreground/40" />
+                                    <p className="text-sm font-bold text-foreground/80">No matches found</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">Try a different setting</p>
                                 </div>
-                                <p className="text-sm font-bold text-foreground/80">No matches found</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">Try a different setting</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

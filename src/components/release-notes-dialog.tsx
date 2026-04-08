@@ -11,11 +11,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Rocket, Zap, Bug, ArrowRight } from 'lucide-react';
+import { Sparkles, Rocket, Zap, Bug, ArrowRight, RefreshCcw } from 'lucide-react';
 import type { ReleaseUpdate, ReleaseItemType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ReleaseNotesDialogProps {
   release: ReleaseUpdate | null;
@@ -25,6 +26,7 @@ interface ReleaseNotesDialogProps {
 
 export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNotesDialogProps) {
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   if (!release) return null;
 
@@ -42,6 +44,13 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
     }
   };
 
+  const handleApplyRelease = () => {
+    onOpenChange(false);
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 border-none shadow-2xl flex flex-col overflow-hidden">
@@ -51,13 +60,23 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
                 <Sparkles className="h-32 w-32 rotate-12" />
             </div>
             <div className="relative z-10 space-y-2">
-                <Badge variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
                     v{release.version} • {format(new Date(release.date), 'MMM d, yyyy')}
-                </Badge>
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/16 text-white hover:bg-white/16 border-none">
+                    New release available
+                  </Badge>
+                </div>
                 <DialogTitle className="text-4xl font-extrabold tracking-tight">What's New in TaskFlow</DialogTitle>
                 <DialogDescription className="text-primary-foreground/80 text-lg font-medium">
                     {release.title}
                 </DialogDescription>
+                <p className="max-w-2xl text-sm font-medium text-primary-foreground/78">
+                  {isMobile
+                    ? 'Reopen the app after reviewing this update to make sure you are on the latest release.'
+                    : 'Refresh the app after reviewing this update to load the latest deployed release.'}
+                </p>
             </div>
         </div>
 
@@ -125,7 +144,10 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
             </p>
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>Dismiss</Button>
-                <Button onClick={() => onOpenChange(false)}>Got it!</Button>
+                <Button onClick={handleApplyRelease}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  {isMobile ? 'Reopen app' : 'Refresh now'}
+                </Button>
             </div>
         </DialogFooter>
       </DialogContent>

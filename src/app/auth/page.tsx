@@ -289,9 +289,19 @@ export default function AuthPage() {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8 h-12 p-1 bg-muted/50 rounded-xl">
-              <TabsTrigger value="login" className="rounded-lg font-bold data-[state=active]:shadow-sm">Sign In</TabsTrigger>
-              <TabsTrigger value="register" className="rounded-lg font-bold data-[state=active]:shadow-sm">Sign Up</TabsTrigger>
+            <TabsList className="mb-8 grid h-12 w-full grid-cols-2 rounded-xl bg-muted/50 p-1">
+              <TabsTrigger
+                value="login"
+                className="rounded-lg font-bold text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5"
+              >
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="rounded-lg font-bold text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5"
+              >
+                Sign Up
+              </TabsTrigger>
             </TabsList>
 
             <form onSubmit={handleEmailAuth} className="space-y-6">

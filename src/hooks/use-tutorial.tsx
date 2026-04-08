@@ -135,6 +135,11 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         description: 'Turn on multi-select from here to manage tasks in bulk. The tutorial will open the bulk actions bar for the next steps.',
       },
       {
+        element: '#home-saved-views-trigger',
+        title: 'Saved Views',
+        description: 'Open saved views from this button to save the current task setup or jump back into a pinned view you use often.',
+      },
+      {
         element: '#select-all-tasks',
         title: 'Select All',
         description: 'Use Select All to pick every task in the current filtered view at once.',

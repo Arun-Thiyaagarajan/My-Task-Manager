@@ -325,11 +325,6 @@ export default function NotesPage() {
     }
   };
 
-  const onLayoutChange = (layout: any, layouts: any) => {
-    if (areFiltersActive) return;
-    updateNoteLayouts(layouts.lg);
-  };
-  
   const handleToggleSelectMode = () => {
     setIsSelectMode(prev => !prev);
     setSelectedNoteIds([]);
@@ -448,6 +443,20 @@ export default function NotesPage() {
       return executedSearchQuery.trim() !== '' || dateFilter !== undefined;
   }, [executedSearchQuery, dateFilter]);
 
+  const persistCommittedLayout = useCallback((nextLayout: Array<{ i: string; x: number; y: number; w: number; h: number }>) => {
+    if (areFiltersActive) return;
+
+    updateNoteLayouts(
+      nextLayout.map(({ i, x, y, w, h }) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+      }))
+    );
+  }, [areFiltersActive]);
+
   const layouts = useMemo(() => {
     const generateCompactLayout = (notesToLayout: Note[]) => {
         let colHeights: { [key: string]: number } = { lg: 0, md: 0, sm: 0, xs: 0, xxs: 0 };
@@ -538,39 +547,62 @@ export default function NotesPage() {
                 {mode === 'authenticate' ? 'Cloud Sync' : 'Local Only'}
             </Badge>
         </div>
-         <div id="notes-toolbar" className="hidden lg:flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleExportNotes} className="font-medium"><Upload className="mr-2 h-4 w-4"/>Export Notes</Button>
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="font-medium"><Download className="mr-2 h-4 w-4"/>Import Notes</Button>
+         <div id="notes-toolbar" className="hidden lg:flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportNotes}
+              className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-[0_16px_36px_-30px_rgba(15,23,42,0.42)] transition-all hover:border-primary/30 hover:bg-primary/5"
+            >
+              <Upload className="mr-2 h-4 w-4"/>
+              Export Notes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-[0_16px_36px_-30px_rgba(15,23,42,0.42)] transition-all hover:border-primary/30 hover:bg-primary/5"
+            >
+              <Download className="mr-2 h-4 w-4"/>
+              Import Notes
+            </Button>
             <input type="file" ref={fileInputRef} onChange={handleImportNotes} className="hidden" accept=".json" />
             <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
                 size="sm"
                 onClick={handleToggleSelectMode}
-                className="font-medium"
+                className={cn(
+                  "h-11 rounded-2xl px-4 font-semibold shadow-[0_16px_36px_-30px_rgba(15,23,42,0.42)] transition-all",
+                  isSelectMode
+                    ? "border-primary/20 bg-primary/10 text-primary hover:bg-primary/15"
+                    : "border-border/70 bg-background/80 hover:border-primary/30 hover:bg-primary/5"
+                )}
             >
               {isSelectMode ? <X className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
               {isSelectMode ? 'Cancel' : 'Select'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleResetLayout} className="font-medium">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetLayout}
+              className="h-11 rounded-2xl border-border/70 bg-background/80 px-4 font-semibold shadow-[0_16px_36px_-30px_rgba(15,23,42,0.42)] transition-all hover:border-primary/30 hover:bg-primary/5"
+            >
                 <LayoutGrid className="mr-2 h-4 w-4"/>
                 Reset Layout
+            </Button>
+            <Button
+              id="notes-new-note"
+              size="sm"
+              onClick={handleOpenNewNoteDialog}
+              className="h-11 rounded-2xl px-4 font-semibold shadow-[0_20px_42px_-28px_rgba(59,130,246,0.55)]"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New Note
             </Button>
         </div>
       </div>
       
        <div className="space-y-4 mb-8">
-            {/* HIDDEN ON MOBILE: Notes page actions are in the bottom navbar */}
-            <button
-                id="notes-new-note"
-                onClick={handleOpenNewNoteDialog}
-                className="hidden lg:flex w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-muted-foreground shadow-sm justify-between items-center h-11"
-            >
-                <span className="font-normal">Take a note...</span>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                    <span className="text-xs">{commandKey}</span>/
-                </kbd>
-            </button>
-
             <div className="lg:hidden grid grid-cols-2 gap-2 mb-4">
                 <Button variant="outline" className="font-medium h-11 rounded-xl" onClick={handleExportNotes}><Upload className="mr-2 h-4 w-4"/>Export</Button>
                 <Button variant="outline" className="font-medium h-11 rounded-xl" onClick={() => fileInputRef.current?.click()}><Download className="mr-2 h-4 w-4"/>Import</Button>
@@ -835,7 +867,8 @@ export default function NotesPage() {
               breakpoints={{lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0}}
               cols={{lg: 12, md: 10, sm: 6, xs: 4, xxs: 2}}
               rowHeight={30}
-              onLayoutChange={onLayoutChange}
+              onDragStop={persistCommittedLayout}
+              onResizeStop={persistCommittedLayout}
               draggableHandle={areFiltersActive ? undefined : ".drag-handle"}
               isDraggable={!areFiltersActive}
               isResizable={!areFiltersActive}

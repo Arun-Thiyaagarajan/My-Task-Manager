@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Bell,
+  BookmarkPlus,
   BookOpen,
   CheckSquare,
   ChevronRight,
@@ -60,6 +61,17 @@ const featureItems: FeatureItem[] = [
     icon: Filter,
     accent: 'text-primary',
     tags: ['tasks', 'filters', 'search', 'favorites', 'new task', 'workspace'],
+  },
+  {
+    id: 'saved-views',
+    title: 'Saved Views',
+    subtitle: 'Save, pin, and reopen your task setups',
+    description: 'Save the current filters, search, layout, and date mode as reusable views, then pin your most-used ones on the tasks page for quick access.',
+    href: '/?highlight=saved-views',
+    category: 'Core Workflow',
+    icon: BookmarkPlus,
+    accent: 'text-fuchsia-500',
+    tags: ['saved views', 'pin view', 'bookmark view', 'save filters', 'reopen view', 'task setup'],
   },
   {
     id: 'bulk-actions',

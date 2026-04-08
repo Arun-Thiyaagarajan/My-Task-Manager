@@ -120,6 +120,7 @@ import { appendExcelExportMetadataSheet, buildExcelExportRows } from '@/lib/task
 import { BulkSelectionBar } from '@/components/home/bulk-selection-bar';
 import { DeletedMatchesSection } from '@/components/home/deleted-matches-section';
 import { DesktopFiltersSheet } from '@/components/home/desktop-filters-sheet';
+import { MobileFiltersSheet } from '@/components/home/mobile-filters-sheet';
 import { PinnedSavedViewsStrip } from '@/components/home/pinned-saved-views-strip';
 import { SavedViewDialogs } from '@/components/home/saved-view-dialogs';
 import { TaskSearchInput } from '@/components/home/task-search-input';
@@ -170,13 +171,15 @@ export default function Home() {
   const [executedSearchQuery, setExecutedSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isDesktopFiltersOpen, setIsDesktopFiltersOpen] = useState(false);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [desktopStatusFilterDraft, setDesktopStatusFilterDraft] = useState<string[]>([]);
   const [desktopStatusGroupFilterDraft, setDesktopStatusGroupFilterDraft] = useState<string[]>([]);
   const [desktopRepoFilterDraft, setDesktopRepoFilterDraft] = useState<string[]>([]);
   const [desktopDeploymentFilterDraft, setDesktopDeploymentFilterDraft] = useState<string[]>([]);
   const [desktopTagsFilterDraft, setDesktopTagsFilterDraft] = useState<string[]>([]);
+  const [hasPreservedFilterDraftNotice, setHasPreservedFilterDraftNotice] = useState(false);
+  const suppressNextFilterSheetCloseRef = useRef(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -478,15 +481,13 @@ export default function Home() {
   }, [handleClearAllTaskFilters]);
 
   useEffect(() => {
-    if (!isDesktopFiltersOpen) return;
-
     setDesktopStatusFilterDraft(statusFilter);
     setDesktopStatusGroupFilterDraft(statusGroupFilter);
     setDesktopRepoFilterDraft(repoFilter);
     setDesktopDeploymentFilterDraft(deploymentFilter);
     setDesktopTagsFilterDraft(tagsFilter);
+    setHasPreservedFilterDraftNotice(false);
   }, [
-    isDesktopFiltersOpen,
     statusFilter,
     statusGroupFilter,
     repoFilter,
@@ -495,7 +496,9 @@ export default function Home() {
   ]);
 
   const handleApplyDesktopFilters = useCallback(() => {
+    suppressNextFilterSheetCloseRef.current = true;
     setIsSearching(true);
+    setHasPreservedFilterDraftNotice(false);
     setStatusFilter(desktopStatusFilterDraft);
     setStatusGroupFilter(desktopStatusGroupFilterDraft);
     setRepoFilter(desktopRepoFilterDraft);
@@ -510,13 +513,71 @@ export default function Home() {
     desktopTagsFilterDraft,
   ]);
 
+  const handleApplyMobileFilters = useCallback(() => {
+    suppressNextFilterSheetCloseRef.current = true;
+    setIsSearching(true);
+    setHasPreservedFilterDraftNotice(false);
+    setStatusFilter(desktopStatusFilterDraft);
+    setStatusGroupFilter(desktopStatusGroupFilterDraft);
+    setRepoFilter(desktopRepoFilterDraft);
+    setDeploymentFilter(desktopDeploymentFilterDraft);
+    setTagsFilter(desktopTagsFilterDraft);
+    setIsMobileFiltersOpen(false);
+  }, [
+    desktopStatusFilterDraft,
+    desktopStatusGroupFilterDraft,
+    desktopRepoFilterDraft,
+    desktopDeploymentFilterDraft,
+    desktopTagsFilterDraft,
+  ]);
+
   const handleResetDesktopFilterDraft = useCallback(() => {
+    setHasPreservedFilterDraftNotice(false);
+    setIsSearching(true);
     setDesktopStatusFilterDraft([]);
     setDesktopStatusGroupFilterDraft([]);
     setDesktopRepoFilterDraft([]);
     setDesktopDeploymentFilterDraft([]);
     setDesktopTagsFilterDraft([]);
+    setStatusFilter([]);
+    setStatusGroupFilter([]);
+    setRepoFilter([]);
+    setDeploymentFilter([]);
+    setTagsFilter([]);
   }, []);
+
+  const handleResetMobileFilterDraft = useCallback(() => {
+    suppressNextFilterSheetCloseRef.current = true;
+    setHasPreservedFilterDraftNotice(false);
+    setIsSearching(true);
+    setDesktopStatusFilterDraft([]);
+    setDesktopStatusGroupFilterDraft([]);
+    setDesktopRepoFilterDraft([]);
+    setDesktopDeploymentFilterDraft([]);
+    setDesktopTagsFilterDraft([]);
+    setStatusFilter([]);
+    setStatusGroupFilter([]);
+    setRepoFilter([]);
+    setDeploymentFilter([]);
+    setTagsFilter([]);
+    setIsMobileFiltersOpen(false);
+  }, []);
+
+  const handleDiscardPreservedFilterDraft = useCallback(() => {
+    setHasPreservedFilterDraftNotice(false);
+    setDesktopStatusFilterDraft(statusFilter);
+    setDesktopStatusGroupFilterDraft(statusGroupFilter);
+    setDesktopRepoFilterDraft(repoFilter);
+    setDesktopDeploymentFilterDraft(deploymentFilter);
+    setDesktopTagsFilterDraft(tagsFilter);
+  }, [
+    deploymentFilter,
+    repoFilter,
+    statusFilter,
+    statusGroupFilter,
+    tagsFilter,
+  ]);
+
 
   const handlePreviousDate = useCallback(() => {
       setIsSearching(true);
@@ -994,6 +1055,7 @@ export default function Home() {
   }, []);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
+      setIsSearching(true);
       setViewMode(mode);
   }, []);
 
@@ -1008,6 +1070,7 @@ export default function Home() {
         setDateView('monthly');
       }
 
+      setIsSearching(true);
       setViewMode(mode);
   }, [dateView, handleDateViewChange]);
 
@@ -1298,10 +1361,41 @@ export default function Home() {
     desktopRepoFilterDraft.length +
     desktopDeploymentFilterDraft.length +
     desktopTagsFilterDraft.length;
-  const currentSavedViewState = buildCurrentSavedViewState();
 
   const areStringArraysEqual = (left: string[] = [], right: string[] = []) =>
     left.length === right.length && left.every((value, index) => value === right[index]);
+
+  const hasUnappliedFilterDraftChanges =
+    !areStringArraysEqual(desktopStatusFilterDraft, statusFilter) ||
+    !areStringArraysEqual(desktopStatusGroupFilterDraft, statusGroupFilter) ||
+    !areStringArraysEqual(desktopRepoFilterDraft, repoFilter) ||
+    !areStringArraysEqual(desktopDeploymentFilterDraft, deploymentFilter) ||
+    !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter);
+  const showPreservedFilterDraftNotice = hasPreservedFilterDraftNotice && hasUnappliedFilterDraftChanges;
+  const handleDesktopFiltersOpenChange = useCallback((open: boolean) => {
+    if (!open && suppressNextFilterSheetCloseRef.current) {
+      suppressNextFilterSheetCloseRef.current = false;
+      setIsDesktopFiltersOpen(false);
+      return;
+    }
+    if (!open && hasUnappliedFilterDraftChanges) {
+      setHasPreservedFilterDraftNotice(true);
+    }
+    setIsDesktopFiltersOpen(open);
+  }, [hasUnappliedFilterDraftChanges]);
+
+  const handleMobileFiltersOpenChange = useCallback((open: boolean) => {
+    if (!open && suppressNextFilterSheetCloseRef.current) {
+      suppressNextFilterSheetCloseRef.current = false;
+      setIsMobileFiltersOpen(false);
+      return;
+    }
+    if (!open && hasUnappliedFilterDraftChanges) {
+      setHasPreservedFilterDraftNotice(true);
+    }
+    setIsMobileFiltersOpen(open);
+  }, [hasUnappliedFilterDraftChanges]);
+  const currentSavedViewState = buildCurrentSavedViewState();
 
   const isSavedViewActive = (view: SavedTaskView) => {
     const viewFilters = view.state.filters || {
@@ -1455,51 +1549,7 @@ export default function Home() {
   const selectedSortLabel = sortOptions.find((option) => option.value === sortDescriptor)?.label || 'Status (Asc)';
   const hasCustomSort = sortDescriptor !== 'status-asc';
 
-  const filterControlsContent = (
-    <div className="space-y-4">
-      <MultiSelect
-        selected={statusFilter}
-        className={cn(statusFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-        onChange={(val) => { setIsSearching(true); setStatusFilter(val); }}
-        options={sortedStatusOptions}
-        placeholder="Status..."
-      />
-      <MultiSelect
-        selected={statusGroupFilter}
-        className={cn(statusGroupFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-        onChange={(val) => { setIsSearching(true); setStatusGroupFilter(val); }}
-        options={statusGroupOptions}
-        placeholder="Status Group..."
-      />
-      {showRepositoryFilter && (
-        <MultiSelect
-          selected={repoFilter}
-          className={cn(repoFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-          onChange={(val) => { setIsSearching(true); setRepoFilter(val); }}
-          options={repositoryOptions}
-          placeholder="Repository..."
-        />
-      )}
-      {showTagsFilter && (
-        <MultiSelect
-          selected={tagsFilter}
-          className={cn(tagsFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-          onChange={(val) => { setIsSearching(true); setTagsFilter(val); }}
-          options={tagOptions}
-          placeholder="Tags..."
-        />
-      )}
-      <MultiSelect
-        selected={deploymentFilter}
-        className={cn(deploymentFilter.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
-        onChange={(val) => { setIsSearching(true); setDeploymentFilter(val); }}
-        options={deploymentOptions}
-        placeholder="Deployment..."
-      />
-    </div>
-  );
-
-  const desktopFilterControlsContent = (
+  const draftFilterControlsContent = (
     <div className="space-y-4">
       <MultiSelect
         selected={desktopStatusFilterDraft}
@@ -1544,6 +1594,65 @@ export default function Home() {
         options={deploymentOptions}
         placeholder="Deployment..."
         maxVisible={3}
+      />
+    </div>
+  );
+
+  const mobileDraftFilterControlsContent = (
+    <div className="space-y-4">
+      <MultiSelect
+        selected={desktopStatusFilterDraft}
+        className={cn(desktopStatusFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopStatusFilterDraft}
+        options={sortedStatusOptions}
+        placeholder="Status..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopStatusGroupFilterDraft}
+        className={cn(desktopStatusGroupFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopStatusGroupFilterDraft}
+        options={statusGroupOptions}
+        placeholder="Status Group..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      {showRepositoryFilter && (
+        <MultiSelect
+          selected={desktopRepoFilterDraft}
+          className={cn(desktopRepoFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={setDesktopRepoFilterDraft}
+          options={repositoryOptions}
+          placeholder="Repository..."
+          maxVisible={1}
+          mobileBehavior="popover"
+          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        />
+      )}
+      {showTagsFilter && (
+        <MultiSelect
+          selected={desktopTagsFilterDraft}
+          className={cn(desktopTagsFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+          onChange={setDesktopTagsFilterDraft}
+          options={tagOptions}
+          placeholder="Tags..."
+          maxVisible={1}
+          mobileBehavior="popover"
+          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        />
+      )}
+      <MultiSelect
+        selected={desktopDeploymentFilterDraft}
+        className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDeploymentFilterDraft}
+        options={deploymentOptions}
+        placeholder="Deployment..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
     </div>
   );
@@ -2013,39 +2122,7 @@ export default function Home() {
                       </Button>
                   </div>
 
-                  {/* 2. Filters Toggle Button */}
-                  <div className="px-1">
-                      <Button 
-                        variant="secondary" 
-                        className="w-full flex items-center justify-between h-12 px-4 font-semibold shadow-sm border rounded-xl"
-                        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                      >
-                        <span className="flex items-center gap-2">
-                            <Filter className="h-4 w-4" />
-                            Filters
-                            {activeFilterCount > 0 && (
-                                <Badge className="bg-primary text-primary-foreground h-5 px-1.5 min-w-5 font-bold">
-                                    {activeFilterCount}
-                                </Badge>
-                            )}
-                        </span>
-                        <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isFiltersOpen && "rotate-180")} />
-                      </Button>
-
-                      {/* Filter Grid - Mobile Positioning Fix (Directly below trigger) */}
-                              <div className={cn(
-                          "transition-all duration-300 overflow-hidden mt-2",
-                          isFiltersOpen ? "opacity-100 max-h-[1000px] mb-4" : "opacity-0 max-h-0 pointer-events-none"
-                      )}>
-                        <Card className="border shadow-lg bg-card">
-                            <CardContent className="p-4">
-                                {filterControlsContent}
-                            </CardContent>
-                        </Card>
-                      </div>
-                  </div>
-
-                  {/* 3. Date navigation (if monthly/yearly) */}
+                  {/* 2. Date navigation (if monthly/yearly) */}
                   {(dateView === 'monthly' || dateView === 'calendar' || dateView === 'yearly') && !favoritesOnly && (
                       <div className="flex items-center justify-between gap-2 w-full px-1">
                           <Button variant="outline" size="icon" onClick={handlePreviousDate} className="h-11 w-11 shrink-0 shadow-sm rounded-xl"><ChevronLeft className="h-5 w-5" /></Button>
@@ -2129,7 +2206,7 @@ export default function Home() {
                       </div>
                   )}
 
-                  {/* 4. Results heading */}
+                  {/* 3. Results heading */}
                   <div className="px-2">
                       <h2 className="text-xl font-bold text-foreground/90 leading-tight">
                           {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
@@ -2141,7 +2218,7 @@ export default function Home() {
                       </p>
                   </div>
 
-                  {/* 5. Mobile view/date toggles row */}
+                  {/* 4. Mobile view/date toggles row */}
                   <div className="flex items-center justify-between gap-2 px-1 pb-1 w-full md:hidden">
                       <div className="flex h-10 min-w-0 flex-1 items-center justify-center rounded-xl border bg-muted/50 p-1 shadow-sm">
                           <button
@@ -2171,7 +2248,10 @@ export default function Home() {
                               <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={cn("h-8 w-8 rounded-lg", dateView !== 'calendar' && viewMode === 'grid' && 'bg-card text-foreground shadow-sm')}
+                                  className={cn(
+                                    "h-8 w-8 rounded-lg text-muted-foreground transition-all",
+                                    dateView !== 'calendar' && viewMode === 'grid' && 'bg-background text-primary shadow-sm ring-1 ring-black/5'
+                                  )}
                                   onClick={() => handleContentViewChange('grid')}
                               >
                                   <LayoutGrid className="h-4 w-4" />
@@ -2186,7 +2266,10 @@ export default function Home() {
                               <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={cn("h-8 w-8 rounded-lg", dateView === 'calendar' && 'bg-card text-primary shadow-sm')}
+                                  className={cn(
+                                    "h-8 w-8 rounded-lg text-muted-foreground transition-all",
+                                    dateView === 'calendar' && 'bg-background text-primary shadow-sm ring-1 ring-black/5'
+                                  )}
                                   onClick={() => handleContentViewChange('calendar')}
                               >
                                   <CalendarIcon className="h-4 w-4" />
@@ -2200,8 +2283,8 @@ export default function Home() {
                       </div>
                   </div>
 
-                  {/* 6. Sort / Favourites / Select row */}
-                  <div className="flex items-center gap-2 px-1 w-full">
+                  {/* 5. Sort / Favourites / Select / Saved Views / Filters row */}
+                  <div className="flex flex-nowrap items-center gap-2 px-1 w-full md:hidden">
                       {dateView !== 'calendar' && (
                         <TooltipProvider>
                           <Tooltip>
@@ -2210,7 +2293,7 @@ export default function Home() {
                                   variant={favoritesOnly ? 'secondary' : 'outline'} 
                                   size="icon" 
                                   onClick={handleFavoritesToggle} 
-                                  className="h-11 w-11 rounded-xl shadow-sm shrink-0"
+                                  className="h-11 w-11 shrink-0 rounded-xl shadow-sm"
                               >
                                   <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
                               </Button>
@@ -2227,7 +2310,7 @@ export default function Home() {
                           <Tooltip>
                             <DropdownMenuTrigger asChild>
                               <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" className="relative h-11 w-11 rounded-xl shadow-sm">
+                                <Button variant="outline" size="icon" className="relative h-11 w-11 shrink-0 rounded-xl shadow-sm">
                                   <ArrowDownWideNarrow className="h-4.5 w-4.5" />
                                   {hasCustomSort && (
                                     <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
@@ -2267,22 +2350,23 @@ export default function Home() {
                             <TooltipTrigger asChild>
                               <Button 
                                   variant={isSelectMode ? 'secondary' : 'outline'} 
+                                  id="home-select-multiple-trigger-mobile"
                                   onClick={handleToggleSelectMode} 
                                   className={cn(
-                                      "h-11 rounded-xl px-3 shadow-sm transition-all active:scale-95 text-xs font-medium",
+                                      "h-11 min-w-0 flex-1 rounded-xl px-3 shadow-sm transition-all active:scale-95 text-xs font-medium",
                                       isSelectMode ? "bg-primary/10 text-primary border-primary/20" : "text-muted-foreground"
                                   )}
                               >
                                   {isSelectMode ? (
-                                      <>
-                                          <X className="h-3.5 w-3.5 mr-1.5" />
-                                          Cancel
-                                      </>
+                                    <>
+                                      <X className="mr-1.5 h-4 w-4 shrink-0" />
+                                      <span className="truncate">Cancel</span>
+                                    </>
                                   ) : (
-                                      <>
-                                          <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
-                                          Select multiple
-                                      </>
+                                    <>
+                                      <CheckSquare className="mr-1.5 h-4 w-4 shrink-0" />
+                                      <span className="truncate">Select multiple</span>
+                                    </>
                                   )}
                               </Button>
                             </TooltipTrigger>
@@ -2292,6 +2376,91 @@ export default function Home() {
                           </Tooltip>
                         </TooltipProvider>
                       )}
+
+                      <DropdownMenu>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <DropdownMenuTrigger asChild>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-11 w-11 shrink-0 rounded-xl shadow-sm transition-all duration-300"
+                                >
+                                  <BookmarkPlus className="h-4.5 w-4.5" />
+                                  <span className="sr-only">Saved views</span>
+                                </Button>
+                              </TooltipTrigger>
+                            </DropdownMenuTrigger>
+                            <TooltipContent side="top">
+                              <p>Saved views</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
+                          <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Saved Views
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              handleStartSaveCurrentView();
+                            }}
+                            className="rounded-xl px-3 py-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <BookmarkPlus className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">Save current view</p>
+                                <p className="text-[11px] text-muted-foreground">Store the current filters and layout.</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setIsManageViewsDialogOpen(true);
+                            }}
+                            className="rounded-xl px-3 py-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <FolderKanban className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">View saved</p>
+                                <p className="text-[11px] text-muted-foreground">Open and manage saved task views.</p>
+                              </div>
+                            </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              id="task-filters-mobile"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setIsMobileFiltersOpen(true)}
+                              className="relative h-11 w-11 shrink-0 rounded-xl shadow-sm text-muted-foreground"
+                            >
+                              <Filter className="h-4.5 w-4.5" />
+                              {activeFilterCount > 0 && (
+                                <>
+                                  <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                                  <span className="absolute right-2 top-2 inline-flex h-2.5 w-2.5 animate-ping rounded-full bg-primary/80" />
+                                </>
+                              )}
+                              <span className="sr-only">Open filters</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>Filters</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                   </div>
 
                   {/* 6.5 STRICT FIX: Select Multiple actions container (Mobile Only) */}
@@ -2319,6 +2488,8 @@ export default function Home() {
                     activeSavedViewId={activeSavedView?.id || null}
                     onApplySavedTaskView={applySavedTaskView}
                     onClearActiveSavedView={handleClearActiveSavedView}
+                    isLoading={shouldShowListSkeleton}
+                    skeletonCount={visiblePinnedSavedTaskViews.length > 0 ? visiblePinnedSavedTaskViews.length : Math.min(savedTaskViews.length, 3)}
                   />
                 </div>
               </div>
@@ -2584,9 +2755,10 @@ export default function Home() {
                                       <DropdownMenuTrigger asChild>
                                         <TooltipTrigger asChild>
                                           <Button
+                                            id="home-saved-views-trigger"
                                             variant="outline"
                                             size="icon"
-                                            className="h-11 w-11 rounded-xl shadow-sm"
+                                            className="h-11 w-11 rounded-xl shadow-sm transition-all duration-300"
                                           >
                                             <BookmarkPlus className="h-4.5 w-4.5" />
                                             <span className="sr-only">Saved views</span>
@@ -2639,6 +2811,7 @@ export default function Home() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
+                                        id="task-filters"
                                         variant="outline"
                                         size="icon"
                                         onClick={() => setIsDesktopFiltersOpen(true)}
@@ -2672,8 +2845,8 @@ export default function Home() {
             
             <div className="relative">
                 <div className={cn(
-                    "transition-all duration-500",
-                    isSearching ? "opacity-40 grayscale-[0.5] blur-[0.5px]" : "opacity-100"
+                    "transform-gpu transition-all duration-500 ease-out",
+                    isSearching ? "translate-y-2 opacity-45 blur-[0.4px]" : "translate-y-0 opacity-100"
                 )}>
                     {(dateView === 'calendar' || filteredTasks.length > 0 || filteredBinnedTasks.length > 0 || shouldShowListSkeleton || !shouldRenderEmptyState) ? (
                         <div>
@@ -2782,14 +2955,34 @@ export default function Home() {
 
      <DesktopFiltersSheet
         isOpen={isDesktopFiltersOpen}
-        onOpenChange={setIsDesktopFiltersOpen}
+        onOpenChange={handleDesktopFiltersOpenChange}
+        appliedFilterCount={activeFilterCount}
         desktopDraftFilterCount={desktopDraftFilterCount}
+        canApplyFilters={desktopDraftFilterCount > 0}
+        hasUnappliedChanges={showPreservedFilterDraftNotice}
         activeFilterSections={activeFilterSections}
         hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
         buildFilterSummary={buildFilterSummary}
-        controls={desktopFilterControlsContent}
+        controls={draftFilterControlsContent}
         onResetSelections={handleResetDesktopFilterDraft}
         onApplyFilters={handleApplyDesktopFilters}
+        onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
+     />
+
+     <MobileFiltersSheet
+        isOpen={isMobileFiltersOpen}
+        onOpenChange={handleMobileFiltersOpenChange}
+        appliedFilterCount={activeFilterCount}
+        desktopDraftFilterCount={desktopDraftFilterCount}
+        canApplyFilters={desktopDraftFilterCount > 0 || activeFilterCount > 0}
+        hasUnappliedChanges={showPreservedFilterDraftNotice}
+        activeFilterSections={activeFilterSections}
+        hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
+        buildFilterSummary={buildFilterSummary}
+        controls={mobileDraftFilterControlsContent}
+        onResetSelections={handleResetMobileFilterDraft}
+        onApplyFilters={handleApplyMobileFilters}
+        onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
      />
     </div>
   );

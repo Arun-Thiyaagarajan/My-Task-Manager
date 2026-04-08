@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, ArrowDown } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,6 +15,7 @@ interface PullToRefreshProps {
  * and triggers a global data refresh.
  */
 export function PullToRefresh({ children }: PullToRefreshProps) {
+  const router = useRouter();
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
@@ -94,6 +96,11 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
         completionPromise,
         new Promise(resolve => setTimeout(resolve, 1200)),
       ]);
+
+      router.refresh();
+      window.dispatchEvent(new Event('company-changed'));
+      window.dispatchEvent(new Event('config-changed'));
+      window.dispatchEvent(new Event('reminders-expired'));
       
     } catch (error) {
       console.error('Refresh failed', error);
@@ -154,36 +161,36 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
         } : {}}
       >
         <div className={cn(
-          "bg-background border shadow-2xl rounded-full p-2 flex items-center justify-center transition-transform",
+          "flex h-11 w-11 items-center justify-center rounded-full border bg-background shadow-2xl transition-transform",
           pullDistance >= REFRESH_THRESHOLD && !isRefreshing && "scale-110"
         )}>
           {isRefreshing ? (
             <Loader2 className="h-6 w-6 text-primary animate-spin" />
           ) : (
-            <div className="relative flex items-center justify-center">
-                <ArrowDown 
-                    className="h-5 w-5 text-primary transition-transform duration-200"
-                    style={{ transform: `rotate(${Math.min(pullDistance * 2.5, 180)}deg)` }}
+            <div className="relative flex h-8 w-8 items-center justify-center">
+                <RefreshCcw
+                    className="h-[18px] w-[18px] text-primary transition-transform duration-200"
+                    style={{ transform: `rotate(${Math.min(pullDistance * 2.8, 240)}deg)` }}
                 />
-                <svg className="absolute -inset-1.5 -rotate-90" width="36" height="36" viewBox="0 0 36 36">
+                <svg className="absolute inset-0 -rotate-90" width="32" height="32" viewBox="0 0 32 32">
                     <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
+                        cx="16"
+                        cy="16"
+                        r="13"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
+                        strokeWidth="2.25"
                         className="text-muted/30"
                     />
                     <circle
-                        cx="18"
-                        cy="18"
-                        r="16"
+                        cx="16"
+                        cy="16"
+                        r="13"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeDasharray={100}
-                        strokeDashoffset={100 - (Math.min(pullDistance / REFRESH_THRESHOLD, 1) * 100)}
+                        strokeWidth="2.25"
+                        strokeDasharray={82}
+                        strokeDashoffset={82 - (Math.min(pullDistance / REFRESH_THRESHOLD, 1) * 82)}
                         className="text-primary transition-all duration-75"
                         strokeLinecap="round"
                     />
@@ -197,7 +204,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
       {showInstruction && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-top-4 duration-1000">
             <div className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-lg flex items-center gap-2 border border-white/20">
-                <ArrowDown className="h-3 w-3 animate-bounce" />
+                <RefreshCcw className="h-3 w-3" />
                 Pull down to sync
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { BookmarkPlus, X } from 'lucide-react';
 
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 import type { PinnedSavedViewsStripProps } from '@/components/home/types';
@@ -12,14 +13,37 @@ export function PinnedSavedViewsStrip({
   activeSavedViewId,
   onApplySavedTaskView,
   onClearActiveSavedView,
+  isLoading = false,
+  skeletonCount = 0,
+  isHighlighted = false,
 }: PinnedSavedViewsStripProps) {
+  const shouldShowSkeletons = isLoading && skeletonCount > 0;
+
   return (
-    <div className="flex min-h-11 items-center gap-2 overflow-x-auto rounded-2xl border border-border/60 bg-background/70 px-3 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)]">
+    <div
+      id="home-saved-views-strip"
+      className={cn(
+        "flex min-h-11 items-center gap-2 overflow-x-auto rounded-2xl border border-border/60 bg-background/70 px-3 py-1.5 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)] transition-all duration-300",
+        isHighlighted && "border-primary/45 bg-primary/[0.06] ring-2 ring-primary/20"
+      )}
+    >
       <div className="flex shrink-0 items-center gap-2 pr-1 text-sm font-medium text-muted-foreground">
         <BookmarkPlus className="h-4 w-4 text-primary" />
         <span>Saved views</span>
       </div>
-      {visiblePinnedSavedTaskViews.length > 0 ? (
+      {shouldShowSkeletons ? (
+        <div className="flex min-w-0 items-center gap-2">
+          {Array.from({ length: skeletonCount }).map((_, index) => (
+            <div
+              key={`saved-view-skeleton-${index}`}
+              className="flex h-9 items-center gap-2 rounded-xl border border-border/60 bg-background px-2.5 shadow-sm"
+            >
+              <Skeleton className="h-4 w-20 rounded-md" />
+              <Skeleton className="h-6 w-6 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : visiblePinnedSavedTaskViews.length > 0 ? (
         <div className="flex min-w-0 items-center gap-2">
           {visiblePinnedSavedTaskViews.map((view) => {
             const isActive = activeSavedViewId === view.id;

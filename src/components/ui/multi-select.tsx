@@ -40,6 +40,8 @@ interface MultiSelectProps {
   creatable?: boolean;
   maxVisible?: number;
   boundaryId?: string;
+  mobileBehavior?: 'dialog' | 'popover';
+  popoverContentClassName?: string;
 }
 
 export const MultiSelect = React.memo(function MultiSelect({
@@ -52,6 +54,8 @@ export const MultiSelect = React.memo(function MultiSelect({
   creatable = false,
   maxVisible = 1,
   boundaryId,
+  mobileBehavior = 'dialog',
+  popoverContentClassName,
 }: MultiSelectProps) {
   const isMobile = useIsMobile();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -285,7 +289,7 @@ export const MultiSelect = React.memo(function MultiSelect({
 
   return (
     <>
-      {isMobile ? (
+      {isMobile && mobileBehavior === 'dialog' ? (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           {triggerContent}
           <DialogContent
@@ -313,7 +317,7 @@ export const MultiSelect = React.memo(function MultiSelect({
         </PopoverTrigger>
         <PopoverContent 
             data-import-row-boundary={boundaryId}
-            className="w-[300px] overflow-hidden rounded-2xl border-border/70 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]" 
+            className={cn("w-[300px] overflow-hidden rounded-2xl border-border/70 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)]", popoverContentClassName)} 
             align="start"
             onOpenAutoFocus={(e) => e.preventDefault()}
             onPointerDownCapture={(e) => e.stopPropagation()}
@@ -326,7 +330,7 @@ export const MultiSelect = React.memo(function MultiSelect({
         <Dialog open={isListOpen} onOpenChange={setIsListOpen}>
             <DialogContent 
                 data-import-row-boundary={boundaryId}
-                className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden"
+                className="z-[220] sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden"
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
                 <div className="p-6 pb-2 shrink-0">

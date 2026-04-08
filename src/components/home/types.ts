@@ -40,6 +40,9 @@ export interface PinnedSavedViewsStripProps {
   activeSavedViewId: string | null;
   onApplySavedTaskView: (view: SavedTaskView) => void;
   onClearActiveSavedView: (viewId: string) => void;
+  isLoading?: boolean;
+  skeletonCount?: number;
+  isHighlighted?: boolean;
 }
 
 export interface BulkSelectionBarProps {
@@ -81,11 +84,15 @@ export interface SavedViewDialogsProps {
 export interface DesktopFiltersSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  appliedFilterCount: number;
   desktopDraftFilterCount: number;
+  canApplyFilters: boolean;
+  hasUnappliedChanges: boolean;
   activeFilterSections: ActiveFilterSection[];
   hiddenActiveFilterSectionsCount: number;
   buildFilterSummary: (values: string[]) => string | null;
   controls: ReactNode;
   onResetSelections: () => void;
   onApplyFilters: () => void;
+  onDiscardUnappliedChanges: () => void;
 }
