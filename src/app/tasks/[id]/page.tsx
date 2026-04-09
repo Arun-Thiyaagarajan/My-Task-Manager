@@ -1131,7 +1131,7 @@ const handleCopyDescription = () => {
 
         <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/85 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)] dark:border-border/80 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.009),rgba(255,255,255,0.002))] dark:shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)]", cardClassName)} style={statusConfig.cardStyle}>
+            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.009),rgba(255,255,255,0.002))] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)]", cardClassName)} style={statusConfig.cardStyle}>
                 <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">

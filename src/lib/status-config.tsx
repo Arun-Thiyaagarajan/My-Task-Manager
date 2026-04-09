@@ -454,11 +454,11 @@ export function getStatusStyles(statusValue: TaskStatus, uiConfig?: UiConfig | n
       color: textColor,
     } satisfies CSSProperties,
     cardStyle: {
-      backgroundColor: rgba(status.color, 0.2),
-      borderColor: rgba(status.color, 0.34),
+      backgroundColor: rgba(status.color, 0.1),
+      borderColor: rgba(status.color, 0.2),
     } satisfies CSSProperties,
     backgroundIconStyle: {
-      color: rgba(status.color, 0.28),
+      color: rgba(status.color, 0.22),
     } satisfies CSSProperties,
     textColor,
   };

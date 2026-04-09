@@ -994,7 +994,7 @@ export default function TaskTemplatesPage() {
                     value={searchQuery}
                     onChange={event => setSearchQuery(event.target.value)}
                     placeholder={view === 'active' ? 'Search templates, statuses, tags, repos...' : 'Search bin for a template to restore...'}
-                    className="h-11 w-full rounded-2xl border-border/72 bg-secondary pl-11 pr-4 text-foreground placeholder:text-muted-foreground/75 shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.14)] transition-[border-color,box-shadow,background-color,width] hover:border-border/90 hover:bg-muted focus-visible:bg-muted dark:bg-[#171d28] dark:shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.025)] dark:hover:bg-[#192131] dark:focus-visible:bg-[#1b2436]"
+                    className="h-11 w-full rounded-2xl border-border/70 bg-background/92 pl-11 pr-4 text-foreground placeholder:text-muted-foreground/75 shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.45)] transition-[border-color,box-shadow,background-color,width] hover:border-border/90 hover:bg-background focus-visible:bg-background dark:bg-[#171d28] dark:shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.025)] dark:hover:bg-[#192131] dark:focus-visible:bg-[#1b2436]"
                   />
                 </div>
 
