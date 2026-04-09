@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { Check, HelpCircle } from 'lucide-react';
 
 import {
   DropdownMenuContent,
@@ -8,6 +8,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SortOption {
   value: string;
@@ -45,8 +46,30 @@ export function TaskSortMenuContent({
           className="rounded-xl px-3 py-2.5"
         >
           <div className="flex w-full items-center justify-between gap-3">
-            <span className="text-sm font-medium">{option.label}</span>
-            {sortDescriptor === option.value ? <Check className="h-4 w-4 text-primary" /> : null}
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-sm font-medium">{option.label}</span>
+              {option.value === 'start-asc' ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="How nearest start date sorting works"
+                        onClick={(event) => event.stopPropagation()}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-[240px] text-xs leading-relaxed">
+                      Tasks with the closest upcoming start date come first. Tasks without a start date are pushed lower.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : null}
+            </div>
+            {sortDescriptor === option.value ? <Check className="h-4 w-4 shrink-0 text-primary" /> : null}
           </div>
         </DropdownMenuItem>
       ))}

@@ -38,6 +38,7 @@ export interface PinnedSavedViewsStripProps {
   savedTaskViewsCount: number;
   visiblePinnedSavedTaskViews: SavedTaskView[];
   activeSavedViewId: string | null;
+  activeSavedViewIsPinned?: boolean;
   onApplySavedTaskView: (view: SavedTaskView) => void;
   onClearActiveSavedView: (viewId: string) => void;
   getSavedViewSummary: (view: SavedTaskView) => string;
@@ -89,12 +90,16 @@ export interface DesktopFiltersSheetProps {
   appliedFilterCount: number;
   desktopDraftFilterCount: number;
   canApplyFilters: boolean;
+  canSaveView: boolean;
   hasUnappliedChanges: boolean;
+  showSaveSuggestion: boolean;
   activeFilterSections: ActiveFilterSection[];
   hiddenActiveFilterSectionsCount: number;
   buildFilterSummary: (values: string[]) => string | null;
   controls: ReactNode;
   onResetSelections: () => void;
   onApplyFilters: () => void;
+  onSaveView: () => void;
+  onDismissSaveSuggestion: () => void;
   onDiscardUnappliedChanges: () => void;
 }

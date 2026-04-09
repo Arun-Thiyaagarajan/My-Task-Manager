@@ -12,6 +12,7 @@ export function PinnedSavedViewsStrip({
   savedTaskViewsCount,
   visiblePinnedSavedTaskViews,
   activeSavedViewId,
+  activeSavedViewIsPinned = false,
   onApplySavedTaskView,
   onClearActiveSavedView,
   getSavedViewSummary,
@@ -50,6 +51,7 @@ export function PinnedSavedViewsStrip({
         <div className="flex min-w-0 items-center gap-2">
           {visiblePinnedSavedTaskViews.map((view) => {
             const isActive = activeSavedViewId === view.id;
+            const isActivePreviewOnly = isActive && !activeSavedViewIsPinned;
             const previewGroups = getSavedViewPreviewGroups(view);
 
             return (
@@ -78,6 +80,11 @@ export function PinnedSavedViewsStrip({
                       >
                         {view.name}
                       </button>
+                      {/* {isActivePreviewOnly ? (
+                        <span className="inline-flex shrink-0 items-center rounded-full border border-primary/20 bg-background/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/80">
+                          Active
+                        </span>
+                      ) : null} */}
                       {isActive ? (
                         <button
                           type="button"
@@ -104,6 +111,11 @@ export function PinnedSavedViewsStrip({
                               <Sparkles className="h-3 w-3" />
                               {getSavedViewSummary(view)}
                             </span>
+                            {isActivePreviewOnly ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-300">
+                                Active, not pinned
+                              </span>
+                            ) : null}
                             {view.state.searchQuery ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
                                 <Search className="h-3 w-3" />

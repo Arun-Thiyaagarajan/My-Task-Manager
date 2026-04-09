@@ -152,6 +152,7 @@ export default function SettingsPage() {
   const [isClearing, setIsClearing] = useState(false);
   const [isClearingStarter, setIsClearingStarter] = useState(false);
   const [isStarterCleanupVisible, setIsStarterCleanupVisible] = useState(false);
+  const [isStarterCleanupHighlighted, setIsStarterCleanupHighlighted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   
@@ -203,6 +204,8 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
   const prevHasChangesRef = useRef(false);
+  const starterCleanupRef = useRef<HTMLDivElement>(null);
+  const dataCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -263,6 +266,29 @@ export default function SettingsPage() {
         window.removeEventListener('config-changed', loadConfig);
     };
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!mounted || isLoading) return;
+
+    const highlightTarget = searchParams.get('highlight');
+    if (highlightTarget !== 'starter-cleanup') return;
+
+    const timeoutId = window.setTimeout(() => {
+      const targetElement =
+        (isStarterCleanupVisible ? starterCleanupRef.current : null) || dataCardRef.current;
+
+      if (!targetElement) return;
+
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setIsStarterCleanupHighlighted(true);
+
+      window.setTimeout(() => {
+        setIsStarterCleanupHighlighted(false);
+      }, 2200);
+    }, 180);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLoading, isStarterCleanupVisible, mounted, searchParams]);
 
   const hasUnsavedFieldChanges = useMemo(() => {
     if (!uiConfig) return false;
@@ -1581,15 +1607,24 @@ export default function SettingsPage() {
                 <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
                 <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader> <AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
-            <Card id="settings-data-card" className="border-2 border-destructive/20 shadow-lg bg-destructive/[0.02]"><CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2 text-destructive"><Database className="h-5 w-5" />Danger zone</CardTitle></CardHeader>
+            <Card
+              id="settings-data-card"
+              ref={dataCardRef}
+              className={cn(
+                "border-2 border-destructive/20 shadow-lg bg-destructive/[0.02] transition-all duration-500",
+                isStarterCleanupHighlighted && !isStarterCleanupVisible && "ring-4 ring-primary/20 border-primary/35 bg-primary/[0.04]"
+              )}
+            ><CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2 text-destructive"><Database className="h-5 w-5" />Danger zone</CardTitle></CardHeader>
             <CardContent className="space-y-2">
                 <Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={handleExportSettings}><Download className="h-4 w-4 mr-3 text-muted-foreground" /> Export settings</Button>
                 <Button variant="outline" className="w-full h-10 justify-start rounded-xl px-4 text-xs font-medium shadow-sm" onClick={() => fileInputRef.current?.click()}><Upload className="h-4 w-4 mr-3 text-muted-foreground" /> Import configuration</Button>
                 <input type="file" ref={fileInputRef} onChange={handleImportSettings} className="hidden" accept=".json" />
 
                 <div
+                  ref={starterCleanupRef}
                   className={cn(
-                    "overflow-hidden transition-all duration-300 ease-out",
+                    "overflow-hidden rounded-2xl transition-all duration-300 ease-out",
+                    isStarterCleanupHighlighted && "ring-4 ring-primary/20 ring-offset-2 ring-offset-background",
                     isStarterCleanupVisible ? "max-h-48 opacity-100 translate-y-0" : "pointer-events-none max-h-0 opacity-0 -translate-y-2"
                   )}
                 >

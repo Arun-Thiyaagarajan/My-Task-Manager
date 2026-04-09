@@ -1,6 +1,6 @@
 'use client';
 
-import { Filter, Info, X } from 'lucide-react';
+import { BookmarkPlus, Filter, Info, Sparkles, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,13 +14,17 @@ export function DesktopFiltersSheet({
   appliedFilterCount,
   desktopDraftFilterCount,
   canApplyFilters,
+  canSaveView,
   hasUnappliedChanges,
+  showSaveSuggestion,
   activeFilterSections,
   hiddenActiveFilterSectionsCount,
   buildFilterSummary,
   controls,
   onResetSelections,
   onApplyFilters,
+  onSaveView,
+  onDismissSaveSuggestion,
   onDiscardUnappliedChanges,
 }: DesktopFiltersSheetProps) {
   return (
@@ -108,7 +112,31 @@ export function DesktopFiltersSheet({
         </div>
 
         <div className="border-t border-border/50 px-6 py-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="space-y-3">
+            {showSaveSuggestion && (
+              <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[linear-gradient(135deg,hsl(var(--background)/0.96),hsl(var(--primary)/0.08))] p-3 shadow-[0_18px_40px_-28px_rgba(59,130,246,0.45)]">
+                <button
+                  type="button"
+                  onClick={onDismissSaveSuggestion}
+                  className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  <span className="sr-only">Dismiss save view suggestion</span>
+                </button>
+                <div className="flex items-start gap-3 pr-10">
+                  <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">Save these filters as a view?</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      This filter mix is new. Save it once and bring it back anytime from saved views.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
             <Button
               variant="ghost"
               onClick={onResetSelections}
@@ -117,13 +145,25 @@ export function DesktopFiltersSheet({
             >
               Reset selections
             </Button>
-            <Button
-              onClick={onApplyFilters}
-              disabled={!canApplyFilters}
-              className="rounded-xl px-4 font-semibold"
-            >
-              Apply filters
-            </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={onSaveView}
+                  disabled={!canSaveView}
+                  className="rounded-xl px-4 font-semibold"
+                >
+                  <BookmarkPlus className="mr-2 h-4 w-4" />
+                  Save view
+                </Button>
+                <Button
+                  onClick={onApplyFilters}
+                  disabled={!canApplyFilters}
+                  className="rounded-xl px-4 font-semibold"
+                >
+                  Apply filters
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </SheetContent>
