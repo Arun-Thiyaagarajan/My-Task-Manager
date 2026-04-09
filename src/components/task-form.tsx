@@ -771,9 +771,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     return options;
   }
   
-  const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
+  const handleFormat = async (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
       if (ref.current) {
-          applyFormat(type, ref.current);
+          await applyFormat(type, ref.current);
       }
   };
   
@@ -818,7 +818,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                  return (
                     <div className="relative w-full">
                         <Textarea {...field} value={field.value ?? ''} ref={ref ?? undefined} className={cn("pb-12 font-normal", premiumFieldClassName)} enableHotkeys/>
-                        {ref ? <TextareaToolbar onFormatClick={(type) => handleFormat(ref, type)} storageKey={editorToolbarStorageKey} /> : null}
+                        {ref ? <TextareaToolbar textareaRef={ref} onFormatClick={(type) => handleFormat(ref, type)} storageKey={editorToolbarStorageKey} /> : null}
                     </div>
                  )
             }

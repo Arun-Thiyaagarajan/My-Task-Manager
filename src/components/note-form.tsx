@@ -53,9 +53,9 @@ export function NoteForm({
     onSave(title, content);
   };
 
-  const handleFormat = (type: FormatType) => {
+  const handleFormat = async (type: FormatType) => {
     if (descriptionEditorRef.current) {
-      applyFormat(type, descriptionEditorRef.current);
+      await applyFormat(type, descriptionEditorRef.current);
     }
   };
 
@@ -121,7 +121,7 @@ export function NoteForm({
               )}
               enableHotkeys
             />
-            <TextareaToolbar onFormatClick={handleFormat} storageKey="taskflow_editor_toolbar_notes" />
+            <TextareaToolbar textareaRef={descriptionEditorRef} onFormatClick={handleFormat} storageKey="taskflow_editor_toolbar_notes" />
           </div>
         </div>
       </div>

@@ -124,6 +124,7 @@ import { MobileFiltersSheet } from '@/components/home/mobile-filters-sheet';
 import { PinnedSavedViewsStrip } from '@/components/home/pinned-saved-views-strip';
 import { SavedViewDialogs } from '@/components/home/saved-view-dialogs';
 import { SavedViewsMenuContent } from '@/components/home/saved-views-menu-content';
+import { StarterWorkspaceCallout } from '@/components/home/starter-workspace-callout';
 import { TaskSearchInput } from '@/components/home/task-search-input';
 import { TaskSortMenuContent } from '@/components/home/task-sort-menu-content';
 
@@ -212,6 +213,9 @@ export default function Home() {
   const [isManageViewsDialogOpen, setIsManageViewsDialogOpen] = useState(false);
   const [newSavedViewName, setNewSavedViewName] = useState('');
   const [dismissedActiveSavedViewId, setDismissedActiveSavedViewId] = useState<string | null>(null);
+  const [starterContentAvailable, setStarterContentAvailable] = useState(false);
+  const [pendingSavedViewState, setPendingSavedViewState] = useState<SavedTaskViewState | null>(null);
+  const [isFilterSaveSuggestionDismissed, setIsFilterSaveSuggestionDismissed] = useState(false);
   
   useEffect(() => {
     setMounted(true);
@@ -249,6 +253,7 @@ export default function Home() {
     setExecutedSearchQuery(urlSearch);
     setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
     setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
+    setStarterContentAvailable(Boolean(prefs.starterContentAvailable));
 
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
@@ -318,20 +323,20 @@ export default function Home() {
     });
   }, []);
 
-  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => ({
-    viewMode,
-    sortDescriptor,
-    dateView,
-    favoritesOnly,
-    openGroups,
-    searchQuery: executedSearchQuery,
-    selectedDate: selectedDate?.toISOString(),
+  const buildSavedViewState = useCallback((overrides?: Partial<SavedTaskViewState>): SavedTaskViewState => ({
+    viewMode: overrides?.viewMode ?? viewMode,
+    sortDescriptor: overrides?.sortDescriptor ?? sortDescriptor,
+    dateView: overrides?.dateView ?? dateView,
+    favoritesOnly: overrides?.favoritesOnly ?? favoritesOnly,
+    openGroups: overrides?.openGroups ?? openGroups,
+    searchQuery: overrides?.searchQuery ?? executedSearchQuery,
+    selectedDate: overrides?.selectedDate ?? selectedDate?.toISOString(),
     filters: {
-      status: statusFilter,
-      statusGroup: statusGroupFilter,
-      repo: repoFilter,
-      deployment: deploymentFilter,
-      tags: tagsFilter,
+      status: overrides?.filters?.status ?? statusFilter,
+      statusGroup: overrides?.filters?.statusGroup ?? statusGroupFilter,
+      repo: overrides?.filters?.repo ?? repoFilter,
+      deployment: overrides?.filters?.deployment ?? deploymentFilter,
+      tags: overrides?.filters?.tags ?? tagsFilter,
     },
   }), [
     viewMode,
@@ -347,6 +352,7 @@ export default function Home() {
     deploymentFilter,
     tagsFilter,
   ]);
+  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => buildSavedViewState(), [buildSavedViewState]);
 
   const applySavedTaskView = useCallback((view: SavedTaskView) => {
     const { state } = view;
@@ -391,13 +397,21 @@ export default function Home() {
 
   const handleSaveCurrentView = useCallback(() => {
     const trimmedName = newSavedViewName.trim();
+    const stateToSave = pendingSavedViewState || buildCurrentSavedViewState();
+    const filtersToSave = stateToSave.filters || {
+      status: [],
+      statusGroup: [],
+      repo: [],
+      deployment: [],
+      tags: [],
+    };
     const hasAnySelectedFilters =
-      statusFilter.length > 0 ||
-      statusGroupFilter.length > 0 ||
-      repoFilter.length > 0 ||
-      deploymentFilter.length > 0 ||
-      tagsFilter.length > 0 ||
-      executedSearchQuery.trim().length > 0;
+      filtersToSave.status.length > 0 ||
+      filtersToSave.statusGroup.length > 0 ||
+      filtersToSave.repo.length > 0 ||
+      filtersToSave.deployment.length > 0 ||
+      filtersToSave.tags.length > 0 ||
+      stateToSave.searchQuery.trim().length > 0;
 
     if (!trimmedName) {
       toast({
@@ -418,11 +432,10 @@ export default function Home() {
     }
 
     const now = new Date().toISOString();
-    const currentState = buildCurrentSavedViewState();
     const existingView = savedTaskViews.find(view => view.name.trim().toLowerCase() === trimmedName.toLowerCase());
 
     const nextViews = existingView
-      ? savedTaskViews.map(view => view.id === existingView.id ? { ...view, name: trimmedName, updatedAt: now, state: currentState } : view)
+      ? savedTaskViews.map(view => view.id === existingView.id ? { ...view, name: trimmedName, updatedAt: now, state: stateToSave } : view)
       : [
           {
             id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -432,7 +445,7 @@ export default function Home() {
             createdAt: now,
             updatedAt: now,
             pinned: savedTaskViews.length === 0,
-            state: currentState,
+            state: stateToSave,
           },
           ...savedTaskViews,
         ];
@@ -440,13 +453,14 @@ export default function Home() {
     persistSavedTaskViews(nextViews);
     setIsSaveViewDialogOpen(false);
     setNewSavedViewName('');
+    setPendingSavedViewState(null);
     toast({
       variant: 'success',
       title: existingView ? 'Saved view updated' : 'Saved view created',
       description: `"${trimmedName}" is ready to reuse.`,
       duration: 2200,
     });
-  }, [buildCurrentSavedViewState, deploymentFilter, executedSearchQuery, newSavedViewName, persistSavedTaskViews, repoFilter, savedTaskViews, statusFilter, statusGroupFilter, tagsFilter, toast]);
+  }, [buildCurrentSavedViewState, newSavedViewName, pendingSavedViewState, persistSavedTaskViews, savedTaskViews, toast]);
 
   const handleToggleSavedViewPin = useCallback((viewId: string) => {
     const nextViews = savedTaskViews.map(view =>
@@ -610,6 +624,10 @@ export default function Home() {
 
     if (companyId) {
         clearExpiredReminders();
+        const appData = getAppData();
+        const prefs = getUserPreferences();
+        const companyStarterContentAvailable = Boolean(appData.companyData[companyId]?.starterContent?.isAvailable);
+        setStarterContentAvailable(Boolean(prefs.starterContentAvailable || companyStarterContentAvailable));
         const nextTasks = getTasks();
         const nextBinnedTasks = getBinnedTasks();
         setTasks(nextTasks);
@@ -1399,7 +1417,7 @@ export default function Home() {
   }, [hasUnappliedFilterDraftChanges]);
   const currentSavedViewState = buildCurrentSavedViewState();
 
-  const isSavedViewActive = (view: SavedTaskView) => {
+  const doesSavedViewStateMatch = useCallback((view: SavedTaskView, candidateState: SavedTaskViewState) => {
     const viewFilters = view.state.filters || {
       status: [],
       statusGroup: [],
@@ -1407,23 +1425,43 @@ export default function Home() {
       deployment: [],
       tags: [],
     };
-    const currentFilters = currentSavedViewState.filters;
+    const currentFilters = candidateState.filters;
 
     return (
-      view.state.viewMode === currentSavedViewState.viewMode &&
-      view.state.sortDescriptor === currentSavedViewState.sortDescriptor &&
-      view.state.dateView === currentSavedViewState.dateView &&
-      view.state.favoritesOnly === currentSavedViewState.favoritesOnly &&
-      (view.state.searchQuery || '') === currentSavedViewState.searchQuery &&
-      (view.state.selectedDate || '') === (currentSavedViewState.selectedDate || '') &&
-      areStringArraysEqual(view.state.openGroups || [], currentSavedViewState.openGroups) &&
+      view.state.viewMode === candidateState.viewMode &&
+      view.state.sortDescriptor === candidateState.sortDescriptor &&
+      view.state.dateView === candidateState.dateView &&
+      view.state.favoritesOnly === candidateState.favoritesOnly &&
+      (view.state.searchQuery || '') === candidateState.searchQuery &&
+      (view.state.selectedDate || '') === (candidateState.selectedDate || '') &&
+      areStringArraysEqual(view.state.openGroups || [], candidateState.openGroups) &&
       areStringArraysEqual(viewFilters.status || [], currentFilters.status) &&
       areStringArraysEqual(viewFilters.statusGroup || [], currentFilters.statusGroup) &&
       areStringArraysEqual(viewFilters.repo || [], currentFilters.repo) &&
       areStringArraysEqual(viewFilters.deployment || [], currentFilters.deployment) &&
       areStringArraysEqual(viewFilters.tags || [], currentFilters.tags)
     );
-  };
+  }, []);
+
+  const doSavedViewFiltersMatchDraft = useCallback((view: SavedTaskView, draftFilters: SavedTaskViewState['filters']) => {
+    const viewFilters = view.state.filters || {
+      status: [],
+      statusGroup: [],
+      repo: [],
+      deployment: [],
+      tags: [],
+    };
+
+    return (
+      areStringArraysEqual(viewFilters.status || [], draftFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup || [], draftFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo || [], draftFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment || [], draftFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags || [], draftFilters.tags)
+    );
+  }, []);
+
+  const isSavedViewActive = (view: SavedTaskView) => doesSavedViewStateMatch(view, currentSavedViewState);
 
   const buildFilterSummary = (values: string[]) => {
     if (values.length === 0) return null;
@@ -1496,6 +1534,38 @@ export default function Home() {
 
     return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${view.state.favoritesOnly ? 'Favorites' : 'All tasks'}`;
   };
+  const draftSavedViewState = useMemo(() => buildSavedViewState({
+    filters: {
+      status: desktopStatusFilterDraft,
+      statusGroup: desktopStatusGroupFilterDraft,
+      repo: desktopRepoFilterDraft,
+      deployment: desktopDeploymentFilterDraft,
+      tags: desktopTagsFilterDraft,
+    },
+  }), [
+    buildSavedViewState,
+    desktopDeploymentFilterDraft,
+    desktopRepoFilterDraft,
+    desktopStatusFilterDraft,
+    desktopStatusGroupFilterDraft,
+    desktopTagsFilterDraft,
+  ]);
+
+  const doesDraftHaveAnyFilters =
+    draftSavedViewState.filters.status.length > 0 ||
+    draftSavedViewState.filters.statusGroup.length > 0 ||
+    draftSavedViewState.filters.repo.length > 0 ||
+    draftSavedViewState.filters.deployment.length > 0 ||
+    draftSavedViewState.filters.tags.length > 0 ||
+    draftSavedViewState.searchQuery.trim().length > 0;
+
+  const isDraftAlreadySaved = savedTaskViews.some((view) => doSavedViewFiltersMatchDraft(view, draftSavedViewState.filters));
+  const shouldShowFilterSaveSuggestion =
+    hasUnappliedFilterDraftChanges &&
+    doesDraftHaveAnyFilters &&
+    !isDraftAlreadySaved &&
+    !isFilterSaveSuggestionDismissed;
+
   const matchingSavedView = savedTaskViews.find((view) => isSavedViewActive(view)) || null;
   const activeSavedView = matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView;
 
@@ -1527,9 +1597,49 @@ export default function Home() {
       return;
     }
 
+    setPendingSavedViewState(null);
     setNewSavedViewName('');
     setIsSaveViewDialogOpen(true);
   }, [activeFilterCount, activeSavedView, executedSearchQuery, toast]);
+
+  const handleStartSaveDraftView = useCallback(() => {
+    if (!doesDraftHaveAnyFilters) {
+      toast({
+        variant: 'warning',
+        title: 'Nothing to save yet',
+        description: 'Add at least one filter before saving this view.',
+        duration: 2400,
+      });
+      return;
+    }
+
+    if (savedTaskViews.some((view) => doesSavedViewStateMatch(view, draftSavedViewState))) {
+      const existingView = savedTaskViews.find((view) => doesSavedViewStateMatch(view, draftSavedViewState));
+      toast({
+        variant: 'warning',
+        title: 'View already saved',
+        description: existingView ? `"${existingView.name}" already matches these filters.` : 'These filters already exist in your saved views.',
+        duration: 2200,
+      });
+      return;
+    }
+
+    setPendingSavedViewState(draftSavedViewState);
+    setNewSavedViewName('');
+    setIsSaveViewDialogOpen(true);
+  }, [doesDraftHaveAnyFilters, doesSavedViewStateMatch, draftSavedViewState, savedTaskViews, toast]);
+
+  const handleSaveViewDialogOpenChange = useCallback((open: boolean) => {
+    setIsSaveViewDialogOpen(open);
+    if (!open) {
+      setPendingSavedViewState(null);
+    }
+  }, []);
+
+  const handleCloseSaveDialog = useCallback(() => {
+    setIsSaveViewDialogOpen(false);
+    setPendingSavedViewState(null);
+  }, []);
 
   const handleStartUpdateSavedView = useCallback((view: SavedTaskView) => {
     if (activeFilterCount === 0 && !executedSearchQuery.trim()) {
@@ -1559,8 +1669,18 @@ export default function Home() {
   }, [activeSavedView?.id, savedTaskViews]);
 
   const visiblePinnedSavedTaskViews = useMemo(() => {
-    return pinnedSavedTaskViews.slice(0, 3);
-  }, [pinnedSavedTaskViews]);
+    const visibleViews = pinnedSavedTaskViews.slice(0, 3);
+
+    if (
+      activeSavedView &&
+      !activeSavedView.pinned &&
+      !visibleViews.some((view) => view.id === activeSavedView.id)
+    ) {
+      return [activeSavedView, ...visibleViews].slice(0, 3);
+    }
+
+    return visibleViews;
+  }, [activeSavedView, pinnedSavedTaskViews]);
 
   const sortOptions = useMemo(() => ([
     { value: 'status-asc', label: 'Status (Asc)' },
@@ -2471,6 +2591,7 @@ export default function Home() {
                     savedTaskViewsCount={savedTaskViews.length}
                     visiblePinnedSavedTaskViews={visiblePinnedSavedTaskViews}
                     activeSavedViewId={activeSavedView?.id || null}
+                    activeSavedViewIsPinned={Boolean(activeSavedView?.pinned)}
                     onApplySavedTaskView={applySavedTaskView}
                     onClearActiveSavedView={handleClearActiveSavedView}
                     getSavedViewSummary={getSavedViewSummary}
@@ -2489,6 +2610,8 @@ export default function Home() {
                     <AlertDescription className="font-normal">{searchError}</AlertDescription>
                 </Alert>
            )}
+
+           <StarterWorkspaceCallout isVisible={starterContentAvailable} />
 
            <div className="flex flex-col gap-4">
                 <div className="hidden md:grid md:grid-cols-12 md:items-center md:gap-4 lg:gap-6">
@@ -2875,13 +2998,13 @@ export default function Home() {
 
      <SavedViewDialogs
         isSaveViewDialogOpen={isSaveViewDialogOpen}
-        onSaveViewDialogOpenChange={setIsSaveViewDialogOpen}
+        onSaveViewDialogOpenChange={handleSaveViewDialogOpenChange}
         isManageViewsDialogOpen={isManageViewsDialogOpen}
         onManageViewsDialogOpenChange={setIsManageViewsDialogOpen}
         newSavedViewName={newSavedViewName}
         onNewSavedViewNameChange={setNewSavedViewName}
         onSaveCurrentView={handleSaveCurrentView}
-        onCloseSaveDialog={() => setIsSaveViewDialogOpen(false)}
+        onCloseSaveDialog={handleCloseSaveDialog}
         savedTaskViews={savedTaskViews}
         isSavedViewActive={isSavedViewActive}
         getSavedViewSummary={getSavedViewSummary}
@@ -2890,6 +3013,7 @@ export default function Home() {
         onStartUpdateSavedView={handleStartUpdateSavedView}
         onDeleteSavedView={handleDeleteSavedView}
         onStartCreateSavedView={() => {
+          setPendingSavedViewState(null);
           setNewSavedViewName('');
           setIsManageViewsDialogOpen(false);
           setIsSaveViewDialogOpen(true);
@@ -2902,14 +3026,18 @@ export default function Home() {
         onOpenChange={handleDesktopFiltersOpenChange}
         appliedFilterCount={activeFilterCount}
         desktopDraftFilterCount={desktopDraftFilterCount}
-        canApplyFilters={desktopDraftFilterCount > 0}
+        canApplyFilters={desktopDraftFilterCount > 0 || activeFilterCount > 0}
+        canSaveView={doesDraftHaveAnyFilters}
         hasUnappliedChanges={showPreservedFilterDraftNotice}
+        showSaveSuggestion={shouldShowFilterSaveSuggestion}
         activeFilterSections={activeFilterSections}
         hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
         buildFilterSummary={buildFilterSummary}
         controls={draftFilterControlsContent}
         onResetSelections={handleResetDesktopFilterDraft}
         onApplyFilters={handleApplyDesktopFilters}
+        onSaveView={handleStartSaveDraftView}
+        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionDismissed(true)}
         onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
      />
 
@@ -2919,13 +3047,17 @@ export default function Home() {
         appliedFilterCount={activeFilterCount}
         desktopDraftFilterCount={desktopDraftFilterCount}
         canApplyFilters={desktopDraftFilterCount > 0 || activeFilterCount > 0}
+        canSaveView={doesDraftHaveAnyFilters}
         hasUnappliedChanges={showPreservedFilterDraftNotice}
+        showSaveSuggestion={shouldShowFilterSaveSuggestion}
         activeFilterSections={activeFilterSections}
         hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
         buildFilterSummary={buildFilterSummary}
         controls={mobileDraftFilterControlsContent}
         onResetSelections={handleResetMobileFilterDraft}
         onApplyFilters={handleApplyMobileFilters}
+        onSaveView={handleStartSaveDraftView}
+        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionDismissed(true)}
         onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
      />
     </div>

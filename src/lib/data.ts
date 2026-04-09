@@ -871,6 +871,8 @@ export function purgeExpiredNotifications() {
     const mode = getAuthMode();
     const data = getAppData();
     const notifications = data.notifications || [];
+    const auth = getAuth();
+    const currentUid = auth.currentUser?.uid;
     if (notifications.length === 0) return;
 
     const now = new Date();
@@ -885,8 +887,11 @@ export function purgeExpiredNotifications() {
     if (expired.length === 0) return;
 
     if (mode === 'authenticate') {
-        // Issue delete mutations for Firestore items
+        // Only delete notifications that clearly belong to the signed-in user.
+        // This avoids permission errors from stale or malformed cached entries.
         expired.forEach(n => {
+            if (!currentUid) return;
+            if (n.recipientId !== currentUid) return;
             dispatchMutation('notifications', n.id, null, 'delete');
         });
     } else {

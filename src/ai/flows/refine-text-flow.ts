@@ -15,6 +15,8 @@ import { z } from 'zod';
 
 const RefineInputSchema = z.object({
   text: z.string().describe('The text to be refined or rephrased.'),
+  contextBefore: z.string().optional().describe('Optional surrounding text that appears before the selected text.'),
+  contextAfter: z.string().optional().describe('Optional surrounding text that appears after the selected text.'),
 });
 
 const RefineOutputSchema = z.object({
@@ -47,16 +49,25 @@ const refineTextFlow = ai.defineFlow(
     inputSchema: RefineInputSchema,
     outputSchema: RefineOutputSchema,
   },
-  async ({ text }) => {
+  async ({ text, contextBefore, contextAfter }) => {
     const { output } = await ai.generate({
       prompt: `You are a professional editor and productivity assistant. 
       Your task is to refine and rephrase the following text to improve clarity, fix grammar, and make it more professional or concise while maintaining the original intent.
       
       Important Instructions:
+      - Preserve the original structure and formatting. Keep paragraphs, bullet lists, numbered lists, line breaks, markdown markers, links, mentions, and code fences intact unless a tiny wording change inside the same structure is required.
       - If the text contains code blocks (wrapped in \` or \`\`\`), preserve them exactly as they are.
+      - If the text is only a selected portion of a larger message, make the refined output fit naturally with the surrounding context.
       - If the text looks like a task title, make it punchy and action-oriented.
       - If the text looks like a description, ensure it follows a logical structure.
       - Do not add any conversational filler (e.g., "Here is the refined text:"). Only provide the refined content.
+      - Return only the refined replacement text for the provided input segment.
+
+      Surrounding context before the text:
+      ${contextBefore || '(none)'}
+
+      Surrounding context after the text:
+      ${contextAfter || '(none)'}
 
       Text to refine:
       ${text}`,

@@ -94,7 +94,6 @@ const featureItems: FeatureItem[] = [
     icon: Search,
     accent: 'text-blue-500',
     tags: ['global search', 'spotlight', 'cmd k', 'ctrl k', 'search anything', 'command palette'],
-    desktopOnly: true,
   },
   {
     id: 'templates',

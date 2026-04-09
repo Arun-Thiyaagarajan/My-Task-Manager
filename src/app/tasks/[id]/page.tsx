@@ -880,9 +880,9 @@ const handleCopyDescription = () => {
     router.push(backLink);
   };
 
-  const handleFormat = (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
+  const handleFormat = async (ref: React.RefObject<HTMLTextAreaElement>, type: FormatType) => {
       if (ref.current) {
-          applyFormat(type, ref.current);
+          await applyFormat(type, ref.current);
       }
   };
 
@@ -1256,7 +1256,7 @@ const handleCopyDescription = () => {
                                   placeholder="Enter a description..."
                                   enableHotkeys
                                />
-                               <TextareaToolbar onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} storageKey="taskflow_editor_toolbar_task_detail" />
+                               <TextareaToolbar textareaRef={descriptionEditorRef} onFormatClick={(type) => handleFormat(descriptionEditorRef, type)} storageKey="taskflow_editor_toolbar_task_detail" />
                              </div>
                             <div className="flex justify-end gap-2">
                                 <Button variant="ghost" size="sm" onClick={handleCancelEditing} className="font-medium">Cancel</Button>

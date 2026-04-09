@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { applyFormat } from "./textarea-toolbar";
+import { applyFormat, TEXTAREA_REFINE_PREVIEW_EVENT } from "./textarea-toolbar";
 import { Popover, PopoverContent, PopoverAnchor } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 import { getDevelopers, getTesters } from "@/lib/data";
@@ -69,8 +69,15 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     React.useEffect(() => {
         const textarea = localRef.current;
         if (!textarea || !enableHotkeys) return;
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
         
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isMac && e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'h') {
+                window.dispatchEvent(new CustomEvent(TEXTAREA_REFINE_PREVIEW_EVENT, { detail: { target: textarea } }));
+                e.preventDefault();
+                return;
+            }
+
             if (e.ctrlKey || e.metaKey) {
                 let handled = false;
                 switch(e.key.toLowerCase()) {
