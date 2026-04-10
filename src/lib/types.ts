@@ -157,6 +157,7 @@ export interface UserPreferences {
   viewMode?: 'grid' | 'table';
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
+  lastHomeViewState?: SavedTaskViewState;
   taskOpenGroups?: string[];
   savedTaskViews?: SavedTaskView[];
   taskFilters?: {

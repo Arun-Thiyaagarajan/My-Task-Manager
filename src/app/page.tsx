@@ -120,6 +120,14 @@ import { appendExcelExportMetadataSheet, buildExcelExportRows } from '@/lib/task
 import { BulkSelectionBar } from '@/components/home/bulk-selection-bar';
 import { DeletedMatchesSection } from '@/components/home/deleted-matches-section';
 import { DesktopFiltersSheet } from '@/components/home/desktop-filters-sheet';
+import {
+  buildHomeViewStateFromUrl,
+  buildHomeViewStateSnapshot,
+  buildLegacyHomeViewState,
+  normalizeSavedViewState,
+  type HomeDateView,
+  type HomeViewMode,
+} from '@/components/home/home-view-state';
 import { MobileFiltersSheet } from '@/components/home/mobile-filters-sheet';
 import { PinnedSavedViewsStrip } from '@/components/home/pinned-saved-views-strip';
 import { SavedViewDialogs } from '@/components/home/saved-view-dialogs';
@@ -128,8 +136,8 @@ import { StarterWorkspaceCallout } from '@/components/home/starter-workspace-cal
 import { TaskSearchInput } from '@/components/home/task-search-input';
 import { TaskSortMenuContent } from '@/components/home/task-sort-menu-content';
 
-type ViewMode = 'grid' | 'table';
-type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
+type ViewMode = HomeViewMode;
+type DateView = HomeDateView;
 
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const LAST_BACKUP_KEY = 'taskflow_last_auto_backup';
@@ -240,20 +248,19 @@ export default function Home() {
     }
     
     const prefs = getUserPreferences();
-    
-    const urlViewMode = searchParams.get('viewMode') as ViewMode;
-    const urlDateView = searchParams.get('dateView') as DateView;
-    const urlSort = searchParams.get('sort');
-    const urlFavs = searchParams.get('favorites') === 'true';
-    const urlSearch = searchParams.get('search') || '';
-    
-    setViewMode(urlViewMode || prefs.viewMode || 'grid');
-    setDateView(urlDateView || prefs.dateView || 'all');
-    setSortDescriptor(urlSort || prefs.sortDescriptor || 'status-asc');
-    setFavoritesOnly(urlFavs || prefs.favoritesOnly || false);
-    setSearchQuery(urlSearch);
-    setExecutedSearchQuery(urlSearch);
-    setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
+    const fallbackDateIso = new Date().toISOString();
+    const persistedHomeViewState = prefs.lastHomeViewState
+      ? normalizeSavedViewState(prefs.lastHomeViewState, fallbackDateIso)
+      : buildLegacyHomeViewState(prefs, fallbackDateIso);
+    const { state: resolvedHomeViewState } = buildHomeViewStateFromUrl(searchParams, persistedHomeViewState, fallbackDateIso);
+
+    setViewMode(resolvedHomeViewState.viewMode);
+    setDateView(resolvedHomeViewState.dateView);
+    setSortDescriptor(resolvedHomeViewState.sortDescriptor);
+    setFavoritesOnly(resolvedHomeViewState.favoritesOnly);
+    setSearchQuery(resolvedHomeViewState.searchQuery);
+    setExecutedSearchQuery(resolvedHomeViewState.searchQuery);
+    setOpenGroups(resolvedHomeViewState.openGroups);
     setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
 
     const shouldShowStarterCallout =
@@ -266,24 +273,14 @@ export default function Home() {
       void updateUserPreferences({ starterHomeCalloutSeen: true });
     }
 
-    const urlStatus = searchParams.getAll('status');
-    setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
+    setStatusFilter(resolvedHomeViewState.filters.status);
+    setStatusGroupFilter(resolvedHomeViewState.filters.statusGroup);
+    setRepoFilter(resolvedHomeViewState.filters.repo);
+    setDeploymentFilter(resolvedHomeViewState.filters.deployment);
+    setTagsFilter(resolvedHomeViewState.filters.tags);
 
-    const urlStatusGroup = searchParams.getAll('statusGroup');
-    setStatusGroupFilter(urlStatusGroup.length > 0 ? urlStatusGroup : (prefs.taskFilters?.statusGroup || []));
-    
-    const urlRepo = searchParams.getAll('repo');
-    setRepoFilter(urlRepo.length > 0 ? urlRepo : (prefs.taskFilters?.repo || []));
-    
-    const urlDeployment = searchParams.get('deployment');
-    setDeploymentFilter(urlDeployment ? [urlDeployment] : (prefs.taskFilters?.deployment || []));
-    
-    const urlTags = searchParams.getAll('tags');
-    setTagsFilter(urlTags.length > 0 ? urlTags : (prefs.taskFilters?.tags || []));
-
-    const dateStr = searchParams.get('date');
-    const date = dateStr ? new Date(dateStr) : new Date();
-    setSelectedDate(isValid(date) ? date : new Date());
+    const resolvedDate = resolvedHomeViewState.selectedDate ? new Date(resolvedHomeViewState.selectedDate) : new Date();
+    setSelectedDate(isValid(resolvedDate) ? resolvedDate : new Date());
 
   }, []);
 
@@ -311,11 +308,29 @@ export default function Home() {
         router.push(`${pathname}?${newQuery}`, { scroll: false });
     }
 
+    const currentHomeViewState = buildHomeViewStateSnapshot({
+      viewMode,
+      sortDescriptor,
+      dateView,
+      favoritesOnly,
+      openGroups,
+      searchQuery: executedSearchQuery,
+      selectedDate: selectedDate?.toISOString(),
+      filters: {
+        status: statusFilter,
+        statusGroup: statusGroupFilter,
+        repo: repoFilter,
+        deployment: deploymentFilter,
+        tags: tagsFilter,
+      },
+    });
+
     updateUserPreferences({
         viewMode,
         sortDescriptor,
         dateView,
         favoritesOnly,
+        lastHomeViewState: currentHomeViewState,
         taskOpenGroups: openGroups,
         taskFilters: {
             status: statusFilter,
@@ -323,7 +338,7 @@ export default function Home() {
             repo: repoFilter,
             deployment: deploymentFilter,
             tags: tagsFilter
-        }
+        },
     });
   }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
 
@@ -334,21 +349,22 @@ export default function Home() {
     });
   }, []);
 
-  const buildSavedViewState = useCallback((overrides?: Partial<SavedTaskViewState>): SavedTaskViewState => ({
-    viewMode: overrides?.viewMode ?? viewMode,
-    sortDescriptor: overrides?.sortDescriptor ?? sortDescriptor,
-    dateView: overrides?.dateView ?? dateView,
-    favoritesOnly: overrides?.favoritesOnly ?? favoritesOnly,
-    openGroups: overrides?.openGroups ?? openGroups,
-    searchQuery: overrides?.searchQuery ?? executedSearchQuery,
-    selectedDate: overrides?.selectedDate ?? selectedDate?.toISOString(),
+  const buildSavedViewState = useCallback((overrides?: Partial<SavedTaskViewState>): SavedTaskViewState => buildHomeViewStateSnapshot({
+    viewMode,
+    sortDescriptor,
+    dateView,
+    favoritesOnly,
+    openGroups,
+    searchQuery: executedSearchQuery,
+    selectedDate: selectedDate?.toISOString(),
     filters: {
-      status: overrides?.filters?.status ?? statusFilter,
-      statusGroup: overrides?.filters?.statusGroup ?? statusGroupFilter,
-      repo: overrides?.filters?.repo ?? repoFilter,
-      deployment: overrides?.filters?.deployment ?? deploymentFilter,
-      tags: overrides?.filters?.tags ?? tagsFilter,
+      status: statusFilter,
+      statusGroup: statusGroupFilter,
+      repo: repoFilter,
+      deployment: deploymentFilter,
+      tags: tagsFilter,
     },
+    overrides,
   }), [
     viewMode,
     sortDescriptor,
