@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { ArrowLeft, ShieldAlert, Sparkles } from 'lucide-react';
+import { ArrowLeft, Laptop, ShieldAlert, Sparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { ReleaseManagementSkeleton } from '@/components/release-page-skeleton';
@@ -10,10 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useFirebase } from '@/firebase';
 import { getAuthMode } from '@/lib/data';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ManageReleasesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
   const { userProfile, isUserLoading, isProfileLoading } = useFirebase();
   const authMode = getAuthMode();
   const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
@@ -85,6 +87,59 @@ export default function ManageReleasesPage() {
             >
               Open release history
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="container mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <Button variant="ghost" onClick={handleBack} className="mb-6 -ml-2 rounded-xl">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <Card className="overflow-hidden rounded-[2rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.95))] shadow-[0_28px_80px_-42px_rgba(15,23,42,0.48)]">
+          <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.14),transparent_48%),linear-gradient(135deg,hsl(var(--primary)/0.06),hsl(var(--card))_58%,hsl(var(--muted)/0.55))] px-6 py-6">
+            <div className="inline-flex h-14 w-14 items-center justify-center rounded-[1.4rem] border border-primary/15 bg-primary/10 text-primary shadow-sm">
+              <Laptop className="h-7 w-7" />
+            </div>
+            <CardTitle className="mt-4 text-2xl tracking-tight">Release management works best on desktop</CardTitle>
+            <CardDescription className="mt-2 max-w-xl text-sm leading-6">
+              Admin release tools are intentionally restricted on mobile so editing, publishing, and bulk actions stay safe and comfortable. You can still review published updates here and return on desktop to manage releases fully.
+            </CardDescription>
+          </div>
+          <CardContent className="space-y-5 px-6 py-6">
+            <div className="rounded-[1.4rem] border border-border/60 bg-muted/[0.16] p-4">
+              <p className="text-sm font-semibold text-foreground">Desktop-only admin tools</p>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                <li>Draft, publish, and delete shared releases</li>
+                <li>Edit release summaries, items, and versioning</li>
+                <li>Use bulk selection and safer admin workflows</li>
+              </ul>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                onClick={() => {
+                  window.dispatchEvent(new Event('navigation-start'));
+                  router.push('/releases');
+                }}
+                className="rounded-xl px-5 font-semibold"
+              >
+                Open release history
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  window.dispatchEvent(new Event('navigation-start'));
+                  router.push('/settings');
+                }}
+                className="rounded-xl px-5 font-semibold"
+              >
+                Go to settings
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

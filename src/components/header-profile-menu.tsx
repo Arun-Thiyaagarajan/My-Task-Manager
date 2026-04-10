@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AlertCircle, Cog, HelpCircle, History, LogOut, MailCheck, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { cn, getAvatarGradient, getInitials } from '@/lib/utils';
+import { getAuthMode } from '@/lib/data';
 
 interface HeaderProfileMenuProps {
   profileName: string;
@@ -81,6 +82,9 @@ export function HeaderProfileMenu({
   onResendVerification,
   isSignedIn,
 }: HeaderProfileMenuProps) {
+  const authMode = getAuthMode();
+  const isLocal = authMode === 'localStorage';
+  
   return (
     <DropdownMenuContent
       id="header-profile-menu"
@@ -118,8 +122,8 @@ export function HeaderProfileMenu({
                       : 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300'
                   )}
                 >
-                  {isVerified ? <ShieldCheck className="h-3 w-3" /> : <AlertCircle className="mr-1.5 h-3 w-3" />}
-                  {isVerified ? '' : 'Verify email'}
+                  {isVerified ? <ShieldCheck className="mr-1.5 h-3 w-3" /> : <AlertCircle className="mr-1.5 h-3 w-3" />}
+                  {isVerified ? (isLocal ? 'Local Identity' : 'Verified') : 'Verify email'}
                 </Badge>
               </div>
 

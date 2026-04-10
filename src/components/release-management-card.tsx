@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Bug,
+  Check,
   Eye,
   FileEdit,
   Laptop,
   MonitorSmartphone,
+  Pencil,
   Plus,
+  Rocket,
   ShieldCheck,
   Smartphone,
   Sparkles,
@@ -51,11 +54,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ReleaseManagementSkeleton } from '@/components/release-page-skeleton';
 
@@ -72,6 +78,21 @@ const audienceMeta: Record<ReleaseAudience, { label: string; icon: typeof Monito
   both: { label: 'Desktop + Mobile', icon: MonitorSmartphone },
 };
 
+const releaseStatusMeta = {
+  published: {
+    badge: 'Live to users',
+    detail: 'Visible in release history, popup, and inbox',
+    className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    icon: Rocket,
+  },
+  draft: {
+    badge: 'Draft only',
+    detail: 'Only admins can see and edit this release',
+    className: 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    icon: FileEdit,
+  },
+} as const;
+
 function createEmptyReleaseItem(): ReleaseItem {
   return {
     id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -79,6 +100,44 @@ function createEmptyReleaseItem(): ReleaseItem {
     audience: 'both',
     text: '',
   };
+}
+
+function isValidReleaseVersion(version: string) {
+  return /^\d+\.\d+\.\d+$/.test(version.trim());
+}
+
+function parseReleaseVersion(version: string) {
+  if (!isValidReleaseVersion(version)) return null;
+  const [major, minor, patch] = version.trim().split('.').map(Number);
+  return { major, minor, patch };
+}
+
+function compareReleaseVersions(left: string, right: string) {
+  const parsedLeft = parseReleaseVersion(left);
+  const parsedRight = parseReleaseVersion(right);
+
+  if (!parsedLeft && !parsedRight) return 0;
+  if (!parsedLeft) return -1;
+  if (!parsedRight) return 1;
+
+  if (parsedLeft.major !== parsedRight.major) return parsedLeft.major - parsedRight.major;
+  if (parsedLeft.minor !== parsedRight.minor) return parsedLeft.minor - parsedRight.minor;
+  return parsedLeft.patch - parsedRight.patch;
+}
+
+function getNextReleaseVersion(releases: ReleaseUpdate[]) {
+  const latest = [...releases]
+    .map((release) => release.version)
+    .filter((version) => isValidReleaseVersion(version))
+    .sort(compareReleaseVersions)
+    .at(-1);
+
+  if (!latest) return '1.0.0';
+
+  const parsed = parseReleaseVersion(latest);
+  if (!parsed) return '1.0.0';
+
+  return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
 }
 
 export function ReleaseManagementCard() {
@@ -93,6 +152,11 @@ export function ReleaseManagementCard() {
   const [selectedRelease, setSelectedRelease] = useState<ReleaseUpdate | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [editingRelease, setEditingRelease] = useState<Partial<ReleaseUpdate> | null>(null);
+  const [isVersionEditing, setIsVersionEditing] = useState(false);
+  const [versionDraft, setVersionDraft] = useState('');
+  const [versionError, setVersionError] = useState<string | null>(null);
+  const [selectedReleaseIds, setSelectedReleaseIds] = useState<string[]>([]);
+  const summaryEditorRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshReleases = useCallback(() => {
     setReleases(getReleaseUpdates(false));
@@ -113,7 +177,14 @@ export function ReleaseManagementCard() {
     };
   }, [refreshReleases]);
 
+  useEffect(() => {
+    setSelectedReleaseIds((currentIds) => currentIds.filter((id) => releases.some((release) => release.id === id)));
+  }, [releases]);
+
   const publishedCount = useMemo(() => releases.filter((release) => release.isPublished).length, [releases]);
+  const nextReleaseVersion = useMemo(() => getNextReleaseVersion(releases), [releases]);
+  const allSelectableIds = useMemo(() => releases.map((release) => release.id), [releases]);
+  const areAllSelected = allSelectableIds.length > 0 && selectedReleaseIds.length === allSelectableIds.length;
 
   if (isUserLoading || isProfileLoading || isLoading) {
     return (
@@ -138,9 +209,40 @@ export function ReleaseManagementCard() {
 
   if (!isAdmin) return null;
 
+  const clearEditorState = () => {
+    setIsEditorOpen(false);
+    setEditingRelease(null);
+    setIsVersionEditing(false);
+    setVersionDraft('');
+    setVersionError(null);
+  };
+
+  const validateVersion = (version: string, releaseId?: string) => {
+    const trimmedVersion = version.trim();
+
+    if (!isValidReleaseVersion(trimmedVersion)) {
+      return 'Version must follow the format 1.0.0';
+    }
+
+    const duplicate = releases.find(
+      (release) => release.id !== releaseId && release.version.trim().toLowerCase() === trimmedVersion.toLowerCase()
+    );
+
+    if (duplicate) {
+      return `Version ${trimmedVersion} already exists for ${duplicate.title}.`;
+    }
+
+    return null;
+  };
+
+  const wasReleasePublishedBeforeEditing = Boolean(
+    editingRelease?.id && releases.find((release) => release.id === editingRelease.id)?.isPublished
+  );
+
   const handleCreateRelease = () => {
+    const autoVersion = nextReleaseVersion;
     setEditingRelease({
-      version: '',
+      version: autoVersion,
       title: '',
       description: '',
       date: new Date().toISOString(),
@@ -148,11 +250,17 @@ export function ReleaseManagementCard() {
       isPublished: false,
       items: [createEmptyReleaseItem()],
     });
+    setVersionDraft(autoVersion);
+    setVersionError(null);
+    setIsVersionEditing(false);
     setIsEditorOpen(true);
   };
 
   const handleOpenEdit = (release: ReleaseUpdate) => {
     setEditingRelease(JSON.parse(JSON.stringify(release)));
+    setVersionDraft(release.version);
+    setVersionError(null);
+    setIsVersionEditing(false);
     setIsEditorOpen(true);
   };
 
@@ -167,6 +275,17 @@ export function ReleaseManagementCard() {
         variant: 'destructive',
         title: 'Missing information',
         description: 'Version and title are required.',
+      });
+      return;
+    }
+
+    const nextVersionError = validateVersion(editingRelease.version || '', editingRelease.id);
+    if (nextVersionError) {
+      setVersionError(nextVersionError);
+      toast({
+        variant: 'destructive',
+        title: 'Version already used',
+        description: nextVersionError,
       });
       return;
     }
@@ -204,14 +323,25 @@ export function ReleaseManagementCard() {
     }
 
     refreshReleases();
-    setIsEditorOpen(false);
-    setEditingRelease(null);
+    clearEditorState();
   };
 
   const handleDelete = (id: string) => {
     deleteReleaseUpdate(id);
     refreshReleases();
+    setSelectedReleaseIds((currentIds) => currentIds.filter((currentId) => currentId !== id));
     toast({ variant: 'success', title: 'Release deleted' });
+  };
+
+  const handleBulkDelete = () => {
+    selectedReleaseIds.forEach((id) => deleteReleaseUpdate(id));
+    refreshReleases();
+    setSelectedReleaseIds([]);
+    toast({
+      variant: 'success',
+      title: 'Selected releases deleted',
+      description: `${selectedReleaseIds.length} release${selectedReleaseIds.length === 1 ? '' : 's'} removed.`,
+    });
   };
 
   const handleTogglePublish = (release: ReleaseUpdate) => {
@@ -233,6 +363,44 @@ export function ReleaseManagementCard() {
         item.id === itemId ? { ...item, ...updates } : item
       ),
     });
+  };
+
+  const applyVersionDraft = () => {
+    if (!editingRelease) return;
+
+    const nextVersionError = validateVersion(versionDraft, editingRelease.id);
+    if (nextVersionError) {
+      setVersionError(nextVersionError);
+      return;
+    }
+
+    setEditingRelease({
+      ...editingRelease,
+      version: versionDraft.trim(),
+    });
+    setVersionError(null);
+    setIsVersionEditing(false);
+  };
+
+  const cancelVersionEdit = () => {
+    const fallbackVersion = editingRelease?.version || nextReleaseVersion;
+    setVersionDraft(fallbackVersion);
+    setVersionError(null);
+    setIsVersionEditing(false);
+  };
+
+  const toggleSelectRelease = (releaseId: string, checked: boolean | 'indeterminate') => {
+    setSelectedReleaseIds((currentIds) => {
+      if (checked) {
+        return currentIds.includes(releaseId) ? currentIds : [...currentIds, releaseId];
+      }
+      return currentIds.filter((id) => id !== releaseId);
+    });
+  };
+
+  const handleSummaryFormat = async (formatType: FormatType) => {
+    if (!summaryEditorRef.current) return;
+    await applyFormat(formatType, summaryEditorRef.current);
   };
 
   return (
@@ -269,11 +437,61 @@ export function ReleaseManagementCard() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/60 bg-muted/[0.12] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Bulk actions</p>
+              <p className="text-xs text-muted-foreground">
+                Select multiple releases to remove outdated drafts or published items together.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-full px-3 py-1 text-xs font-medium">
+                {selectedReleaseIds.length} selected
+              </Badge>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    disabled={selectedReleaseIds.length === 0}
+                    className="rounded-xl px-4 font-semibold"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete selected
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-[1.5rem]">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {selectedReleaseIds.length} selected releases?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This permanently removes the selected releases from management. Any published releases will also disappear from shared release history for users.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleBulkDelete}
+                      className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete selected
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+
           <div className="overflow-hidden rounded-[1.25rem] border border-border/60">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/[0.22]">
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={areAllSelected ? true : selectedReleaseIds.length > 0 ? 'indeterminate' : false}
+                        onCheckedChange={(checked) => setSelectedReleaseIds(checked ? allSelectableIds : [])}
+                        aria-label="Select all releases"
+                      />
+                    </TableHead>
                     <TableHead>Version</TableHead>
                     <TableHead>Release</TableHead>
                     <TableHead>Status</TableHead>
@@ -285,19 +503,39 @@ export function ReleaseManagementCard() {
                 <TableBody>
                   {releases.map((release) => (
                     <TableRow key={release.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedReleaseIds.includes(release.id)}
+                          onCheckedChange={(checked) => toggleSelectRelease(release.id, checked)}
+                          aria-label={`Select release ${release.title}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-semibold">v{release.version}</TableCell>
                       <TableCell>
                         <div className="min-w-[12rem] whitespace-normal">
                           <p className="font-medium text-foreground">{release.title}</p>
                           {release.description ? (
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{release.description}</p>
+                            <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground [&_blockquote]:my-0 [&_code]:text-[0.95em] [&_ol]:my-0 [&_p]:my-0 [&_ul]:my-0">
+                              <RichTextViewer text={release.description} />
+                            </div>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={release.isPublished ? 'default' : 'outline'} className="rounded-full">
-                          {release.isPublished ? 'Published' : 'Draft'}
-                        </Badge>
+                        {(() => {
+                          const statusMeta = release.isPublished ? releaseStatusMeta.published : releaseStatusMeta.draft;
+                          const StatusIcon = statusMeta.icon;
+
+                          return (
+                            <div className="space-y-1">
+                              <Badge variant="outline" className={cn('rounded-full border px-2.5 py-1 font-medium', statusMeta.className)}>
+                                <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+                                {statusMeta.badge}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{statusMeta.detail}</p>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
@@ -377,7 +615,7 @@ export function ReleaseManagementCard() {
                   ))}
                   {releases.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                         No releases yet. Create a draft to start publishing shared updates.
                       </TableCell>
                     </TableRow>
@@ -390,24 +628,45 @@ export function ReleaseManagementCard() {
       </Card>
 
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-h-[88vh] max-w-2xl overflow-hidden rounded-[1.5rem] border border-border/60 bg-background p-0 text-foreground shadow-2xl dark:shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)]">
+        <DialogContent className="flex max-h-[88vh] w-[calc(100vw-1rem)] max-w-2xl flex-col overflow-hidden rounded-[1.5rem] border border-border/60 bg-background p-0 text-foreground shadow-2xl dark:shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)]">
           {selectedRelease ? (
             <>
               <div className="border-b border-border/60 bg-muted/20 px-6 py-5">
                 <DialogHeader>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="rounded-full">v{selectedRelease.version}</Badge>
-                    <Badge variant="outline" className="rounded-full">
-                      {selectedRelease.isPublished ? 'Published' : 'Draft'}
-                    </Badge>
+                    {(() => {
+                      const statusMeta = selectedRelease.isPublished ? releaseStatusMeta.published : releaseStatusMeta.draft;
+                      const StatusIcon = statusMeta.icon;
+
+                      return (
+                        <Badge variant="outline" className={cn('rounded-full border px-2.5 py-1 font-medium', statusMeta.className)}>
+                          <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+                          {statusMeta.badge}
+                        </Badge>
+                      );
+                    })()}
                   </div>
                   <DialogTitle>{selectedRelease.title}</DialogTitle>
-                  <DialogDescription>
-                    {selectedRelease.description || 'No release summary added.'}
+                  <DialogDescription asChild>
+                    <div className="text-sm leading-relaxed text-muted-foreground">
+                      {selectedRelease.description ? (
+                        <div className="max-w-none [&_blockquote]:my-2 [&_ol]:my-2 [&_ul]:my-2">
+                          <RichTextViewer text={selectedRelease.description} />
+                        </div>
+                      ) : (
+                        'No release summary added.'
+                      )}
+                    </div>
                   </DialogDescription>
-                </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedRelease.isPublished
+                      ? 'This release is currently live for users in release history, the publish popup, and the inbox.'
+                      : 'This release is still private to admins until you publish it.'}
+                  </p>
+                  </DialogHeader>
               </div>
-              <div className="max-h-[60vh] space-y-4 overflow-y-auto px-6 py-5">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
                 {selectedRelease.items.map((item) => {
                   const type = releaseTypeMeta[item.type];
                   const TypeIcon = type.icon;
@@ -436,7 +695,7 @@ export function ReleaseManagementCard() {
       </Dialog>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-h-[96vh] max-w-4xl overflow-hidden rounded-[1.5rem] p-0">
+        <DialogContent className="flex max-h-[96vh] w-[calc(100vw-1rem)] max-w-4xl flex-col overflow-hidden rounded-[1.5rem] p-0">
           <div className="border-b border-border/60 px-6 py-5">
             <DialogHeader>
               <DialogTitle>{editingRelease?.id ? 'Edit release' : 'Create release draft'}</DialogTitle>
@@ -448,16 +707,69 @@ export function ReleaseManagementCard() {
 
           {editingRelease ? (
             <>
-              <div className="max-h-[68vh] space-y-6 overflow-y-auto px-6 py-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Version</Label>
-                    <Input
-                      value={editingRelease.version || ''}
-                      onChange={(event) => setEditingRelease({ ...editingRelease, version: event.target.value })}
-                      placeholder="1.2.0"
-                    />
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+                <div className="rounded-[1.25rem] border border-border/60 bg-muted/[0.14] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <Label>Release version</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Versions stay in the `1.0.0` format and new drafts automatically follow the latest sequence.
+                      </p>
+                    </div>
+                    {!isVersionEditing ? (
+                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        <Badge variant="outline" className="rounded-full px-3 py-1 text-sm font-semibold">
+                          v{editingRelease.version}
+                        </Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-xl"
+                          onClick={() => {
+                            setVersionDraft(editingRelease.version || nextReleaseVersion);
+                            setVersionError(null);
+                            setIsVersionEditing(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit release version</span>
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex w-full max-w-sm flex-col gap-2 sm:items-end">
+                        <div className="flex w-full items-center gap-2">
+                          <Input
+                            value={versionDraft}
+                            onChange={(event) => {
+                              setVersionDraft(event.target.value);
+                              if (versionError) setVersionError(null);
+                            }}
+                            placeholder="1.0.0"
+                            className="min-w-0"
+                          />
+                          <Button type="button" size="icon" className="h-10 w-10 rounded-xl" onClick={applyVersionDraft}>
+                            <Check className="h-4 w-4" />
+                            <span className="sr-only">Apply version</span>
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={cancelVersionEdit}>
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Cancel version edit</span>
+                          </Button>
+                        </div>
+                        {versionError ? (
+                          <p className="text-sm text-destructive sm:text-right">{versionError}</p>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                {!isVersionEditing && versionError ? (
+                  <p className="text-sm text-destructive">{versionError}</p>
+                ) : null}
+
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Title</Label>
                     <Input
@@ -470,12 +782,20 @@ export function ReleaseManagementCard() {
 
                 <div className="space-y-2">
                   <Label>Summary</Label>
-                  <Textarea
-                    value={editingRelease.description || ''}
-                    onChange={(event) => setEditingRelease({ ...editingRelease, description: event.target.value })}
-                    placeholder="Brief release summary for the popup and history page."
-                    className="min-h-[100px]"
-                  />
+                  <div className="relative">
+                    <Textarea
+                      ref={summaryEditorRef}
+                      value={editingRelease.description || ''}
+                      onChange={(event) => setEditingRelease({ ...editingRelease, description: event.target.value })}
+                      placeholder="Brief release summary for the popup and history page."
+                      className="min-h-[120px] pb-12"
+                    />
+                    <TextareaToolbar
+                      textareaRef={summaryEditorRef}
+                      onFormatClick={handleSummaryFormat}
+                      storageKey="taskflow_editor_toolbar_release_summary"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -489,17 +809,33 @@ export function ReleaseManagementCard() {
                       })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 rounded-xl border-border/70 bg-muted/[0.12] px-4 text-left">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      {editingRelease.isPublished ? null : <SelectItem value="draft">Draft</SelectItem>}
-                      <SelectItem value="published">Published</SelectItem>
+                    <SelectContent className="rounded-2xl border-border/70 p-2">
+                      {!wasReleasePublishedBeforeEditing ? (
+                        <SelectItem value="draft" className="rounded-xl py-3 pl-8 pr-3">
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium text-foreground">Draft</span>
+                            <span className="text-xs text-muted-foreground">
+                              Keep this release private to admins until it is ready.
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ) : null}
+                      <SelectItem value="published" className="rounded-xl py-3 pl-8 pr-3">
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium text-foreground">Published</span>
+                          <span className="text-xs text-muted-foreground">
+                            Make it live in release history, popup, and inbox for users.
+                          </span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
                     {editingRelease.isPublished
-                      ? 'Published releases stay public in history and release popups.'
+                      ? 'Published releases stay public in history, popup, and inbox.'
                       : 'Draft keeps the release hidden from users. Published makes it visible in history and the release popup.'}
                   </p>
                 </div>
@@ -628,9 +964,11 @@ export function ReleaseManagementCard() {
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-border/60 px-6 py-4">
-                <Button variant="ghost" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
-                <Button onClick={handleSave} className="rounded-xl px-5 font-semibold">
+              <DialogFooter className="flex-col-reverse gap-2 border-t border-border/60 px-6 py-4 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={clearEditorState} className="w-full sm:w-auto">
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} className="w-full rounded-xl px-5 font-semibold sm:w-auto">
                   Save release
                 </Button>
               </DialogFooter>

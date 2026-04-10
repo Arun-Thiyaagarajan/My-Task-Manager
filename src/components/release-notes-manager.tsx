@@ -2,16 +2,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useFirebase } from '@/firebase';
 import { getActiveCompanyId, getReleaseUpdates, getUserPreferences, updateUserPreferences } from '@/lib/data';
 import type { ReleaseUpdate } from '@/lib/types';
 import { ReleaseNotesDialog } from './release-notes-dialog';
 
 export function ReleaseNotesManager() {
+    const { userProfile } = useFirebase();
     const [latestRelease, setLatestRelease] = useState<ReleaseUpdate | null>(null);
     const [isOpen, setIsOpen] = useState(false);
+    const releasePopupAudienceKey = userProfile?.role ?? 'unknown';
 
     useEffect(() => {
         const checkLatestPublishedRelease = () => {
+            if (userProfile?.role === 'admin') {
+                setLatestRelease(null);
+                setIsOpen(false);
+                return;
+            }
+
             const companyId = getActiveCompanyId();
             if (!companyId) return;
 
@@ -43,7 +52,7 @@ export function ReleaseNotesManager() {
             window.removeEventListener('company-changed', checkLatestPublishedRelease);
             window.removeEventListener('preferences-changed', checkLatestPublishedRelease);
         };
-    }, []);
+    }, [releasePopupAudienceKey]);
 
     return (
         <ReleaseNotesDialog 

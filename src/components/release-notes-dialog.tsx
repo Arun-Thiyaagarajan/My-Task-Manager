@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { cn } from '@/lib/utils';
 import type { ReleaseAudience, ReleaseItemType, ReleaseUpdate } from '@/lib/types';
 
@@ -66,37 +67,44 @@ export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNot
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="w-[min(44rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-[1.75rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] p-0 text-foreground shadow-[0_32px_90px_-40px_rgba(15,23,42,0.48)] dark:shadow-[0_32px_90px_-40px_rgba(0,0,0,0.72)]"
+        className="flex max-h-[min(92vh,92dvh)] w-[min(44rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[1.75rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] p-0 text-foreground shadow-[0_32px_90px_-40px_rgba(15,23,42,0.48)] dark:shadow-[0_32px_90px_-40px_rgba(0,0,0,0.72)] sm:max-h-[min(88vh,56rem)]"
       >
-        <div className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_50%),linear-gradient(135deg,hsl(var(--foreground)/0.06),hsl(var(--foreground)/0.02))] 
-        dark:bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.25),transparent_40%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted)/0.9))] px-5 py-5 text-white sm:px-7 sm:py-6">
-          <div className="absolute -right-5 -top-8 opacity-10">
+        <div className="relative overflow-hidden border-b border-border/60 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.16),transparent_48%),linear-gradient(135deg,hsl(var(--primary)/0.08),hsl(var(--card))_58%,hsl(var(--muted)/0.6))] px-5 py-5 text-foreground dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.25),transparent_40%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted)/0.9))] dark:text-white sm:px-7 sm:py-6">
+          <div className="absolute -right-5 -top-8 opacity-[0.14] dark:opacity-10">
             <Sparkles className="h-28 w-28 rotate-12" />
           </div>
           <DialogHeader className="relative space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="border-white/15 bg-white/12 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/12">
+              <Badge className="border-primary/20 bg-background/80 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm hover:bg-background/80 dark:border-white/15 dark:bg-white/12 dark:text-white dark:hover:bg-white/12">
                 v{release.version}
               </Badge>
-              <Badge className="border-white/15 bg-white/8 px-2.5 py-1 text-[11px] font-medium text-white/90 hover:bg-white/8">
+              <Badge className="border-border/60 bg-background/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm hover:bg-background/70 dark:border-white/15 dark:bg-white/8 dark:text-white/90 dark:hover:bg-white/8">
                 {format(new Date(release.publishedAt || release.date), 'MMM d, yyyy')}
               </Badge>
-              <Badge className="border-white/15 bg-primary/30 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-primary/30">
+              <Badge className="border-primary/20 bg-primary/12 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/12 dark:border-white/15 dark:bg-primary/30 dark:text-white dark:hover:bg-primary/30">
                 New release
               </Badge>
             </div>
             <div className="space-y-1">
-              <DialogTitle className="text-left text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              <DialogTitle className="text-left text-2xl font-semibold tracking-tight text-foreground dark:text-white sm:text-3xl">
                 {release.title}
               </DialogTitle>
-              <DialogDescription className="max-w-2xl text-left text-sm leading-relaxed text-white/78 sm:text-[15px]">
-                {release.description || 'A new update is now live for your workspace.'}
+              <DialogDescription asChild>
+                <div className="max-w-2xl text-left text-sm leading-relaxed text-muted-foreground dark:text-white/78 sm:text-[15px]">
+                  {release.description ? (
+                    <div className="max-w-none [&_blockquote]:my-2 [&_ol]:my-2 [&_ul]:my-2">
+                      <RichTextViewer text={release.description} />
+                    </div>
+                  ) : (
+                    'A new update is now live for your workspace.'
+                  )}
+                </div>
               </DialogDescription>
             </div>
           </DialogHeader>
         </div>
 
-        <div className="max-h-[min(70vh,34rem)] overflow-y-auto px-5 py-5 sm:px-7">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
           <div className="space-y-6">
             {groupedItems.map((group) => {
               const meta = releaseTypeMeta[group.type];

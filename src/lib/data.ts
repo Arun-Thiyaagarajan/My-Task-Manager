@@ -16,6 +16,8 @@ export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
 const PREFERENCES_KEY = 'taskflow_user_preferences';
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
+const SHARED_RELEASE_UPDATES_COLLECTION = 'shared';
+const SHARED_RELEASE_UPDATES_DOC = 'release-updates';
 
 function isQuotaExceededError(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
@@ -613,6 +615,7 @@ function buildInitialUserPreferences(): UserPreferences {
         starterContentAvailable: true,
         starterHomeCalloutSeen: false,
         starterSettingsCleanupSeen: false,
+        seenReleaseInboxKeys: {},
     };
 }
 
@@ -766,7 +769,7 @@ function dispatchMutation(
     const userId = auth.currentUser?.uid;
     const activeCompanyId = getActiveCompanyId();
     
-    if (!userId && (type !== 'feedback' && type !== 'feedbackMessages' && type !== 'notifications')) return;
+    if (!userId && (type !== 'feedback' && type !== 'feedbackMessages' && type !== 'notifications' && type !== 'releaseUpdates')) return;
 
     let docRef;
     let payload = data;
@@ -775,19 +778,20 @@ function dispatchMutation(
         docRef = doc(db, 'users', userId!, 'companies', id);
     } else if (type === 'uiConfig') {
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, 'settings', 'uiConfig');
-    } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'releaseUpdates' || type === 'taskTemplates') {
+    } else if (type === 'releaseUpdates') {
+        docRef = doc(db, SHARED_RELEASE_UPDATES_COLLECTION, SHARED_RELEASE_UPDATES_DOC);
+        payload = { list: data };
+    } else if (type === 'developers' || type === 'testers' || type === 'generalReminders' || type === 'taskTemplates') {
         const parentMap: Record<string, string> = {
             developers: 'people',
             testers: 'people',
             generalReminders: 'reminders',
-            releaseUpdates: 'releases',
             taskTemplates: 'settings',
         };
         const docNameMap: Record<string, string> = {
             developers: 'developers',
             testers: 'testers',
             generalReminders: 'general',
-            releaseUpdates: 'updates',
             taskTemplates: 'taskTemplates',
         };
         docRef = doc(db, 'users', userId!, 'companies', activeCompanyId, parentMap[type], docNameMap[type]);
@@ -3039,7 +3043,6 @@ export async function clearAllData() {
             batch.set(doc(db, companyBase, 'people', 'developers'), { list: [] });
             batch.set(doc(db, companyBase, 'people', 'testers'), { list: [] });
             batch.set(doc(db, companyBase, 'reminders', 'general'), { list: [] });
-            batch.set(doc(db, companyBase, 'releases', 'updates'), { list: [] });
             await batch.commit();
         } else {
             Object.keys(localStorage).forEach(key => {

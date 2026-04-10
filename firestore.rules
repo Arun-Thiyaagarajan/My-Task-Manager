@@ -87,5 +87,10 @@ service cloud.firestore {
         (resource.data.recipientId == 'admin' && isAdmin())
       );
     }
+
+    match /shared/release-updates {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
   }
 }

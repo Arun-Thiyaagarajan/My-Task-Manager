@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getReleaseUpdates } from '@/lib/data';
+import { getActiveCompanyId, getReleaseUpdates, getUserPreferences, updateUserPreferences } from '@/lib/data';
 import type { ReleaseAudience, ReleaseUpdate, ReleaseItemType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,14 +9,18 @@ import { Sparkles, Rocket, Bug, Calendar, History, ArrowLeft, ArrowRight, AlertC
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useFirebase } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { ReleaseHistorySkeleton } from '@/components/release-page-skeleton';
+import { getAuthMode } from '@/lib/data';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 
 export default function ReleasesPage() {
     const isMobile = useIsMobile();
+    const { userProfile } = useFirebase();
     const [releases, setReleases] = useState<ReleaseUpdate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export default function ReleasesPage() {
     const searchParams = useSearchParams();
     const from = searchParams.get('from');
     const { prompt } = useUnsavedChanges();
+    const isAdmin = getAuthMode() === 'authenticate' && userProfile?.role === 'admin';
 
     useEffect(() => {
         const load = () => {
@@ -52,6 +57,25 @@ export default function ReleasesPage() {
             window.removeEventListener('company-changed', load);
         };
     }, []);
+
+    useEffect(() => {
+        if (isLoading || releases.length === 0) return;
+
+        const companyId = getActiveCompanyId();
+        const preferences = getUserPreferences();
+        const currentSeenKeys = preferences.seenReleaseInboxKeys?.[companyId] || [];
+        const releaseKeys = releases.map((release) => `${release.id}:${release.publishedAt || release.date}`);
+        const unseenKeys = releaseKeys.filter((key) => !currentSeenKeys.includes(key));
+
+        if (unseenKeys.length === 0) return;
+
+        void updateUserPreferences({
+            seenReleaseInboxKeys: {
+                ...(preferences.seenReleaseInboxKeys || {}),
+                [companyId]: [...currentSeenKeys, ...unseenKeys],
+            },
+        });
+    }, [isLoading, releases]);
 
     if (isLoading) {
         return <ReleaseHistorySkeleton />;
@@ -97,8 +121,13 @@ export default function ReleasesPage() {
         router.push(isMobile ? '/profile' : '/');
     };
 
+    const handleManageReleases = () => {
+        window.dispatchEvent(new Event('navigation-start'));
+        router.push('/releases/manage');
+    };
+
     return (
-        <div id="releases-page" className="container mx-auto py-12 px-4 sm:px-6 lg:px-8 max-w-4xl">
+        <div id="releases-page" className="mx-auto w-full max-w-[92rem] px-4 py-12 sm:px-6 lg:px-10 xl:px-12">
             {/* <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-4">
                 <div className="flex items-start gap-4">
                     {isMobile && (
@@ -121,18 +150,25 @@ export default function ReleasesPage() {
                     </Button>
                 )}
             </div> */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.96),hsl(var(--card)/0.92))] px-5 py-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.5)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
                 <div className="flex items-start gap-4">
-                    <Button variant="ghost" size="icon" onClick={handleBack} className="h-10 w-10 -ml-2 rounded-full shrink-0">
+                    <Button variant="ghost" size="icon" onClick={handleBack} className="h-11 w-11 -ml-1 rounded-2xl border border-border/60 bg-background/70 shadow-sm shrink-0">
                         <ArrowLeft className="h-6 w-6" />
                     </Button>
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                            <History className="h-10 w-10 text-primary" /> Release History
+                        <h1 className="flex items-center gap-3 text-3xl font-bold tracking-tight text-foreground sm:text-[2.45rem]">
+                            <History className="h-10 w-10 text-primary sm:h-11 sm:w-11" /> Release History
                         </h1>
-                        <p className="text-muted-foreground mt-1 font-normal">Keep track of the latest features, improvements, and fixes.</p>
+                        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-muted-foreground sm:text-base">
+                            Keep track of the latest features, improvements, and fixes.
+                        </p>
                     </div>
                 </div>
+                {isAdmin ? (
+                    <Button onClick={handleManageReleases} className="rounded-xl px-4 font-semibold">
+                        Manage Releases
+                    </Button>
+                ) : null}
             </div>
 
             {error ? (
@@ -142,31 +178,31 @@ export default function ReleasesPage() {
                     <AlertDescription className="font-medium">{error}</AlertDescription>
                 </Alert>
             ) : (
-                <div className="relative space-y-16">
+                <div className="relative space-y-16 lg:space-y-20">
                     {/* Vertical Timeline Line */}
                     {releases.length > 0 && (
-                        <div className="absolute left-4 sm:left-1/2 top-0 bottom-0 w-0.5 bg-border/50 -translate-x-1/2 hidden sm:block" />
+                        <div className="absolute left-4 top-0 bottom-0 hidden w-px -translate-x-1/2 bg-gradient-to-b from-primary/20 via-border/60 to-transparent sm:left-1/2 lg:block" />
                     )}
 
                     {releases.map((release, index) => (
                         <div key={release.id} className="relative animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${index * 100}ms` }}>
                             {/* Timeline Point */}
-                            <div className="absolute left-4 sm:left-1/2 -translate-x-1/2 -top-2 z-10">
+                            <div className="absolute left-4 -top-2 z-10 -translate-x-1/2 lg:left-1/2">
                                 <div className={cn(
-                                    "h-10 w-10 rounded-full border-4 border-background flex items-center justify-center shadow-lg transition-transform hover:scale-110",
-                                    index === 0 ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                                    "flex h-10 w-10 items-center justify-center rounded-full border-4 border-background shadow-[0_22px_44px_-24px_rgba(15,23,42,0.66)] transition-transform hover:scale-110 sm:h-11 sm:w-11",
+                                    index === 0 ? "bg-primary text-white" : "bg-card text-muted-foreground"
                                 )}>
                                     <Rocket className="h-5 w-5" />
                                 </div>
                             </div>
 
                             <div className={cn(
-                                "pl-16 sm:pl-0 sm:w-[45%] space-y-4",
-                                index % 2 === 0 ? "sm:ml-auto sm:pl-8" : "sm:mr-auto sm:pr-8 sm:text-right"
+                                "space-y-4 pl-16 lg:pl-0 lg:w-[47%]",
+                                index % 2 === 0 ? "lg:ml-auto lg:pl-12" : "lg:mr-auto lg:pr-12 lg:text-right"
                             )}>
                                 <div className={cn(
-                                    "flex items-center flex-nowrap gap-3 mb-1",
-                                    index % 2 !== 0 && "sm:justify-end"
+                                    "mb-1 flex flex-wrap items-center gap-3",
+                                    index % 2 !== 0 && "lg:justify-end"
                                 )}>
                                     <Badge variant={index === 0 ? "default" : "outline"} className="text-xs font-semibold uppercase tracking-wider h-6 px-2.5 shrink-0">
                                         v{release.version}
@@ -177,25 +213,27 @@ export default function ReleasesPage() {
                                     </span>
                                 </div>
 
-                                <Card className="overflow-hidden border-none shadow-xl bg-card hover:shadow-2xl transition-all duration-300">
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-2xl font-semibold group-hover:text-primary transition-colors tracking-tight">{release.title}</CardTitle>
+                                <Card className="overflow-hidden rounded-[2rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--card)/0.98),hsl(var(--card)/0.9))] shadow-[0_28px_80px_-44px_rgba(15,23,42,0.58)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_34px_96px_-46px_rgba(15,23,42,0.7)]">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="break-words text-2xl font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-[2rem]">{release.title}</CardTitle>
                                         {release.description && (
-                                            <CardDescription className="text-sm font-medium leading-relaxed">
-                                                {release.description}
-                                            </CardDescription>
+                                            <div className="overflow-hidden text-sm font-medium leading-7 text-muted-foreground sm:text-[15px]">
+                                                <div className="max-w-none break-words [overflow-wrap:anywhere] [&_blockquote]:my-2 [&_code]:break-words [&_ol]:my-2 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_ul]:my-2">
+                                                    <RichTextViewer text={release.description} />
+                                                </div>
+                                            </div>
                                         )}
                                     </CardHeader>
-                                    <CardContent className="space-y-6">
+                                    <CardContent className="space-y-6 sm:space-y-7">
                                         {['feature', 'improvement', 'fix', 'security'].map(type => {
                                             const items = release.items.filter(i => i.type === type);
                                             if (items.length === 0) return null;
 
                                             return (
-                                                <div key={type} className="space-y-3">
+                                                <div key={type} className="space-y-3.5">
                                                     <h4 className={cn(
                                                         "text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-1",
-                                                        index % 2 !== 0 && "sm:flex-row-reverse"
+                                                        index % 2 !== 0 && "lg:flex-row-reverse"
                                                     )}>
                                                         {getIcon(type as ReleaseItemType)}
                                                         {getTypeLabel(type as ReleaseItemType)}
@@ -205,17 +243,17 @@ export default function ReleasesPage() {
                                                             <div
                                                                     key={item.id} 
                                                                     className={cn(
-                                                                        "p-3 rounded-xl border border-transparent bg-muted/20 flex flex-col gap-2 transition-all",
+                                                                        "flex flex-col gap-2 rounded-[1.35rem] border border-border/50 bg-muted/[0.16] p-4 transition-all",
                                                                         item.link && "hover:bg-primary/5 hover:border-primary/20 cursor-pointer"
                                                                     )}
                                                                 onClick={() => item.link && prompt(() => { window.dispatchEvent(new Event('navigation-start')); router.push(item.link!); })}
                                                                 >
                                                                     <div className={cn(
                                                                         "flex items-start gap-3",
-                                                                        index % 2 !== 0 && "sm:flex-row-reverse sm:text-right"
+                                                                        index % 2 !== 0 && "lg:flex-row-reverse lg:text-right"
                                                                     )}>
                                                                     <div className="flex-1 space-y-2">
-                                                                        <div className={cn("flex flex-wrap items-center gap-2", index % 2 !== 0 && "sm:justify-end")}>
+                                                                        <div className={cn("flex flex-wrap items-center gap-2", index % 2 !== 0 && "lg:justify-end")}>
                                                                             {(() => {
                                                                                 const audience = getAudienceMeta(item.audience || 'both');
                                                                                 const AudienceIcon = audience.icon;
@@ -227,14 +265,14 @@ export default function ReleasesPage() {
                                                                                 );
                                                                             })()}
                                                                         </div>
-                                                                        <div className="text-sm font-medium leading-snug tracking-tight">
+                                                                        <div className="break-words text-sm font-medium leading-7 tracking-tight text-foreground/95 [overflow-wrap:anywhere] sm:text-[15px]">
                                                                             {item.text}
                                                                         </div>
                                                                     </div>
                                                                     {item.link && <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
                                                                 </div>
                                                                 {item.imageUrl && (
-                                                                    <div className="rounded-xl border overflow-hidden shadow-sm">
+                                                                    <div className="overflow-hidden rounded-[1.25rem] border border-border/60 shadow-sm">
                                                                         <img src={item.imageUrl} alt="" className="w-full h-auto object-cover max-h-40" />
                                                                     </div>
                                                                 )}

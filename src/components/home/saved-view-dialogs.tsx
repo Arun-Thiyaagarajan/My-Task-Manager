@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,159 @@ export function SavedViewDialogs({
   onCloseManageDialog,
 }: SavedViewDialogsProps) {
   const isMobile = useIsMobile();
+
+  const manageViewsContent = (
+    <>
+      <div className="shrink-0 border-b border-border/50 px-5 py-5 sm:px-6">
+        {isMobile ? (
+          <SheetHeader>
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <FolderKanban className="h-5 w-5" />
+              </div>
+              <div>
+                <SheetTitle>Saved Views</SheetTitle>
+                <SheetDescription>
+                  Pin the views you use often so they stay one tap away on the home page.
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+        ) : (
+          <DialogHeader>
+            <div className="mb-2 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <FolderKanban className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>Saved Views</DialogTitle>
+                <DialogDescription>
+                  Pin the views you use often so they stay one tap away on the home page.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+        )}
+      </div>
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-5 sm:px-6">
+        {savedTaskViews.length > 0 ? savedTaskViews.map((view) => {
+          const isActive = isSavedViewActive(view);
+
+          return (
+            <div
+              key={view.id}
+              className="rounded-[1.2rem] border border-border/60 bg-background/85 px-4 py-3 shadow-[0_14px_32px_-28px_rgba(15,23,42,0.22)]"
+            >
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-sm font-semibold text-foreground sm:text-[15px]">{view.name}</p>
+                  {isActive ? (
+                    <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Active</Badge>
+                  ) : null}
+                  {view.pinned ? (
+                    <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Pinned</Badge>
+                  ) : null}
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <span className="truncate">{getSavedViewSummary(view)}</span>
+                  <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-flex" />
+                  <span className="shrink-0">{format(new Date(view.updatedAt), 'dd MMM yyyy')}</span>
+                </div>
+                </div>
+              <TooltipProvider>
+                <div className={cn(
+                  "grid shrink-0 gap-2",
+                  isMobile ? "grid-cols-4" : "flex items-center gap-1 sm:gap-1.5"
+                )}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isActive ? 'secondary' : 'outline'}
+                        size="icon"
+                        onClick={() => !isActive && onApplySavedTaskView(view)}
+                        className={cn(
+                          'h-9 rounded-xl shadow-sm',
+                          isMobile ? 'w-full' : 'w-9',
+                          isActive && 'bg-primary/15 text-primary hover:bg-primary/15'
+                        )}
+                      >
+                        <Check className="h-4 w-4" />
+                        <span className="sr-only">{isActive ? 'Current view' : 'Apply view'}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{isActive ? 'Current view' : 'Apply this view'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onToggleSavedViewPin(view.id)}
+                        className="h-9 w-full rounded-xl sm:w-9"
+                      >
+                        {view.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                        <span className="sr-only">{view.pinned ? 'Unpin view' : 'Pin view'}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>{view.pinned ? 'Unpin from top bar' : 'Pin to top bar'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onStartUpdateSavedView(view)}
+                        className="h-9 w-full rounded-xl text-muted-foreground sm:w-9"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span className="sr-only">Update saved view</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px]">
+                      <p>Update this saved view with your current filters and layout.</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDeleteSavedView(view.id)}
+                        className="h-9 w-full rounded-xl text-destructive hover:text-destructive sm:w-9"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete saved view</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Delete this saved view</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </TooltipProvider>
+              </div>
+            </div>
+          );
+        }) : (
+          <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-muted/[0.24] px-5 py-10 text-center">
+            <FolderKanban className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+            <p className="text-base font-semibold">No saved views yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Save your current filters and layout to reuse them later.
+            </p>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -84,155 +238,49 @@ export function SavedViewDialogs({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isManageViewsDialogOpen} onOpenChange={onManageViewsDialogOpenChange}>
-        <DialogContent className="flex max-h-[min(88vh,720px)] flex-col overflow-hidden border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.95))] p-0 shadow-[0_34px_90px_-44px_rgba(15,23,42,0.42)] sm:max-w-2xl sm:rounded-[1.9rem] max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-t-[1.9rem] max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0">
-          <div className="shrink-0 border-b border-border/50 px-5 py-5 sm:px-6">
-            <DialogHeader>
-              <div className="mb-2 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <FolderKanban className="h-5 w-5" />
-                </div>
-                <div>
-                  <DialogTitle>Saved Views</DialogTitle>
-                  <DialogDescription>
-                    Pin the views you use often so they stay one tap away on the home page.
-                  </DialogDescription>
-                </div>
-              </div>
-            </DialogHeader>
-          </div>
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-5 sm:px-6">
-            {savedTaskViews.length > 0 ? savedTaskViews.map((view) => {
-              const isActive = isSavedViewActive(view);
-
-              return (
-                <div
-                  key={view.id}
-                  className="rounded-[1.2rem] border border-border/60 bg-background/85 px-4 py-3 shadow-[0_14px_32px_-28px_rgba(15,23,42,0.22)]"
-                >
-                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-foreground sm:text-[15px]">{view.name}</p>
-                      {isActive ? (
-                        <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Active</Badge>
-                      ) : null}
-                      {view.pinned ? (
-                        <Badge variant="secondary" className="rounded-full border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Pinned</Badge>
-                      ) : null}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <span className="truncate">{getSavedViewSummary(view)}</span>
-                      <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-flex" />
-                      <span className="shrink-0">{format(new Date(view.updatedAt), 'dd MMM yyyy')}</span>
-                    </div>
-                    </div>
-                  <TooltipProvider>
-                    <div className={cn(
-                      "grid shrink-0 gap-2",
-                      isMobile ? "grid-cols-4" : "flex items-center gap-1 sm:gap-1.5"
-                    )}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant={isActive ? 'secondary' : 'outline'}
-                            size="icon"
-                            onClick={() => !isActive && onApplySavedTaskView(view)}
-                            className={cn(
-                              'h-9 rounded-xl shadow-sm',
-                              isMobile ? 'w-full' : 'w-9',
-                              isActive && 'bg-primary/15 text-primary hover:bg-primary/15'
-                            )}
-                          >
-                            <Check className="h-4 w-4" />
-                            <span className="sr-only">{isActive ? 'Current view' : 'Apply view'}</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>{isActive ? 'Current view' : 'Apply this view'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => onToggleSavedViewPin(view.id)}
-                            className="h-9 w-full rounded-xl sm:w-9"
-                          >
-                            {view.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                            <span className="sr-only">{view.pinned ? 'Unpin view' : 'Pin view'}</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>{view.pinned ? 'Unpin from top bar' : 'Pin to top bar'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onStartUpdateSavedView(view)}
-                            className="h-9 w-full rounded-xl text-muted-foreground sm:w-9"
-                          >
-                            <Save className="h-4 w-4" />
-                            <span className="sr-only">Update saved view</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-[220px]">
-                          <p>Update this saved view with your current filters and layout.</p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onDeleteSavedView(view.id)}
-                            className="h-9 w-full rounded-xl text-destructive hover:text-destructive sm:w-9"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete saved view</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <p>Delete this saved view</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TooltipProvider>
-                  </div>
-                </div>
-              );
-            }) : (
-              <div className="rounded-[1.4rem] border border-dashed border-border/70 bg-muted/[0.24] px-5 py-10 text-center">
-                <FolderKanban className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
-                <p className="text-base font-semibold">No saved views yet.</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Save your current filters and layout to reuse them later.
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="shrink-0 border-t border-border/50 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6">
-            <Button
-              variant="outline"
-              onClick={onStartCreateSavedView}
-              className="rounded-xl px-4 font-medium"
-            >
-              <BookmarkPlus className="mr-2 h-4 w-4" />
-              New saved view
-            </Button>
-            <Button variant="ghost" onClick={onCloseManageDialog} className="font-medium">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isMobile ? (
+        <Sheet open={isManageViewsDialogOpen} onOpenChange={onManageViewsDialogOpenChange}>
+          <SheetContent
+            side="bottom"
+            className="flex max-h-[92vh] flex-col overflow-hidden rounded-t-[1.9rem] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.95))] p-0"
+          >
+            <div className="mx-auto mt-3 h-1.5 w-14 rounded-full bg-muted-foreground/20" />
+            {manageViewsContent}
+            <SheetFooter className="shrink-0 border-t border-border/50 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6">
+              <Button
+                variant="outline"
+                onClick={onStartCreateSavedView}
+                className="rounded-xl px-4 font-medium"
+              >
+                <BookmarkPlus className="mr-2 h-4 w-4" />
+                New saved view
+              </Button>
+              <Button variant="ghost" onClick={onCloseManageDialog} className="font-medium">
+                Close
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={isManageViewsDialogOpen} onOpenChange={onManageViewsDialogOpenChange}>
+          <DialogContent className="flex max-h-[min(88vh,720px)] flex-col overflow-hidden border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.95))] p-0 shadow-[0_34px_90px_-44px_rgba(15,23,42,0.42)] sm:max-w-2xl sm:rounded-[1.9rem]">
+            {manageViewsContent}
+            <DialogFooter className="shrink-0 border-t border-border/50 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6">
+              <Button
+                variant="outline"
+                onClick={onStartCreateSavedView}
+                className="rounded-xl px-4 font-medium"
+              >
+                <BookmarkPlus className="mr-2 h-4 w-4" />
+                New saved view
+              </Button>
+              <Button variant="ghost" onClick={onCloseManageDialog} className="font-medium">
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

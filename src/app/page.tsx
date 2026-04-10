@@ -216,6 +216,7 @@ export default function Home() {
   const [starterContentAvailable, setStarterContentAvailable] = useState(false);
   const [pendingSavedViewState, setPendingSavedViewState] = useState<SavedTaskViewState | null>(null);
   const [isFilterSaveSuggestionDismissed, setIsFilterSaveSuggestionDismissed] = useState(false);
+  const [isFilterSaveSuggestionVisible, setIsFilterSaveSuggestionVisible] = useState(false);
   const hasConsumedStarterCalloutRef = useRef(false);
   
   useEffect(() => {
@@ -1411,30 +1412,115 @@ export default function Home() {
     !areStringArraysEqual(desktopRepoFilterDraft, repoFilter) ||
     !areStringArraysEqual(desktopDeploymentFilterDraft, deploymentFilter) ||
     !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter);
+  const draftSavedViewState = useMemo(() => buildSavedViewState({
+    filters: {
+      status: desktopStatusFilterDraft,
+      statusGroup: desktopStatusGroupFilterDraft,
+      repo: desktopRepoFilterDraft,
+      deployment: desktopDeploymentFilterDraft,
+      tags: desktopTagsFilterDraft,
+    },
+  }), [
+    buildSavedViewState,
+    desktopDeploymentFilterDraft,
+    desktopRepoFilterDraft,
+    desktopStatusFilterDraft,
+    desktopStatusGroupFilterDraft,
+    desktopTagsFilterDraft,
+  ]);
+
+  const doesDraftHaveAnyFilters =
+    draftSavedViewState.filters.status.length > 0 ||
+    draftSavedViewState.filters.statusGroup.length > 0 ||
+    draftSavedViewState.filters.repo.length > 0 ||
+    draftSavedViewState.filters.deployment.length > 0 ||
+    draftSavedViewState.filters.tags.length > 0 ||
+    draftSavedViewState.searchQuery.trim().length > 0;
+
   const showPreservedFilterDraftNotice = hasPreservedFilterDraftNotice && hasUnappliedFilterDraftChanges;
   const handleDesktopFiltersOpenChange = useCallback((open: boolean) => {
+    const shouldRevealSaveSuggestion =
+      open &&
+      hasUnappliedFilterDraftChanges &&
+      doesDraftHaveAnyFilters &&
+      !isFilterSaveSuggestionDismissed &&
+      !savedTaskViews.some((view) => {
+        const viewFilters = view.state.filters || {
+          status: [],
+          statusGroup: [],
+          repo: [],
+          deployment: [],
+          tags: [],
+        };
+
+        return (
+          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+        );
+      });
+
     if (!open && suppressNextFilterSheetCloseRef.current) {
       suppressNextFilterSheetCloseRef.current = false;
       setIsDesktopFiltersOpen(false);
+      setIsFilterSaveSuggestionVisible(false);
       return;
     }
     if (!open && hasUnappliedFilterDraftChanges) {
       setHasPreservedFilterDraftNotice(true);
     }
+    if (!open) {
+      setIsFilterSaveSuggestionVisible(false);
+    } else if (shouldRevealSaveSuggestion) {
+      setIsFilterSaveSuggestionVisible(true);
+      setIsFilterSaveSuggestionDismissed(true);
+    }
     setIsDesktopFiltersOpen(open);
-  }, [hasUnappliedFilterDraftChanges]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
 
   const handleMobileFiltersOpenChange = useCallback((open: boolean) => {
+    const shouldRevealSaveSuggestion =
+      open &&
+      hasUnappliedFilterDraftChanges &&
+      doesDraftHaveAnyFilters &&
+      !isFilterSaveSuggestionDismissed &&
+      !savedTaskViews.some((view) => {
+        const viewFilters = view.state.filters || {
+          status: [],
+          statusGroup: [],
+          repo: [],
+          deployment: [],
+          tags: [],
+        };
+
+        return (
+          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+        );
+      });
+
     if (!open && suppressNextFilterSheetCloseRef.current) {
       suppressNextFilterSheetCloseRef.current = false;
       setIsMobileFiltersOpen(false);
+      setIsFilterSaveSuggestionVisible(false);
       return;
     }
     if (!open && hasUnappliedFilterDraftChanges) {
       setHasPreservedFilterDraftNotice(true);
     }
+    if (!open) {
+      setIsFilterSaveSuggestionVisible(false);
+    } else if (shouldRevealSaveSuggestion) {
+      setIsFilterSaveSuggestionVisible(true);
+      setIsFilterSaveSuggestionDismissed(true);
+    }
     setIsMobileFiltersOpen(open);
-  }, [hasUnappliedFilterDraftChanges]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
   const currentSavedViewState = buildCurrentSavedViewState();
 
   const doesSavedViewStateMatch = useCallback((view: SavedTaskView, candidateState: SavedTaskViewState) => {
@@ -1554,37 +1640,22 @@ export default function Home() {
 
     return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${view.state.favoritesOnly ? 'Favorites' : 'All tasks'}`;
   };
-  const draftSavedViewState = useMemo(() => buildSavedViewState({
-    filters: {
-      status: desktopStatusFilterDraft,
-      statusGroup: desktopStatusGroupFilterDraft,
-      repo: desktopRepoFilterDraft,
-      deployment: desktopDeploymentFilterDraft,
-      tags: desktopTagsFilterDraft,
-    },
-  }), [
-    buildSavedViewState,
-    desktopDeploymentFilterDraft,
-    desktopRepoFilterDraft,
-    desktopStatusFilterDraft,
-    desktopStatusGroupFilterDraft,
-    desktopTagsFilterDraft,
-  ]);
-
-  const doesDraftHaveAnyFilters =
-    draftSavedViewState.filters.status.length > 0 ||
-    draftSavedViewState.filters.statusGroup.length > 0 ||
-    draftSavedViewState.filters.repo.length > 0 ||
-    draftSavedViewState.filters.deployment.length > 0 ||
-    draftSavedViewState.filters.tags.length > 0 ||
-    draftSavedViewState.searchQuery.trim().length > 0;
-
   const isDraftAlreadySaved = savedTaskViews.some((view) => doSavedViewFiltersMatchDraft(view, draftSavedViewState.filters));
-  const shouldShowFilterSaveSuggestion =
+  const canShowFilterSaveSuggestion =
     hasUnappliedFilterDraftChanges &&
     doesDraftHaveAnyFilters &&
     !isDraftAlreadySaved &&
     !isFilterSaveSuggestionDismissed;
+  const currentFilterViewLabel =
+    dateView === 'calendar'
+      ? `Calendar · ${format(selectedDate, 'MMM yyyy')}`
+      : dateView === 'monthly'
+        ? `Monthly · ${format(selectedDate, 'MMM yyyy')}`
+        : dateView === 'yearly'
+          ? `Yearly · ${format(selectedDate, 'yyyy')}`
+          : favoritesOnly
+            ? 'Favorites'
+            : 'All Tasks';
 
   const matchingSavedView = savedTaskViews.find((view) => isSavedViewActive(view)) || null;
   const activeSavedView = matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView;
@@ -2376,9 +2447,22 @@ export default function Home() {
 
                   {/* 3. Results heading */}
                   <div className="px-2">
-                      <h2 className="text-xl font-bold text-foreground/90 leading-tight">
-                          {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
-                      </h2>
+                      <div className="flex items-center justify-between gap-3">
+                          <h2 className="min-w-0 truncate text-xl font-bold leading-tight text-foreground/90">
+                              {favoritesOnly ? 'Favorite Tasks' : `${filteredTasks.length} Results`}
+                          </h2>
+                          {totalActiveFilters > 0 && (
+                              <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleClearAllTaskFilters}
+                                  className="h-8 shrink-0 rounded-lg px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-destructive"
+                              >
+                                  <X className="mr-1 h-3.5 w-3.5" />
+                                  Clear
+                              </Button>
+                          )}
+                      </div>
                       <p className="text-xs font-medium text-muted-foreground/70 mt-0.5 whitespace-nowrap">
                           {favoritesOnly 
                               ? `Showing ${filteredTasks.length} favorited items.` 
@@ -3045,11 +3129,12 @@ export default function Home() {
         isOpen={isDesktopFiltersOpen}
         onOpenChange={handleDesktopFiltersOpenChange}
         appliedFilterCount={activeFilterCount}
+        currentViewLabel={currentFilterViewLabel}
         desktopDraftFilterCount={desktopDraftFilterCount}
         canApplyFilters={desktopDraftFilterCount > 0 || activeFilterCount > 0}
         canSaveView={doesDraftHaveAnyFilters}
         hasUnappliedChanges={showPreservedFilterDraftNotice}
-        showSaveSuggestion={shouldShowFilterSaveSuggestion}
+        showSaveSuggestion={isFilterSaveSuggestionVisible}
         activeFilterSections={activeFilterSections}
         hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
         buildFilterSummary={buildFilterSummary}
@@ -3057,7 +3142,7 @@ export default function Home() {
         onResetSelections={handleResetDesktopFilterDraft}
         onApplyFilters={handleApplyDesktopFilters}
         onSaveView={handleStartSaveDraftView}
-        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionDismissed(true)}
+        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionVisible(false)}
         onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
      />
 
@@ -3065,11 +3150,12 @@ export default function Home() {
         isOpen={isMobileFiltersOpen}
         onOpenChange={handleMobileFiltersOpenChange}
         appliedFilterCount={activeFilterCount}
+        currentViewLabel={currentFilterViewLabel}
         desktopDraftFilterCount={desktopDraftFilterCount}
         canApplyFilters={desktopDraftFilterCount > 0 || activeFilterCount > 0}
         canSaveView={doesDraftHaveAnyFilters}
         hasUnappliedChanges={showPreservedFilterDraftNotice}
-        showSaveSuggestion={shouldShowFilterSaveSuggestion}
+        showSaveSuggestion={isFilterSaveSuggestionVisible}
         activeFilterSections={activeFilterSections}
         hiddenActiveFilterSectionsCount={hiddenActiveFilterSectionsCount}
         buildFilterSummary={buildFilterSummary}
@@ -3077,7 +3163,7 @@ export default function Home() {
         onResetSelections={handleResetMobileFilterDraft}
         onApplyFilters={handleApplyMobileFilters}
         onSaveView={handleStartSaveDraftView}
-        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionDismissed(true)}
+        onDismissSaveSuggestion={() => setIsFilterSaveSuggestionVisible(false)}
         onDiscardUnappliedChanges={handleDiscardPreservedFilterDraft}
      />
     </div>

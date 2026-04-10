@@ -182,6 +182,7 @@ export interface UserPreferences {
   starterHomeCalloutSeen?: boolean;
   starterSettingsCleanupSeen?: boolean;
   lastSeenPublishedReleaseKeys?: Record<string, string>;
+  seenReleaseInboxKeys?: Record<string, string[]>;
 }
 
 export interface Task {
