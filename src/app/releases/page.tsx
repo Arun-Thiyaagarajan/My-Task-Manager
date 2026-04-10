@@ -1,20 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getReleaseUpdates, getUiConfig } from '@/lib/data';
-import type { ReleaseUpdate, ReleaseItemType } from '@/lib/types';
+import { getReleaseUpdates } from '@/lib/data';
+import type { ReleaseAudience, ReleaseUpdate, ReleaseItemType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Rocket, Zap, Bug, Calendar, ChevronRight, History, ArrowLeft, ArrowRight, ExternalLink, AlertCircle } from 'lucide-react';
+import { Sparkles, Rocket, Bug, Calendar, History, ArrowLeft, ArrowRight, AlertCircle, Monitor, ShieldCheck, Smartphone, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { format } from 'date-fns';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
+import { ReleaseHistorySkeleton } from '@/components/release-page-skeleton';
 
 export default function ReleasesPage() {
     const isMobile = useIsMobile();
@@ -55,19 +54,37 @@ export default function ReleasesPage() {
     }, []);
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh]">
-                <LoadingSpinner size="lg" text="Fetching latest updates..." />
-            </div>
-        );
+        return <ReleaseHistorySkeleton />;
     }
 
     const getIcon = (type: ReleaseItemType) => {
         switch (type) {
             case 'feature': return <Rocket className="h-4 w-4 text-primary" />;
-            case 'improvement': return <Zap className="h-4 w-4 text-amber-500" />;
+            case 'improvement': return <Wrench className="h-4 w-4 text-amber-500" />;
             case 'fix': return <Bug className="h-4 w-4 text-red-500" />;
+            case 'security': return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
             default: return <Sparkles className="h-4 w-4 text-primary" />;
+        }
+    };
+
+    const getTypeLabel = (type: ReleaseItemType) => {
+        switch (type) {
+            case 'feature': return 'Features';
+            case 'improvement': return 'Improvements';
+            case 'fix': return 'Bug Fixes';
+            case 'security': return 'Security';
+            default: return 'Updates';
+        }
+    };
+
+    const getAudienceMeta = (audience: ReleaseAudience = 'both') => {
+        switch (audience) {
+            case 'desktop':
+                return { label: 'Desktop', icon: Monitor };
+            case 'mobile':
+                return { label: 'Mobile', icon: Smartphone };
+            default:
+                return { label: 'Desktop + Mobile', icon: Monitor };
         }
     };
 
@@ -170,7 +187,7 @@ export default function ReleasesPage() {
                                         )}
                                     </CardHeader>
                                     <CardContent className="space-y-6">
-                                        {['feature', 'improvement', 'fix'].map(type => {
+                                        {['feature', 'improvement', 'fix', 'security'].map(type => {
                                             const items = release.items.filter(i => i.type === type);
                                             if (items.length === 0) return null;
 
@@ -181,24 +198,38 @@ export default function ReleasesPage() {
                                                         index % 2 !== 0 && "sm:flex-row-reverse"
                                                     )}>
                                                         {getIcon(type as ReleaseItemType)}
-                                                        {type}s
+                                                        {getTypeLabel(type as ReleaseItemType)}
                                                     </h4>
                                                     <div className="space-y-2">
                                                         {items.map(item => (
-                                                            <div 
-                                                                key={item.id} 
-                                                                className={cn(
-                                                                    "p-3 rounded-xl border border-transparent bg-muted/20 flex flex-col gap-2 transition-all",
-                                                                    item.link && "hover:bg-primary/5 hover:border-primary/20 cursor-pointer"
-                                                                )}
+                                                            <div
+                                                                    key={item.id} 
+                                                                    className={cn(
+                                                                        "p-3 rounded-xl border border-transparent bg-muted/20 flex flex-col gap-2 transition-all",
+                                                                        item.link && "hover:bg-primary/5 hover:border-primary/20 cursor-pointer"
+                                                                    )}
                                                                 onClick={() => item.link && prompt(() => { window.dispatchEvent(new Event('navigation-start')); router.push(item.link!); })}
-                                                            >
-                                                                <div className={cn(
-                                                                    "flex items-start gap-3",
-                                                                    index % 2 !== 0 && "sm:flex-row-reverse sm:text-right"
-                                                                )}>
-                                                                    <div className="flex-1 text-sm font-medium leading-snug tracking-tight">
-                                                                        {item.text}
+                                                                >
+                                                                    <div className={cn(
+                                                                        "flex items-start gap-3",
+                                                                        index % 2 !== 0 && "sm:flex-row-reverse sm:text-right"
+                                                                    )}>
+                                                                    <div className="flex-1 space-y-2">
+                                                                        <div className={cn("flex flex-wrap items-center gap-2", index % 2 !== 0 && "sm:justify-end")}>
+                                                                            {(() => {
+                                                                                const audience = getAudienceMeta(item.audience || 'both');
+                                                                                const AudienceIcon = audience.icon;
+                                                                                return (
+                                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-[10px] font-semibold text-muted-foreground border border-border/60">
+                                                                                        <AudienceIcon className="h-3 w-3" />
+                                                                                        {audience.label}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
+                                                                        <div className="text-sm font-medium leading-snug tracking-tight">
+                                                                            {item.text}
+                                                                        </div>
                                                                     </div>
                                                                     {item.link && <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />}
                                                                 </div>

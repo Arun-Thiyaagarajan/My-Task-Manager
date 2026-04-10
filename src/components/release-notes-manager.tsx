@@ -2,45 +2,46 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getReleaseUpdates, getUiConfig } from '@/lib/data';
+import { getActiveCompanyId, getReleaseUpdates, getUserPreferences, updateUserPreferences } from '@/lib/data';
 import type { ReleaseUpdate } from '@/lib/types';
 import { ReleaseNotesDialog } from './release-notes-dialog';
-
-const LAST_SEEN_VERSION_KEY = 'taskflow_last_seen_version';
 
 export function ReleaseNotesManager() {
     const [latestRelease, setLatestRelease] = useState<ReleaseUpdate | null>(null);
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        const checkVersion = () => {
-            const config = getUiConfig();
-            if (!config || !config.currentVersion) return;
+        const checkLatestPublishedRelease = () => {
+            const companyId = getActiveCompanyId();
+            if (!companyId) return;
 
-            const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_KEY);
-            
-            // If the user has a different (older) version than the current published one
-            if (lastSeen !== config.currentVersion) {
-                const releases = getReleaseUpdates(true);
-                if (releases.length > 0) {
-                    const latest = releases[0];
-                    // Only show the popup if the latest published release matches the config version
-                    if (latest.version === config.currentVersion) {
-                        setLatestRelease(latest);
-                        setIsOpen(true);
-                        localStorage.setItem(LAST_SEEN_VERSION_KEY, config.currentVersion);
-                    }
-                }
-            }
+            const latest = getReleaseUpdates(true)[0] || null;
+            if (!latest?.isPublished) return;
+
+            const currentPrefs = getUserPreferences();
+            const seenKeys = currentPrefs.lastSeenPublishedReleaseKeys || {};
+            const latestReleaseKey = `${latest.id}:${latest.publishedAt || latest.date}`;
+
+            if (seenKeys[companyId] === latestReleaseKey) return;
+
+            setLatestRelease(latest);
+            setIsOpen(true);
+            void updateUserPreferences({
+                lastSeenPublishedReleaseKeys: {
+                    ...seenKeys,
+                    [companyId]: latestReleaseKey,
+                },
+            });
         };
 
-        // Delay slightly to ensure layout is ready
-        const timeout = setTimeout(checkVersion, 1500);
+        const timeout = setTimeout(checkLatestPublishedRelease, 1500);
         
-        window.addEventListener('company-changed', checkVersion);
+        window.addEventListener('company-changed', checkLatestPublishedRelease);
+        window.addEventListener('preferences-changed', checkLatestPublishedRelease);
         return () => {
             clearTimeout(timeout);
-            window.removeEventListener('company-changed', checkVersion);
+            window.removeEventListener('company-changed', checkLatestPublishedRelease);
+            window.removeEventListener('preferences-changed', checkLatestPublishedRelease);
         };
     }, []);
 

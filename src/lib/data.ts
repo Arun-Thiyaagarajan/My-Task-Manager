@@ -611,6 +611,8 @@ function buildInitialUserPreferences(): UserPreferences {
         savedTaskViews: starterViews,
         starterSavedTaskViewIds: starterViews.map((view) => view.id),
         starterContentAvailable: true,
+        starterHomeCalloutSeen: false,
+        starterSettingsCleanupSeen: false,
     };
 }
 
@@ -2403,8 +2405,10 @@ export function getReleaseUpdates(publishedOnly = true): ReleaseUpdate[] {
     const companyId = getActiveCompanyId();
     if (!companyId || !appData.companyData[companyId]) return [];
     const all = appData.companyData[companyId].releaseUpdates || [];
-    if (publishedOnly) return all.filter(r => r.isPublished).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return [...all].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sortByNewest = (left: ReleaseUpdate, right: ReleaseUpdate) =>
+        new Date(right.publishedAt || right.date).getTime() - new Date(left.publishedAt || left.date).getTime();
+    if (publishedOnly) return all.filter(r => r.isPublished).sort(sortByNewest);
+    return [...all].sort(sortByNewest);
 }
 
 export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
@@ -2412,7 +2416,16 @@ export function addReleaseUpdate(release: Partial<ReleaseUpdate>) {
     const companyId = getActiveCompanyId();
     const id = createId('rel-');
     const now = new Date().toISOString();
-    const newRel = { id, version: '', title: '', items: [], date: now, isPublished: false, ...release } as ReleaseUpdate;
+    const newRel = {
+        id,
+        version: '',
+        title: '',
+        items: [],
+        date: now,
+        publishedAt: release.isPublished ? now : null,
+        isPublished: false,
+        ...release,
+    } as ReleaseUpdate;
     data.companyData[companyId].releaseUpdates.unshift(newRel);
     setAppData(data);
     addLog({ message: `Created new release draft: **v${newRel.version}**` });
@@ -2427,7 +2440,11 @@ export function updateReleaseUpdate(id: string, updates: Partial<ReleaseUpdate>)
     const index = data.companyData[companyId].releaseUpdates.findIndex(r => r.id === id);
     if (index !== -1) {
         const oldRel = data.companyData[companyId].releaseUpdates[index];
-        data.companyData[companyId].releaseUpdates[index] = { ...data.companyData[companyId].releaseUpdates[index], ...updates };
+        const nextRelease = { ...data.companyData[companyId].releaseUpdates[index], ...updates } as ReleaseUpdate;
+        if (updates.isPublished && !oldRel.isPublished) {
+            nextRelease.publishedAt = new Date().toISOString();
+        }
+        data.companyData[companyId].releaseUpdates[index] = nextRelease;
         setAppData(data);
         if (updates.isPublished && !oldRel.isPublished) {
             addLog({ message: `Published new application release: **v${oldRel.version}**` });

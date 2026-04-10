@@ -16,6 +16,7 @@ import type { CSSProperties } from 'react';
 import { Separator } from './ui/separator';
 import { format } from 'date-fns';
 import { RichTextViewer } from './ui/rich-text-viewer';
+import { PersonInfoGrid } from './person-info-grid';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -57,35 +58,46 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.45)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.012))] sm:max-w-sm">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.45)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.012))]">
         <div className="relative">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.16),transparent_70%)] dark:bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.2),transparent_68%)]" />
-          <DialogHeader className="items-center space-y-4 px-6 pb-5 pt-8 text-center">
-           <Avatar className="h-24 w-24 border-[5px] border-background/95 shadow-[0_22px_44px_-26px_rgba(15,23,42,0.45)] ring-1 ring-border/60">
-                <AvatarFallback
+          <DialogHeader className="px-6 pb-5 pt-8">
+            <div className="grid items-start gap-5 md:grid-cols-[auto_1fr] md:items-center">
+              <div className="mx-auto md:mx-0">
+                <Avatar className="h-24 w-24 border-[5px] border-background/95 shadow-[0_22px_44px_-26px_rgba(15,23,42,0.45)] ring-1 ring-border/60">
+                  <AvatarFallback
                     className="text-4xl font-semibold text-white"
                     style={{
-                    backgroundColor: `#${getAvatarColor(person.name)}`,
+                      backgroundColor: `#${getAvatarColor(person.name)}`,
                     }}
-                >
+                  >
                     {getInitials(person.name)}
-                </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col items-center">
-              <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{person.name}</DialogTitle>
-              <DialogDescription className="sr-only">
-                Profile information for {person.name}, {typeLabel}
-              </DialogDescription>
-              <Badge variant="outline" className="mt-2 rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={badgeStyle}>
-                <TypeIcon className="h-3 w-3 mr-1.5"/>
-                {typeLabel}
-              </Badge>
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="min-w-0 text-center md:text-left">
+                <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{person.name}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Profile information for {person.name}, {typeLabel}
+                </DialogDescription>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                  <Badge variant="outline" className="rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={badgeStyle}>
+                    <TypeIcon className="mr-1.5 h-3 w-3" />
+                    {typeLabel}
+                  </Badge>
+                  {hasContactInfo ? (
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-semibold">
+                      Reachable
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </DialogHeader>
         </div>
         <div className="space-y-5 px-6 pb-6 pt-1">
             {hasContactInfo && (
-              <div className="space-y-3">
+              <PersonInfoGrid>
                 {person.email && (
                     <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/78 hover:bg-muted/[0.05] hover:shadow-[0_14px_30px_-28px_rgba(15,23,42,0.24)]">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -112,20 +124,20 @@ export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOp
                         </div>
                     </div>
                 )}
-              </div>
+              </PersonInfoGrid>
             )}
             
             {hasContactInfo && hasAdditionalFields && <Separator className="bg-border/60" />}
 
             {hasAdditionalFields && (
-                <div className="space-y-3">
+                <PersonInfoGrid className="items-start">
                     {person.additionalFields?.map(field => (
                         <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/75 hover:bg-muted/[0.042] hover:shadow-[0_14px_30px_-28px_rgba(15,23,42,0.2)]">
                             <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
                             <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>
                         </div>
                     ))}
-                </div>
+                </PersonInfoGrid>
             )}
 
             {!hasContactInfo && !hasAdditionalFields && (

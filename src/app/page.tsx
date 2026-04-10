@@ -216,6 +216,7 @@ export default function Home() {
   const [starterContentAvailable, setStarterContentAvailable] = useState(false);
   const [pendingSavedViewState, setPendingSavedViewState] = useState<SavedTaskViewState | null>(null);
   const [isFilterSaveSuggestionDismissed, setIsFilterSaveSuggestionDismissed] = useState(false);
+  const hasConsumedStarterCalloutRef = useRef(false);
   
   useEffect(() => {
     setMounted(true);
@@ -253,7 +254,16 @@ export default function Home() {
     setExecutedSearchQuery(urlSearch);
     setOpenGroups(Array.isArray(prefs.taskOpenGroups) ? prefs.taskOpenGroups : []);
     setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
-    setStarterContentAvailable(Boolean(prefs.starterContentAvailable));
+
+    const shouldShowStarterCallout =
+      Boolean(prefs.starterContentAvailable) &&
+      (!prefs.starterHomeCalloutSeen || hasConsumedStarterCalloutRef.current);
+    setStarterContentAvailable(shouldShowStarterCallout);
+
+    if (Boolean(prefs.starterContentAvailable) && !prefs.starterHomeCalloutSeen && !hasConsumedStarterCalloutRef.current) {
+      hasConsumedStarterCalloutRef.current = true;
+      void updateUserPreferences({ starterHomeCalloutSeen: true });
+    }
 
     const urlStatus = searchParams.getAll('status');
     setStatusFilter(urlStatus.length > 0 ? urlStatus : (prefs.taskFilters?.status || []));
@@ -627,7 +637,17 @@ export default function Home() {
         const appData = getAppData();
         const prefs = getUserPreferences();
         const companyStarterContentAvailable = Boolean(appData.companyData[companyId]?.starterContent?.isAvailable);
-        setStarterContentAvailable(Boolean(prefs.starterContentAvailable || companyStarterContentAvailable));
+        const starterAvailableForUser = Boolean(prefs.starterContentAvailable || companyStarterContentAvailable);
+        const shouldShowStarterCallout =
+          starterAvailableForUser &&
+          (!prefs.starterHomeCalloutSeen || hasConsumedStarterCalloutRef.current);
+
+        setStarterContentAvailable(shouldShowStarterCallout);
+
+        if (starterAvailableForUser && !prefs.starterHomeCalloutSeen && !hasConsumedStarterCalloutRef.current) {
+            hasConsumedStarterCalloutRef.current = true;
+            void updateUserPreferences({ starterHomeCalloutSeen: true });
+        }
         const nextTasks = getTasks();
         const nextBinnedTasks = getBinnedTasks();
         setTasks(nextTasks);

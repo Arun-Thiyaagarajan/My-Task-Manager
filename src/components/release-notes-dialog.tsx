@@ -1,22 +1,29 @@
-
 'use client';
+
+import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import {
+  ArrowRight,
+  Bug,
+  Monitor,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
 
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Rocket, Zap, Bug, ArrowRight, RefreshCcw } from 'lucide-react';
-import type { ReleaseUpdate, ReleaseItemType } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { useIsMobile } from '@/hooks/use-mobile';
+import type { ReleaseAudience, ReleaseItemType, ReleaseUpdate } from '@/lib/types';
 
 interface ReleaseNotesDialogProps {
   release: ReleaseUpdate | null;
@@ -24,131 +31,140 @@ interface ReleaseNotesDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const releaseTypeMeta: Record<ReleaseItemType, { label: string; icon: typeof Sparkles; className: string }> = {
+  feature: { label: 'Features', icon: Sparkles, className: 'text-primary' },
+  improvement: { label: 'Improvements', icon: Wrench, className: 'text-amber-500' },
+  fix: { label: 'Bug fixes', icon: Bug, className: 'text-rose-500' },
+  security: { label: 'Security', icon: ShieldCheck, className: 'text-emerald-500' },
+};
+
+const audienceMeta: Record<ReleaseAudience, { label: string; icon: typeof Monitor }> = {
+  desktop: { label: 'Desktop', icon: Monitor },
+  mobile: { label: 'Mobile', icon: Smartphone },
+  both: { label: 'Desktop + Mobile', icon: Monitor },
+};
+
 export function ReleaseNotesDialog({ release, isOpen, onOpenChange }: ReleaseNotesDialogProps) {
   const router = useRouter();
-  const isMobile = useIsMobile();
 
   if (!release) return null;
 
-  const handleAction = (link: string) => {
-    onOpenChange(false);
-    router.push(link);
-  };
+  const groupedItems = (['feature', 'improvement', 'fix', 'security'] as ReleaseItemType[])
+    .map((type) => ({
+      type,
+      items: release.items.filter((item) => item.type === type),
+    }))
+    .filter((group) => group.items.length > 0);
 
-  const getIcon = (type: ReleaseItemType) => {
-    switch (type) {
-      case 'feature': return <Rocket className="h-4 w-4 text-primary" />;
-      case 'improvement': return <Zap className="h-4 w-4 text-amber-500" />;
-      case 'fix': return <Bug className="h-4 w-4 text-red-500" />;
-      default: return <Sparkles className="h-4 w-4 text-primary" />;
-    }
-  };
-
-  const handleApplyRelease = () => {
+  const handleNavigateHistory = () => {
     onOpenChange(false);
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
+    window.dispatchEvent(new Event('navigation-start'));
+    router.push('/releases');
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] p-0 gap-0 border-none shadow-2xl flex flex-col overflow-hidden">
-        {/* Header Section - Static & Non-shrinking */}
-        <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden shrink-0">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Sparkles className="h-32 w-32 rotate-12" />
+      <DialogContent
+        hideClose
+        className="w-[min(44rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-[1.75rem] border border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] p-0 text-foreground shadow-[0_32px_90px_-40px_rgba(15,23,42,0.48)] dark:shadow-[0_32px_90px_-40px_rgba(0,0,0,0.72)]"
+      >
+        <div className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.15),transparent_50%),linear-gradient(135deg,hsl(var(--foreground)/0.06),hsl(var(--foreground)/0.02))] 
+        dark:bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.25),transparent_40%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted)/0.9))] px-5 py-5 text-white sm:px-7 sm:py-6">
+          <div className="absolute -right-5 -top-8 opacity-10">
+            <Sparkles className="h-28 w-28 rotate-12" />
+          </div>
+          <DialogHeader className="relative space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-white/15 bg-white/12 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/12">
+                v{release.version}
+              </Badge>
+              <Badge className="border-white/15 bg-white/8 px-2.5 py-1 text-[11px] font-medium text-white/90 hover:bg-white/8">
+                {format(new Date(release.publishedAt || release.date), 'MMM d, yyyy')}
+              </Badge>
+              <Badge className="border-white/15 bg-primary/30 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-primary/30">
+                New release
+              </Badge>
             </div>
-            <div className="relative z-10 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
-                    v{release.version} • {format(new Date(release.date), 'MMM d, yyyy')}
-                  </Badge>
-                  <Badge variant="secondary" className="bg-white/16 text-white hover:bg-white/16 border-none">
-                    New release available
-                  </Badge>
-                </div>
-                <DialogTitle className="text-4xl font-extrabold tracking-tight">What's New in TaskFlow</DialogTitle>
-                <DialogDescription className="text-primary-foreground/80 text-lg font-medium">
-                    {release.title}
-                </DialogDescription>
-                <p className="max-w-2xl text-sm font-medium text-primary-foreground/78">
-                  {isMobile
-                    ? 'Reopen the app after reviewing this update to make sure you are on the latest release.'
-                    : 'Refresh the app after reviewing this update to load the latest deployed release.'}
-                </p>
+            <div className="space-y-1">
+              <DialogTitle className="text-left text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {release.title}
+              </DialogTitle>
+              <DialogDescription className="max-w-2xl text-left text-sm leading-relaxed text-white/78 sm:text-[15px]">
+                {release.description || 'A new update is now live for your workspace.'}
+              </DialogDescription>
             </div>
+          </DialogHeader>
         </div>
 
-        {/* Scrollable Content Section - Flexible & Scrolling */}
-        <div className="flex-1 overflow-y-auto min-h-0 bg-background">
-            <div className="px-8 py-6 space-y-8">
-                {release.description && (
-                    <p className="text-muted-foreground text-base leading-relaxed">
-                        {release.description}
-                    </p>
-                )}
+        <div className="max-h-[min(70vh,34rem)] overflow-y-auto px-5 py-5 sm:px-7">
+          <div className="space-y-6">
+            {groupedItems.map((group) => {
+              const meta = releaseTypeMeta[group.type];
+              const Icon = meta.icon;
 
-                <div className="space-y-8 pb-10">
-                    {['feature', 'improvement', 'fix'].map(type => {
-                        const items = release.items.filter(i => i.type === type);
-                        if (items.length === 0) return null;
+              return (
+                <section key={group.type} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className={cn('inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-muted/50', meta.className)}>
+                      <Icon className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">{meta.label}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {group.items.map((item) => {
+                      const audience = audienceMeta[item.audience || 'both'];
+                      const AudienceIcon = audience.icon;
 
-                        return (
-                            <div key={type} className="space-y-4">
-                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    {getIcon(type as ReleaseItemType)}
-                                    {type === 'feature' ? 'New Features' : type === 'improvement' ? 'Improvements' : 'Bug Fixes'}
-                                </h3>
-                                <div className="grid gap-3">
-                                    {items.map(item => (
-                                        <div 
-                                            key={item.id} 
-                                            className={cn(
-                                                "group p-4 rounded-xl border bg-card transition-all duration-300",
-                                                item.link && "hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
-                                            )}
-                                            onClick={() => item.link && handleAction(item.link)}
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-semibold leading-none group-hover:text-primary transition-colors">
-                                                        {item.text}
-                                                    </p>
-                                                    {item.link && (
-                                                        <span className="text-[10px] text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-1 inline-flex items-center">
-                                                            View feature <ArrowRight className="h-2.5 w-2.5 ml-1" />
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {item.imageUrl && (
-                                                    <div className="h-12 w-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden border">
-                                                        <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            'rounded-[1.15rem] border border-border/60 bg-card/95 p-4 shadow-[0_16px_36px_-28px_rgba(15,23,42,0.24)] transition-colors dark:bg-card/90 dark:shadow-[0_16px_36px_-28px_rgba(0,0,0,0.55)]',
+                            item.link && 'cursor-pointer hover:border-primary/25 hover:bg-primary/[0.03]'
+                          )}
+                          onClick={() => {
+                            if (!item.link) return;
+                            onOpenChange(false);
+                            window.dispatchEvent(new Event('navigation-start'));
+                            router.push(item.link);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary" className="rounded-full border-border/60 bg-muted/40 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                                  <AudienceIcon className="mr-1.5 h-3 w-3" />
+                                  {audience.label}
+                                </Badge>
+                              </div>
+                              <p className="text-sm font-medium leading-6 text-foreground">
+                                {item.text}
+                              </p>
                             </div>
-                        );
+                            {item.link ? <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> : null}
+                          </div>
+                        </div>
+                      );
                     })}
-                </div>
-            </div>
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Footer Section - Static & Non-shrinking */}
-        <DialogFooter className="px-8 py-6 bg-muted/30 border-t sm:justify-between items-center gap-4 shrink-0 flex-row">
-            <p className="hidden sm:block text-xs text-muted-foreground">
-                Thank you for using TaskFlow!
-            </p>
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Dismiss</Button>
-                <Button onClick={handleApplyRelease}>
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                  {isMobile ? 'Reopen app' : 'Refresh now'}
-                </Button>
-            </div>
+        <DialogFooter className="border-t border-border/60 bg-muted/20 px-5 py-4 sm:px-7">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="font-medium">
+            Dismiss
+          </Button>
+          <Button onClick={handleNavigateHistory} className="rounded-xl px-5 font-semibold">
+            View release history
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

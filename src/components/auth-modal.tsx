@@ -61,7 +61,20 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
+  const passwordsDoNotMatch =
+    authStep === 'register' &&
+    confirmPassword.length > 0 &&
+    password !== confirmPassword;
+
+  const handleDialogOpenChange = React.useCallback((open: boolean) => {
+    if (!open) {
+      setIsLoading(false);
+      setGoogleError(null);
+    }
+    onOpenChange(open);
+  }, [onOpenChange]);
 
   const completeGoogleSignIn = React.useCallback(async (user: FirebaseUser) => {
     if (!firestore) return;
@@ -92,7 +105,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   const getGoogleErrorMessage = React.useCallback((error: any) => {
     switch (error?.code) {
       case 'auth/popup-closed-by-user':
-        return 'The Google sign-in window was closed before completing login.';
+        return '';
       case 'auth/popup-blocked':
         return 'Your browser blocked the Google sign-in popup. Please allow popups and try again.';
       case 'auth/unauthorized-domain':
@@ -112,6 +125,11 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
     setIsLoading(true);
 
     try {
+      if (passwordsDoNotMatch) {
+        setIsLoading(false);
+        return;
+      }
+
       if (authStep === 'login') {
         await signInWithEmailAndPassword(auth, email, password);
         toast({ variant: 'success', title: 'Welcome back!' });
@@ -198,7 +216,8 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
       await completeGoogleSignIn(userCredential.user);
       
     } catch (error: any) {      
-      if (error.code === 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        setGoogleError(null);
         setIsLoading(false);
         return;
       }
@@ -220,24 +239,50 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px] overflow-hidden max-h-[95vh] flex flex-col">
-        <DialogHeader className="shrink-0">
-          <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-            <ShieldCheck className="h-6 w-6 text-primary" />
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
+      <DialogContent className="max-h-[95vh] overflow-hidden p-0 sm:max-w-[860px]">
+        <div className="grid max-h-[95vh] lg:grid-cols-[0.95fr_1.15fr]">
+          <div className="hidden lg:flex flex-col justify-between border-r border-border/60 bg-[linear-gradient(145deg,hsl(var(--primary)/0.12),hsl(var(--background))_52%,hsl(var(--muted)/0.65))] p-8">
+            <div className="space-y-6">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/12">
+                <ShieldCheck className="h-7 w-7 text-primary" />
+              </div>
+              <div className="space-y-3">
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground">Welcome to TaskFlow</h2>
+                <p className="max-w-sm text-sm leading-7 text-muted-foreground">
+                  Sign in to sync tasks across devices, publish releases as an admin, and keep your workspace history safely available wherever you work.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4">
+                <p className="text-sm font-semibold text-foreground">Cloud sync</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">Pick up exactly where you left off across desktop and mobile.</p>
+              </div>
+              <div className="rounded-[1.4rem] border border-border/60 bg-card/80 p-4">
+                <p className="text-sm font-semibold text-foreground">Shared workspace updates</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">See published release notes and workspace improvements the moment they go live.</p>
+              </div>
+            </div>
           </div>
-          <DialogTitle className="text-center text-2xl">
-            Welcome to TaskFlow
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            Securely access your workspace and sync data across devices.
-          </DialogDescription>
-        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-1 py-4 custom-scrollbar">
-          <form onSubmit={handleEmailAuth} className="space-y-4">
+          <div className="flex min-h-0 flex-col">
+            <DialogHeader className="shrink-0 border-b border-border/60 px-6 pb-5 pt-6 sm:px-8">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 lg:hidden">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+              </div>
+              <DialogTitle className="text-center text-2xl lg:text-left">
+                Welcome to TaskFlow
+              </DialogTitle>
+              <DialogDescription className="text-center lg:text-left">
+                Securely access your workspace and sync data across devices.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 custom-scrollbar sm:px-8">
+              <form onSubmit={handleEmailAuth} className="grid gap-4 sm:grid-cols-2">
             {authStep === 'register' && (
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="username">Username</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -252,7 +297,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                 </div>
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -268,7 +313,7 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
               </div>
             </div>
             {authStep !== 'forgot' && (
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password">Password</Label>
                   {authStep === 'login' && (
@@ -301,7 +346,40 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                 </div>
               </div>
             )}
-            <Button type="submit" className="w-full font-bold" disabled={isLoading}>
+            {authStep === 'register' && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="confirm-password">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirm-password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="pl-10 pr-10"
+                    aria-invalid={passwordsDoNotMatch}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground bg-transparent border-none cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="min-h-[1.15rem] px-1">
+                  <p
+                    className={`text-[11px] leading-4 transition-opacity ${
+                      passwordsDoNotMatch ? 'text-destructive opacity-100' : 'opacity-0'
+                    }`}
+                  >
+                    Passwords do not match yet.
+                  </p>
+                </div>
+              </div>
+            )}
+            <Button type="submit" className="w-full font-bold sm:col-span-2" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {authStep === 'login' ? 'Sign In' : authStep === 'register' ? 'Create Account' : 'Send Reset Link'}
             </Button>
@@ -374,6 +452,8 @@ export function AuthModal({ isOpen, onOpenChange, onSuccess }: AuthModalProps) {
                 </button>
               </p>
             )}
+          </div>
+            </div>
           </div>
         </div>
       </DialogContent>
