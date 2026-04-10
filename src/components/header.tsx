@@ -47,6 +47,7 @@ import {
   HelpCircle,
   Inbox,
   Copy,
+  History,
   type LucideIcon,
 } from 'lucide-react';
 import { CompaniesManager } from './companies-manager';
@@ -71,7 +72,7 @@ import { GeneralRemindersDialog } from './general-reminders-dialog';
 import { useTutorial } from '@/hooks/use-tutorial';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import { useFirebase } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import { sendEmailVerification, signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getInitials, getAvatarGradient, cn } from '@/lib/utils';
 import { AuthModal } from './auth-modal';
@@ -79,6 +80,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { NotificationsHub } from './notifications-hub';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
+import { HeaderProfileMenu } from './header-profile-menu';
 
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 
@@ -376,6 +378,25 @@ export function Header() {
     : localProfile.photoURL;
 
   const showProgress = isUserLoading || isProfileLoading || isGlobalLoading;
+  const isAuthenticatedUnverified = authMode === 'authenticate' && !!user && !user.emailVerified;
+
+  const handleResendVerification = async () => {
+    if (!user) return;
+    try {
+      await sendEmailVerification(user);
+      toast({
+        variant: 'success',
+        title: 'Verification email sent',
+        description: 'Check your inbox, then refresh after verifying.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Unable to send verification',
+        description: error?.message || 'Please try again in a moment.',
+      });
+    }
+  };
 
   const handleRemindersClick = () => {
     if (isMobile) {
@@ -679,78 +700,47 @@ export function Header() {
                       </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent id="header-profile-menu" className="w-60 p-2 rounded-xl shadow-xl" align="end" sideOffset={8}>
-                    <DropdownMenuLabel className="font-normal p-2">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-semibold leading-none truncate tracking-tight">
-                          {profileName}
-                        </p>
-                        <p className="text-[10px] leading-none text-muted-foreground truncate font-medium uppercase tracking-wider">
-                          {authMode === 'authenticate' && user ? (user.email || user.phoneNumber) : 'Local Mode: Data in Browser'}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator className="my-2" />
-                    <DropdownMenuGroup className="space-y-1">
-                      <DropdownMenuItem 
-                          id="header-profile-menu-profile"
-                          onSelect={() => {
-                              if (pathname === '/profile') return;
-                              prompt(() => { 
-                                  window.dispatchEvent(new Event('navigation-start')); 
-                                  router.push('/profile'); 
-                              });
-                          }} 
-                          className="rounded-lg font-medium py-2"
-                      >
-                          <UserIcon className="mr-2 h-4 w-4 opacity-70" />
-                          <span>My Profile</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                          id="header-profile-menu-settings"
-                          onSelect={() => {
-                            if (pathname === '/settings') return;
-                            prompt(() => { 
-                                  window.dispatchEvent(new Event('navigation-start')); 
-                                  router.push('/settings'); 
-                              });
-                          }}
-                          className="rounded-lg font-medium py-2"
-                      >
-                          <Cog className="mr-2 h-4 w-4 opacity-70" />
-                          <span>Settings</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                          id="header-profile-menu-help"
-                          onSelect={() => {
-                              if (pathname === '/about') return;
-                              prompt(() => { 
-                                  window.dispatchEvent(new Event('navigation-start')); 
-                                  router.push('/about'); 
-                              });
-                          }} 
-                          className="rounded-lg font-medium py-2"
-                      >
-                          <HelpCircle className="mr-2 h-4 w-4 opacity-70" />
-                          <span>Help & About</span>
-                      </DropdownMenuItem>
-                      {!(authMode === 'authenticate' && user) && (
-                        <DropdownMenuItem id="header-profile-menu-signin" onSelect={handleOpenAuth} className="rounded-lg font-semibold text-primary focus:bg-primary/5 focus:text-primary py-2">
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                          <span>Sign In / Cloud Sync</span>
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuGroup>
-                    {authMode === 'authenticate' && user && (
-                      <>
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsSignOutDialogOpen(true); }} className="text-destructive focus:text-destructive focus:bg-destructive/5 rounded-lg font-semibold py-2">
-                          <LogOut className="mr-2 h-4 w-4" />
-                          <span>Sign Out</span>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
+                  <HeaderProfileMenu
+                    profileName={profileName}
+                    profilePhoto={profilePhoto}
+                    contactLine={authMode === 'authenticate' && user ? (user.email || user.phoneNumber || 'Cloud account') : 'Guest mode: data stored in this browser'}
+                    workspaceLabel={authMode === 'authenticate' && user ? 'Cloud account' : 'Guest workspace'}
+                    isVerified={authMode !== 'authenticate' || !user ? true : !!user.emailVerified}
+                    isSignedIn={authMode === 'authenticate' && !!user}
+                    onNavigateProfile={() => {
+                      if (pathname === '/profile') return;
+                      prompt(() => {
+                        window.dispatchEvent(new Event('navigation-start'));
+                        router.push('/profile');
+                      });
+                    }}
+                    onNavigateSettings={() => {
+                      if (pathname === '/settings') return;
+                      prompt(() => {
+                        window.dispatchEvent(new Event('navigation-start'));
+                        router.push('/settings');
+                      });
+                    }}
+                    onNavigateReleases={() => {
+                      if (pathname === '/releases') return;
+                      prompt(() => {
+                        window.dispatchEvent(new Event('navigation-start'));
+                        router.push('/releases');
+                      });
+                    }}
+                    onNavigateHelp={() => {
+                      if (pathname === '/about') return;
+                      prompt(() => {
+                        window.dispatchEvent(new Event('navigation-start'));
+                        router.push('/about');
+                      });
+                    }}
+                    onSignIn={handleOpenAuth}
+                    onSignOut={() => setIsSignOutDialogOpen(true)}
+                    onResendVerification={() => {
+                      void handleResendVerification();
+                    }}
+                  />
                 </DropdownMenu>
               )}
             </div>

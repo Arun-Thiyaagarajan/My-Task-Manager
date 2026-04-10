@@ -120,12 +120,14 @@ export interface StarterContentMeta {
   repositoryIds?: string[];
 }
 
-export type ReleaseItemType = 'feature' | 'improvement' | 'fix';
+export type ReleaseItemType = 'feature' | 'improvement' | 'fix' | 'security';
+export type ReleaseAudience = 'desktop' | 'mobile' | 'both';
 
 export interface ReleaseItem {
     id: string;
     type: ReleaseItemType;
     text: string;
+    audience?: ReleaseAudience;
     link?: string;
     imageUrl?: string;
 }
@@ -134,6 +136,7 @@ export interface ReleaseUpdate {
     id: string;
     version: string;
     date: string;
+    publishedAt?: string | null;
     title: string;
     description?: string;
     items: ReleaseItem[];
@@ -154,6 +157,7 @@ export interface UserPreferences {
   viewMode?: 'grid' | 'table';
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
+  lastHomeViewState?: SavedTaskViewState;
   taskOpenGroups?: string[];
   savedTaskViews?: SavedTaskView[];
   taskFilters?: {
@@ -176,6 +180,10 @@ export interface UserPreferences {
   notificationSounds?: boolean;
   starterSavedTaskViewIds?: string[];
   starterContentAvailable?: boolean;
+  starterHomeCalloutSeen?: boolean;
+  starterSettingsCleanupSeen?: boolean;
+  lastSeenPublishedReleaseKeys?: Record<string, string>;
+  seenReleaseInboxKeys?: Record<string, string[]>;
 }
 
 export interface Task {

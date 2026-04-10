@@ -88,6 +88,7 @@ export interface DesktopFiltersSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   appliedFilterCount: number;
+  currentViewLabel: string;
   desktopDraftFilterCount: number;
   canApplyFilters: boolean;
   canSaveView: boolean;

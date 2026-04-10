@@ -308,7 +308,7 @@ function AboutContent() {
                         <CardContent className="p-4 sm:p-6 lg:p-7">
                             <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
                                 <Avatar className="h-16 w-16 sm:h-20 sm:w-20 border-4 border-background shadow-lg shrink-0">
-                                    <AvatarImage src="https://picsum.photos/seed/creator/200" />
+                                    <AvatarImage src="images/Arun.jpeg" className='object-cover' />
                                     <AvatarFallback className="bg-primary text-primary-foreground font-bold">AT</AvatarFallback>
                                 </Avatar>
                                 <div className="text-center sm:text-left space-y-1 min-w-0 flex-1">

@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils';
 import { syncTaskStatuses } from '@/lib/status-config';
 
 const LAST_NOTIFICATION_MARKER_KEY = 'taskflow_last_notification_marker';
+const SHARED_RELEASE_UPDATES_COLLECTION = 'shared';
+const SHARED_RELEASE_UPDATES_DOC = 'release-updates';
 
 type NotificationMarker = {
     timestamp: string;
@@ -402,14 +404,40 @@ export function useTaskFlowData() {
                 });
                 unsubscribers.current.push(unsubReminders);
 
-                const releasesRef = doc(db, companyBase, 'releases', 'updates');
-                const unsubReleases = onSnapshot(releasesRef, (snap) => {
-                    if (snap.exists()) _updateCloudCachePart(activeCompanyId, 'releaseUpdates', snap.data().list || []);
-                }, (error) => {
+                const releasesRef = doc(db, SHARED_RELEASE_UPDATES_COLLECTION, SHARED_RELEASE_UPDATES_DOC);
+                const legacyReleasesRef = doc(db, companyBase, 'releases', 'updates');
+                const subscribeLegacyReleases = () => onSnapshot(legacyReleasesRef, (legacySnap) => {
+                    _updateCloudCachePart(activeCompanyId, 'releaseUpdates', legacySnap.exists() ? legacySnap.data().list || [] : []);
+                }, (legacyError) => {
                     errorEmitter.emit('permission-error', new FirestorePermissionError({
-                        path: releasesRef.path,
+                        path: legacyReleasesRef.path,
                         operation: 'get',
                     }));
+                });
+
+                const unsubReleases = onSnapshot(releasesRef, async (snap) => {
+                    if (snap.exists()) {
+                        _updateCloudCachePart(activeCompanyId, 'releaseUpdates', snap.data().list || []);
+                        return;
+                    }
+
+                    _updateCloudCachePart(activeCompanyId, 'releaseUpdates', []);
+
+                    try {
+                        const legacySnap = await getDoc(legacyReleasesRef);
+                        const legacyList = legacySnap.exists() ? legacySnap.data().list || [] : [];
+
+                        if (legacyList.length > 0) {
+                            await setDoc(releasesRef, { list: legacyList }, { merge: true });
+                            _updateCloudCachePart(activeCompanyId, 'releaseUpdates', legacyList);
+                        }
+                    } catch (migrationError) {
+                        console.error('Failed to migrate legacy release updates:', migrationError);
+                    }
+                }, (error) => {
+                    // Gracefully fall back to the legacy private location until shared release rules are deployed.
+                    const unsubLegacy = subscribeLegacyReleases();
+                    unsubscribers.current.push(unsubLegacy);
                 });
                 unsubscribers.current.push(unsubReleases);
 

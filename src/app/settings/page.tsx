@@ -22,7 +22,9 @@ import {
     updateUserPreferences,
     updateTask,
     prepareUiFieldsForImport,
-    prepareUiConfigForExport
+    prepareUiConfigForExport,
+    getAppData,
+    getActiveCompanyId
 } from '@/lib/data';
 import type { Task, UiConfig, FieldConfig, Person, RepositoryConfig, Environment, BackupFrequency, AuthMode, UserPreferences, PendingStatusConversion } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -110,7 +112,6 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { ReleaseManagementCard } from '@/components/release-management-card';
 import { cn, compressImage } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AuthModal } from '@/components/auth-modal';
@@ -227,13 +228,16 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (preferences.starterContentAvailable) {
-      setIsStarterCleanupVisible(true);
-      return;
+    const companyId = getActiveCompanyId();
+    const appData = getAppData();
+    const starterCleanupAvailable = Boolean(companyId && appData.companyData[companyId]?.starterContent?.isAvailable);
+
+    if (!starterCleanupAvailable && preferences.starterContentAvailable) {
+      void updateUserPreferences({ starterContentAvailable: false, starterSavedTaskViewIds: [] });
     }
 
     if (!isClearingStarter) {
-      setIsStarterCleanupVisible(false);
+      setIsStarterCleanupVisible(starterCleanupAvailable);
     }
   }, [preferences.starterContentAvailable, isClearingStarter]);
 
@@ -1282,7 +1286,6 @@ export default function SettingsPage() {
                         <CardContent className="space-y-3"><Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-developers')}><span className="flex items-center gap-3"><Users className="h-5 w-5 text-indigo-500" /> Manage Developers</span><ChevronRight className="h-4 w-4" /></Button><Button variant="outline" className="w-full h-14 text-sm justify-between rounded-2xl font-bold px-4" onClick={() => setActiveMobileSection('manage-testers')}><span className="flex items-center gap-3"><ClipboardCheck className="h-5 w-5 text-green-500" /> Manage Testers</span><ChevronRight className="h-4 w-4" /></Button></CardContent>
                     </Card>
                 )}
-                {activeMobileSection === 'releases' && <ReleaseManagementCard />}
                 {activeMobileSection === 'data' && (
                     <div className="space-y-4">
                         <Card className="border shadow-lg rounded-3xl">
@@ -1607,6 +1610,35 @@ export default function SettingsPage() {
                 <CardHeader className="pb-4"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Rocket className="h-5 w-5 text-primary" />Environments</CardTitle></CardHeader>
                 <CardContent className="space-y-4"><div className="grid gap-2">{(uiConfig.environments || []).map(env => { const isMandatory = env.isMandatory || ['dev', 'production'].includes(env.name.toLowerCase()); return (<div key={env.id} className="flex items-center justify-between p-2.5 border rounded-xl bg-muted/20 group hover:bg-muted/40 transition-colors"><div className="flex items-center gap-3 min-w-0"><div className="h-3 w-3 rounded-full shadow-sm shrink-0" style={{ backgroundColor: env.color }} /><span className="capitalize font-medium text-sm truncate">{env.name}</span>{isMandatory && <Lock className="h-3 w-3 text-muted-foreground/50 shrink-0" />}</div><div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => { setEnvToEdit(env); setIsEnvDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>{!isMandatory && <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger><AlertDialogContent className="rounded-3xl"><AlertDialogHeader> <AlertDialogTitle>Delete Environment?</AlertDialogTitle><AlertDialogDescription className="font-normal">Permanently remove the "**${env.name}**" environment?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="gap-3 mt-4"><AlertDialogCancel className="font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteEnv(env.id)} className="bg-destructive hover:bg-destructive/90 font-semibold">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}</div></div>) })}</div><div className="flex gap-2"><Input placeholder="New environment..." className="h-10 text-xs font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" value={newEnvName} onChange={e => setNewEnvName(e.target.value)} /><Button size="sm" className="h-10 px-4 font-medium shrink-0 shadow-sm" onClick={handleAddEnv}>Add</Button></div></CardContent>
             </Card>
+            {isAdmin && (
+              <Card id="settings-releases-card" className="border-none shadow-lg">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Release management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 text-sm justify-between rounded-xl font-bold px-4"
+                    onClick={() => {
+                      window.dispatchEvent(new Event('navigation-start'));
+                      router.push('/releases/manage?from=settings');
+                    }}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Open release management
+                    </span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <p className="text-[11px] leading-5 text-muted-foreground">
+                    Manage shared release drafts and published updates from the dedicated admin page.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             <Card
               id="settings-data-card"
               ref={dataCardRef}

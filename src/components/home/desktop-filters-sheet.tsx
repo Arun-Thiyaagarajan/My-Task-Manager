@@ -12,6 +12,7 @@ export function DesktopFiltersSheet({
   isOpen,
   onOpenChange,
   appliedFilterCount,
+  currentViewLabel,
   desktopDraftFilterCount,
   canApplyFilters,
   canSaveView,
@@ -47,6 +48,9 @@ export function DesktopFiltersSheet({
                       {appliedFilterCount} active
                     </Badge>
                   ) : null}
+                  <Badge variant="secondary" className="rounded-full border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    {currentViewLabel}
+                  </Badge>
                 </SheetTitle>
               </div>
               <div className="flex items-center gap-2">

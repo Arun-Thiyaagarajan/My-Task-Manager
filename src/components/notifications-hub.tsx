@@ -24,7 +24,15 @@ import { useFirebase } from '@/firebase';
 import type { AppNotification } from '@/lib/types';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { useRouter, usePathname } from 'next/navigation';
-import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences, getAppData } from '@/lib/data';
+import { markNotificationRead, getAuthMode, getUserPreferences, updateUserPreferences, getAppData, getReleaseUpdates, getActiveCompanyId } from '@/lib/data';
+
+function getReleaseNotificationId(releaseKey: string) {
+    return `release-inbox:${releaseKey}`;
+}
+
+function getReleaseKeyFromNotificationId(notificationId: string) {
+    return notificationId.startsWith('release-inbox:') ? notificationId.replace('release-inbox:', '') : null;
+}
 
 export function NotificationsHub() {
     const { user, userProfile, isUserLoading } = useFirebase();
@@ -34,6 +42,7 @@ export function NotificationsHub() {
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
     const [isNavigatingId, setIsNavigatingId] = useState<string | null>(null);
+    const releaseNotificationAudienceKey = `${user?.uid ?? 'guest'}:${userProfile?.role ?? 'unknown'}`;
     
     const [isMuted, setIsMuted] = useState(getUserPreferences().notificationSounds === false);
 
@@ -58,7 +67,32 @@ export function NotificationsHub() {
     useEffect(() => {
         const loadNotifications = () => {
             const data = getAppData();
-            const items = data.notifications || [];
+            const companyId = getActiveCompanyId();
+            const prefs = getUserPreferences();
+            const seenReleaseInboxKeys = prefs.seenReleaseInboxKeys?.[companyId] || [];
+            const releaseNotifications: AppNotification[] = user && userProfile?.role !== 'admin'
+                ? getReleaseUpdates(true)
+                    .filter((release) => {
+                        const releaseKey = `${release.id}:${release.publishedAt || release.date}`;
+                        return !seenReleaseInboxKeys.includes(releaseKey);
+                    })
+                    .map((release) => {
+                        const releaseKey = `${release.id}:${release.publishedAt || release.date}`;
+                        return {
+                            id: getReleaseNotificationId(releaseKey),
+                            recipientId: user.uid,
+                            type: 'system',
+                            title: `What's new in v${release.version}`,
+                            message: release.description?.trim() || `${release.title} is now live in your workspace.`,
+                            link: '/releases',
+                            timestamp: release.publishedAt || release.date,
+                            read: false,
+                            senderId: 'system-release',
+                            senderName: 'Release Notes',
+                        };
+                    })
+                : [];
+            const items = [...releaseNotifications, ...(data.notifications || [])];
             
             const sortedItems = [...items].sort((a, b) => 
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
@@ -72,12 +106,14 @@ export function NotificationsHub() {
 
         window.addEventListener('company-changed', loadNotifications);
         window.addEventListener('storage', loadNotifications);
+        window.addEventListener('preferences-changed', loadNotifications);
 
         return () => {
             window.removeEventListener('company-changed', loadNotifications);
             window.removeEventListener('storage', loadNotifications);
+            window.removeEventListener('preferences-changed', loadNotifications);
         };
-    }, [user]);
+    }, [releaseNotificationAudienceKey]);
 
     const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -128,10 +164,23 @@ export function NotificationsHub() {
 
     const handleAction = (notif: AppNotification) => {
         if (isNavigatingId) return;
+        const releaseKey = getReleaseKeyFromNotificationId(notif.id);
         
         if (pathname === notif.link) {
             setIsOpen(false);
-            if (!notif.read) {
+            if (releaseKey) {
+                const companyId = getActiveCompanyId();
+                const prefs = getUserPreferences();
+                const currentKeys = prefs.seenReleaseInboxKeys?.[companyId] || [];
+                if (!currentKeys.includes(releaseKey)) {
+                    void updateUserPreferences({
+                        seenReleaseInboxKeys: {
+                            ...(prefs.seenReleaseInboxKeys || {}),
+                            [companyId]: [...currentKeys, releaseKey],
+                        },
+                    });
+                }
+            } else if (!notif.read) {
                 markNotificationRead(notif.id);
             }
             return;
@@ -140,7 +189,19 @@ export function NotificationsHub() {
         setIsNavigatingId(notif.id);
         window.dispatchEvent(new Event('navigation-start'));
 
-        if (!notif.read) {
+        if (releaseKey) {
+            const companyId = getActiveCompanyId();
+            const prefs = getUserPreferences();
+            const currentKeys = prefs.seenReleaseInboxKeys?.[companyId] || [];
+            if (!currentKeys.includes(releaseKey)) {
+                void updateUserPreferences({
+                    seenReleaseInboxKeys: {
+                        ...(prefs.seenReleaseInboxKeys || {}),
+                        [companyId]: [...currentKeys, releaseKey],
+                    },
+                });
+            }
+        } else if (!notif.read) {
             markNotificationRead(notif.id);
         }
         
@@ -160,8 +221,25 @@ export function NotificationsHub() {
     };
 
     const markAllRead = () => {
+        const companyId = getActiveCompanyId();
+        const prefs = getUserPreferences();
+        const currentKeys = prefs.seenReleaseInboxKeys?.[companyId] || [];
+        const releaseKeysToMark = notifications
+            .map((notification) => getReleaseKeyFromNotificationId(notification.id))
+            .filter((value): value is string => Boolean(value))
+            .filter((value) => !currentKeys.includes(value));
+
+        if (releaseKeysToMark.length > 0) {
+            void updateUserPreferences({
+                seenReleaseInboxKeys: {
+                    ...(prefs.seenReleaseInboxKeys || {}),
+                    [companyId]: [...currentKeys, ...releaseKeysToMark],
+                },
+            });
+        }
+
         notifications
-            .filter(n => !n.read)
+            .filter(n => !n.read && !getReleaseKeyFromNotificationId(n.id))
             .forEach(n => markNotificationRead(n.id));
     };
 

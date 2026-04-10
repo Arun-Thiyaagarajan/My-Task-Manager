@@ -12,6 +12,7 @@ export function MobileFiltersSheet({
   isOpen,
   onOpenChange,
   appliedFilterCount,
+  currentViewLabel,
   desktopDraftFilterCount,
   canApplyFilters,
   canSaveView,
@@ -47,6 +48,9 @@ export function MobileFiltersSheet({
                       {appliedFilterCount} active
                     </Badge>
                   ) : null}
+                  <Badge variant="secondary" className="rounded-full border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    {currentViewLabel}
+                  </Badge>
                 </SheetTitle>
               </div>
               <SheetClose asChild>
@@ -139,7 +143,7 @@ export function MobileFiltersSheet({
                 variant="ghost"
                 onClick={onResetSelections}
                 disabled={desktopDraftFilterCount === 0 && appliedFilterCount === 0}
-                className="justify-start rounded-xl px-3 font-medium text-muted-foreground sm:justify-center"
+                className="justify-center rounded-xl px-3 font-medium text-muted-foreground sm:justify-center"
               >
                 Reset selections
               </Button>

@@ -686,7 +686,7 @@ export default function ProfilePage() {
         // Standalone Links
         { id: 'logs', title: 'Activity Logs', subLabel: 'Audit trail of all changes', icon: FileClock, type: 'link', href: '/logs', category: 'System', color: 'text-blue-500', keywords: ['history', 'audit', 'track', 'changes'] },
         { id: 'bin', title: 'Bin (Trash)', subLabel: 'Restore or delete deleted tasks', icon: Trash2, type: 'link', href: '/bin', category: 'System', color: 'text-zinc-500', keywords: ['trash', 'deleted', 'restore', 'recycle'] },
-        // { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and features', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates'] },
+        { id: 'releases', title: 'What\'s New', subLabel: 'Latest updates and release history', icon: Sparkles, type: 'link', href: '/releases', category: 'System', color: 'text-green-500', keywords: ['version', 'changelog', 'updates', 'release notes', 'whats new'] },
         { id: 'general-reminders', title: 'General Reminders', subLabel: 'Manage global workspace notes', icon: Bell, type: 'link', href: '/reminders', category: 'Productivity', color: 'text-amber-600', keywords: ['sticky notes', 'global notes', 'bulletin'] },
         { id: 'insights', title: 'Recent Activity', subLabel: 'Tasks added or imported recently', icon: Sparkles, type: 'link', href: '/insights', category: 'Insights', color: 'text-primary', keywords: ['recent', 'added', 'imported', 'insights', 'activity'] },
         { id: 'about-help', title: 'Help & About', subLabel: 'FAQ, Contact, and App Info', icon: HelpCircle, type: 'link', href: '/about', category: 'Support', color: 'text-primary', keywords: ['faq', 'contact', 'help', 'about us', 'support'] },
@@ -702,7 +702,7 @@ export default function ProfilePage() {
         items.unshift({ id: 'auth', title: 'Sign In / Cloud Sync', subLabel: 'Securely sync your workspace', icon: ShieldCheck, type: 'event', event: 'open-auth-modal', category: 'Identity', color: 'text-primary font-bold', keywords: ['login', 'register', 'firebase', 'cloud'] } as any);
     }
     if (isAdmin) {
-        items.push({ id: 'manage-releases', title: 'Publish Update', subLabel: 'Manage release notes (Admin)', icon: Sparkles, type: 'settings', section: 'releases', category: 'System', color: 'text-primary', keywords: ['publish', 'whats new', 'admin only'] })
+        items.push({ id: 'manage-releases', title: 'Manage Releases', subLabel: 'Draft and publish updates (Admin)', icon: Sparkles, type: 'link', href: '/releases/manage?from=profile', category: 'System', color: 'text-primary', keywords: ['publish', 'whats new', 'admin only', 'release management'] })
         items.unshift({ id: 'admin-feedback', title: 'Support Inbox', subLabel: 'Manage user reports & feedback', icon: Inbox, type: 'link', href: '/admin/feedback', category: 'Admin', color: 'text-amber-600 font-bold', keywords: ['support', 'admin', 'inbox', 'tickets', 'replies'] } as any);
     }
     return items;
@@ -858,6 +858,31 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+                {!isLocal && !isVerified && (
+                    <div className="rounded-[1.35rem] border border-amber-200/70 bg-amber-50/90 p-4 text-amber-950 shadow-sm dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-100">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                <AlertCircle className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <div className="space-y-1">
+                                    <p className="text-sm font-semibold leading-none">Email verification pending</p>
+                                    <p className="text-xs leading-5 text-amber-900/85 dark:text-amber-100/80">
+                                        You can keep using cloud sync. Verify your email when you&apos;re ready to unlock all account security actions.
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleVerifyEmail}
+                                    type="button"
+                                    className="h-8 rounded-lg px-0 text-xs font-semibold text-amber-800 hover:bg-transparent hover:text-amber-900 dark:text-amber-100 dark:hover:bg-transparent"
+                                >
+                                    Resend verification email
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Smart Search Bar */}
@@ -1010,14 +1035,22 @@ export default function ProfilePage() {
                         onClick={() => router.push(getMobileProfileChildHref('/settings'))}
                         color="text-purple-500"
                     />
-                    {/* Release History will be implmented later */}
-                    {/* <MobileHubRow 
+                    <MobileHubRow 
                         icon={Sparkles} 
                         title="What's New" 
                         subLabel="Release notes and updates" 
                         onClick={() => router.push(getMobileProfileChildHref('/releases'))}
                         color="text-green-500"
-                    /> */}
+                    />
+                    {isAdmin && (
+                      <MobileHubRow
+                        icon={Sparkles}
+                        title="Manage Releases"
+                        subLabel="Draft and publish updates"
+                        onClick={() => router.push(getMobileProfileChildHref('/releases/manage?from=profile'))}
+                        color="text-primary"
+                      />
+                    )}
                     <MobileHubRow 
                         icon={Compass} 
                         title="Feature Explorer" 
@@ -1353,6 +1386,18 @@ export default function ProfilePage() {
                         <CardDescription className="text-sm font-normal">Keep your cloud account secure with a strong password.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        {!user?.emailVerified && (
+                          <Alert variant="destructive" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/50 text-amber-900 dark:text-amber-200">
+                            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            <AlertTitle className="font-semibold">Verify email to change password</AlertTitle>
+                            <AlertDescription className="mt-1">
+                              <p className="font-normal text-sm">You can keep using cloud sync, but password changes are available after email verification.</p>
+                              <Button variant="link" onClick={handleVerifyEmail} type="button" className="mt-2 h-auto p-0 text-xs font-semibold underline cursor-pointer">
+                                Resend verification email
+                              </Button>
+                            </AlertDescription>
+                          </Alert>
+                        )}
                         <div className="grid gap-2">
                         <Label htmlFor="new-pass" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">New Password</Label>
                         <div className="relative group">
@@ -1364,6 +1409,7 @@ export default function ProfilePage() {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="••••••••"
+                            disabled={!user?.emailVerified}
                             />
                             <button 
                             type="button" 
@@ -1399,12 +1445,13 @@ export default function ProfilePage() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
+                            disabled={!user?.emailVerified}
                             />
                         </div>
                         </div>
                     </CardContent>
                     <CardFooter className="bg-muted/30 border-t flex justify-end px-6 py-4">
-                        <Button type="submit" disabled={isUpdating || !newPassword} className="px-8 font-medium w-full sm:w-auto">
+                        <Button type="submit" disabled={isUpdating || !newPassword || !user?.emailVerified} className="px-8 font-medium w-full sm:w-auto">
                         {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Update Password
                         </Button>
