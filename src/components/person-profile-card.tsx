@@ -15,10 +15,11 @@ import { PersonInfoGrid } from '@/components/person-info-grid';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { Loader2 } from 'lucide-react';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -56,6 +57,7 @@ export function PersonProfileCard({
 }: PersonProfileCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const editFormId = `person-profile-edit-${person?.id || 'unknown'}`;
 
   if (!person) return null;
 
@@ -161,15 +163,15 @@ export function PersonProfileCard({
                   <PersonEditorForm
                     personToEdit={person}
                     onSave={handleSave}
-                    onCancel={() => setIsEditing(false)}
                     isPending={isPending}
                     compact
-                    saveLabel="Save Person"
+                    showFooter={false}
+                    formId={editFormId}
                   />
                 </div>
               ) : null}
 
-              {hasContactInfo ? (
+              {!isEditing && hasContactInfo ? (
                 <PersonInfoGrid>
                   {person.email ? (
                     <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3">
@@ -200,9 +202,9 @@ export function PersonProfileCard({
                 </PersonInfoGrid>
               ) : null}
 
-              {hasContactInfo && hasAdditionalFields ? <Separator className="bg-border/60" /> : null}
+              {!isEditing && hasContactInfo && hasAdditionalFields ? <Separator className="bg-border/60" /> : null}
 
-              {hasAdditionalFields ? (
+              {!isEditing && hasAdditionalFields ? (
                 <PersonInfoGrid className="items-start">
                   {person.additionalFields?.map(field => (
                     <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3">
@@ -220,6 +222,17 @@ export function PersonProfileCard({
               ) : null}
             </div>
           </ScrollArea>
+          {isEditing ? (
+            <DialogFooter className="shrink-0 flex-row justify-center gap-2 border-t border-border/60 bg-muted/10 px-6 py-4 sm:justify-center">
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" form={editFormId} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Person
+              </Button>
+            </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

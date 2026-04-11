@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -115,6 +115,7 @@ export default function TaskPage() {
   const [isPlanningEditorOpen, setIsPlanningEditorOpen] = useState(false);
   const [attachmentsAccordionValue, setAttachmentsAccordionValue] = useState('');
   const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+  const [isRefreshingTaskDetail, setIsRefreshingTaskDetail] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
@@ -158,7 +159,7 @@ export default function TaskPage() {
     return dueDate.getTime() < Date.now();
   }, [task?.dueAt, task?.dueCompletedAt]);
   
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (taskId) {
       clearExpiredReminders();
       const activeCompanyId = getActiveCompanyId();
@@ -193,7 +194,44 @@ export default function TaskPage() {
       setIsLoading(false);
       window.dispatchEvent(new Event('navigation-end'));
     }
-  }
+  }, [isUserLoading, taskId]);
+
+  const handleRefreshTaskDetail = useCallback(async () => {
+    if (isRefreshingTaskDetail) return;
+
+    setIsRefreshingTaskDetail(true);
+    window.dispatchEvent(new Event('sync-start'));
+
+    try {
+      const completionPromise = new Promise<void>((resolve) => {
+        const handleComplete = () => resolve();
+        window.addEventListener('taskflow-refresh-finished', handleComplete, { once: true });
+      });
+
+      window.dispatchEvent(new Event('taskflow-refresh-request'));
+      await Promise.race([
+        completionPromise,
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ]);
+
+      loadData();
+      toast({
+        variant: 'success',
+        title: 'Task refreshed',
+        description: 'The latest task details are now in view.',
+        duration: 2000,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Refresh failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsRefreshingTaskDetail(false);
+      window.dispatchEvent(new Event('sync-end'));
+    }
+  }, [isRefreshingTaskDetail, loadData, toast]);
 
   useEffect(() => {
     loadData();
@@ -211,7 +249,7 @@ export default function TaskPage() {
         window.removeEventListener('reminders-expired', loadData);
         window.clearInterval(reminderExpiryInterval);
     };
-  }, [taskId, isUserLoading]);
+  }, [loadData]);
 
   useEffect(() => {
     return () => {
@@ -1176,6 +1214,20 @@ const handleCopyDescription = () => {
                 )}
 
                 <Button
+                    type="button"
+                    onClick={handleRefreshTaskDetail}
+                    variant="outline"
+                    size="sm"
+                    disabled={isRefreshingTaskDetail}
+                    className={cn(
+                      toolbarButtonClassName,
+                      "hidden h-9 md:inline-flex"
+                    )}
+                >
+                    <RotateCcw className={cn("mr-2 h-4 w-4", isRefreshingTaskDetail && "animate-spin")} />
+                    Refresh
+                </Button>
+                <Button
                     id="task-detail-edit"
                     onClick={handleNavigateEdit}
                     variant="outline"
@@ -1661,7 +1713,18 @@ const handleCopyDescription = () => {
                                     </Popover>
                                     <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()} className="font-medium"><Image className="mr-2 h-4 w-4" /> Add Image</Button>
                                   </div>
-                                  <input type="file" id="task-attachment-upload" ref={imageInputRef} onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])} className="hidden" accept="image/*" />
+                                  <input
+                                    type="file"
+                                    id="task-attachment-upload"
+                                    ref={imageInputRef}
+                                    onChange={(e) => {
+                                      Array.from(e.target.files || []).forEach(handleImageUpload);
+                                      e.target.value = '';
+                                    }}
+                                    className="hidden"
+                                    accept="image/*"
+                                    multiple
+                                  />
                                 </div>
                               </div>
                             ) : (!task.attachments || task.attachments.length === 0) ? (

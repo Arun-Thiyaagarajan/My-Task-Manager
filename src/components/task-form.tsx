@@ -59,6 +59,7 @@ import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-con
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TASK_PRIORITY_OPTIONS } from '@/lib/task-planning';
+import { triggerTransfer } from '@/components/file-transfer-indicator';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -440,16 +441,49 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   }, [appendAttachment, attachments.length, toast, updateAttachment]);
 
   const handleImageUpload = (file: File) => {
+    const transferId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    triggerTransfer({
+      id: transferId,
+      filename: file.name,
+      kind: 'upload',
+      status: 'uploading',
+      progress: 10,
+    });
     const reader = new FileReader();
+    reader.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const progress = Math.min(70, Math.round((event.loaded / event.total) * 70));
+      triggerTransfer({
+        id: transferId,
+        filename: file.name,
+        kind: 'upload',
+        status: 'uploading',
+        progress: Math.max(10, progress),
+      });
+    };
     reader.onload = async (e) => {
-        const rawDataUri = e.target?.result as string;
-        const optimizedUri = await compressImage(rawDataUri);
-        appendAttachment({
-            name: file.name,
-            url: optimizedUri,
-            type: 'image',
-        });
-        toast({ variant: 'success', title: 'Image optimized and added.' });
+        try {
+            const rawDataUri = e.target?.result as string;
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 82 });
+            const optimizedUri = await compressImage(rawDataUri);
+            appendAttachment({
+                name: file.name,
+                url: optimizedUri,
+                type: 'image',
+            });
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
+            toast({ variant: 'success', title: 'Image optimized and added.' });
+        } catch (error) {
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
+            toast({
+                variant: 'destructive',
+                title: 'Could not add image',
+                description: error instanceof Error ? error.message : 'Something went wrong while preparing this image.',
+            });
+        }
+    };
+    reader.onerror = () => {
+      triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
     };
     reader.readAsDataURL(file);
   };
@@ -773,13 +807,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
   }, [form, isMobile, onSaveTaskTemplate, templateDescription, templateName, toast]);
 
-  const handleDeleteSelectedTemplate = useCallback(() => {
-    if (!selectedTemplate || !onDeleteTaskTemplate) return;
+  const handleResetSelectedTemplate = useCallback(() => {
+    if (!selectedTemplate) return;
 
-    const deleted = onDeleteTaskTemplate(selectedTemplate.id);
-    if (!deleted) return;
+    handleClearForm();
     setSelectedTemplateId('blank');
-  }, [onDeleteTaskTemplate, selectedTemplate]);
+    toast({
+      title: 'Blank template restored',
+      description: `"${selectedTemplate.name}" is no longer applied to this form.`,
+    });
+  }, [handleClearForm, selectedTemplate, toast]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1056,7 +1093,10 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 id: groupName.toLowerCase().replace(/\s+/g, '-'), 
                 label: groupName,
                 icon,
-                fields: (groupedFields[groupName] || []).map(f => ({ id: `field-container-${f.key}`, label: f.label }))
+                fields: [
+                    ...(groupedFields[groupName] || []).map(f => ({ id: `field-container-${f.key}`, label: f.label })),
+                    ...(groupName === 'Core Details' ? [{ id: 'field-container-priority', label: 'Priority' }] : []),
+                ]
             });
         }
     });
@@ -1518,7 +1558,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 </Tooltip>
                                             </TooltipProvider>
                                         )}
-                                        {/* {selectedTemplate && (
+                                        {selectedTemplate && (
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -1526,19 +1566,19 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                             type="button"
                                                             variant="outline"
                                                             size="icon"
-                                                            onClick={handleDeleteSelectedTemplate}
-                                                            className="h-10 w-10 rounded-2xl border-destructive/25 bg-background/92 text-destructive/85 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-destructive/40 hover:bg-destructive/[0.08] hover:text-destructive hover:shadow-[0_10px_24px_-18px_rgba(220,38,38,0.45)]"
+                                                            onClick={handleResetSelectedTemplate}
+                                                            className="h-10 w-10 rounded-2xl border-amber-500/25 bg-background/92 text-amber-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-amber-500/45 hover:bg-amber-500/[0.08] hover:text-amber-800 hover:shadow-[0_10px_24px_-18px_rgba(245,158,11,0.45)] dark:text-amber-300"
                                                         >
-                                                            <Trash2 className="h-4.5 w-4.5" />
-                                                            <span className="sr-only">Delete selected template</span>
+                                                            <RotateCcw className="h-4.5 w-4.5" />
+                                                            <span className="sr-only">Reset to blank template</span>
                                                         </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="font-normal">
-                                                        Delete selected template
+                                                        Reset to blank template
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-                                        )} */}
+                                        )}
                                     </div>
                                 </div>
 
@@ -1651,7 +1691,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                             control={form.control}
                                             name="priority"
                                             render={({ field: priorityField }) => (
-                                              <FormItem>
+                                              <FormItem id="field-container-priority" className="scroll-mt-32">
                                                 <FormLabel className="font-medium">Priority</FormLabel>
                                                 <Select value={priorityField.value || 'medium'} onValueChange={priorityField.onChange}>
                                                   <FormControl>
@@ -1772,11 +1812,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
                             <input
                                 type="file"
-                                min="0"
                                 ref={imageInputRef}
-                                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
+                                onChange={(e) => {
+                                  Array.from(e.target.files || []).forEach(handleImageUpload);
+                                  e.target.value = '';
+                                }}
                                 className="hidden"
                                 accept="image/*"
+                                multiple
                             />
                         </CardContent>
                     </Card>

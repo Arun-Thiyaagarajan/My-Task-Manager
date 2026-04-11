@@ -1,21 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Loader2, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface PullToRefreshProps {
   children: React.ReactNode;
+  enabled?: boolean;
+  onRefresh?: () => Promise<void> | void;
 }
 
 /**
  * A mobile-only pull-to-refresh wrapper that provides visual progress 
  * and triggers a global data refresh.
  */
-export function PullToRefresh({ children }: PullToRefreshProps) {
-  const router = useRouter();
+export function PullToRefresh({ children, enabled = true, onRefresh }: PullToRefreshProps) {
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showInstruction, setShowInstruction] = useState(false);
@@ -38,7 +38,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
     // 1. We are at the top of the main window
     // 2. Not already refreshing
     // 3. NO dialog/popover is currently open (to avoid scroll conflicts)
-    if (window.scrollY > 0 || isRefreshing || isOverlayOpen) return;
+    if (!enabled || window.scrollY > 0 || isRefreshing || isOverlayOpen) return;
     
     pullStartRef.current = e.touches[0].clientY;
   }, [isRefreshing]);
@@ -97,7 +97,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
         new Promise(resolve => setTimeout(resolve, 1200)),
       ]);
 
-      router.refresh();
+      await onRefresh?.();
       window.dispatchEvent(new Event('company-changed'));
       window.dispatchEvent(new Event('config-changed'));
       window.dispatchEvent(new Event('reminders-expired'));
@@ -122,7 +122,7 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
 
   useEffect(() => {
     // Only apply on touch devices
-    if (typeof window === 'undefined' || !('ontouchstart' in window)) return;
+    if (typeof window === 'undefined' || !('ontouchstart' in window) || !enabled) return;
 
     window.addEventListener('touchstart', onTouchStart, { passive: false });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -133,19 +133,19 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
     };
-  }, [onTouchStart, onTouchMove, onTouchEnd]);
+  }, [enabled, onTouchStart, onTouchMove, onTouchEnd]);
 
   // Show instruction for new users on mobile
   useEffect(() => {
     const isMobile = typeof window !== 'undefined' && 'ontouchstart' in window;
-    if (!isMobile) return;
+    if (!isMobile || !enabled) return;
 
     const hasSeen = localStorage.getItem('taskflow_seen_pull_refresh');
     if (!hasSeen) {
       const timer = setTimeout(() => setShowInstruction(true), 2000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [enabled]);
 
   return (
     <div className="relative w-full overflow-x-hidden flex-1 flex flex-col">

@@ -14,13 +14,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { 
-    Download, 
-    Share2, 
     Copy, 
     FileJson, 
-    Link2, 
     Check, 
-    Globe, 
     ExternalLink, 
     FileText,
     Loader2
@@ -28,9 +24,9 @@ import {
 import { generateTaskPdf } from '@/lib/share-utils';
 import type { Task, UiConfig, Person, Attachment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { addLog, prepareUiConfigForExport } from '@/lib/data';
-import LZString from 'lz-string';
+import { addLog, createTaskShareLink, getAuthMode, prepareUiConfigForExport } from '@/lib/data';
 import { triggerTransfer } from './file-transfer-indicator';
+import { buildFallbackTaskShareUrl, buildTaskShareSnapshot } from '@/lib/task-share';
 
 const sanitizeFilename = (name: string): string => {
     return name.replace(/[<>:"/\\|?*]+/g, '_').substring(0, 100);
@@ -46,125 +42,54 @@ interface ShareMenuProps {
   asSubmenu?: boolean;
 }
 
-export function ShareMenu({ task, uiConfig, developers, testers, attachment, children, asSubmenu = false }: ShareMenuProps) {
+export function ShareMenu({ task, uiConfig, developers, testers, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
-  const [copiedUrl, setCopiedUrl] = React.useState<string | null>(null);
+  const [hasCopiedShareUrl, setHasCopiedShareUrl] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
+  const [isGeneratingShareLink, setIsGeneratingShareLink] = React.useState(false);
 
-  const getShareUrl = () => {
+  const getShareUrl = React.useCallback(async () => {
     if (typeof window === 'undefined') return '';
-    const baseUrl = `${window.location.origin}/share/${task.id}`;
-    
-    const devMap = new Map(developers.map(d => [d.id, d.name]));
-    const testerMap = new Map(testers.map(t => [t.id, t.name]));
 
-    const defaultLabels: Record<string, string> = {
-        developers: 'Developers',
-        testers: 'Testers',
-        repositories: 'Repositories',
-        status: 'Status',
-        tags: 'Tags',
-        attachments: 'Attachments',
-        prLinks: 'Pull Request Links',
-        deploymentStatus: 'Deployment Status',
-        description: 'Description',
-        title: 'Title',
-        summary: 'Summary',
-        azureWorkItemId: 'Azure Work Item ID',
-        devStartDate: 'Dev Start Date',
-        devEndDate: 'Dev End Date',
-        qaStartDate: 'QA Start Date',
-        qaEndDate: 'QA End Date',
-        comments: 'Comments',
-        customFields: 'Other Details'
-    };
+    const snapshot = buildTaskShareSnapshot(task, uiConfig, developers, testers);
 
-    const usedCustomKeys = Object.keys(task.customFields || {});
-    const fieldMetadata: Record<string, { l: string, t: string, u?: string }> = {};
-    uiConfig.fields.forEach(f => {
-        const isCustom = f.isCustom;
-        const isRenamed = defaultLabels[f.key] && defaultLabels[f.key] !== f.label;
-        const hasBaseUrl = !!f.baseUrl;
-        
-        if (isCustom || isRenamed || hasBaseUrl) {
-            const isUsed = isCustom ? usedCustomKeys.includes(f.key) : !!(task as any)[f.key];
-            if (isUsed || f.key === 'status') {
-                fieldMetadata[f.key] = { 
-                    l: f.label, 
-                    t: f.type,
-                    u: f.baseUrl || undefined
-                };
-            }
-        }
-    });
-
-    const prunedStatus: Record<string, boolean> = {};
-    Object.entries(task.deploymentStatus || {}).forEach(([k, v]) => { if (v) prunedStatus[k] = v; });
-    
-    const prunedDates: Record<string, string> = {};
-    Object.entries(task.deploymentDates || {}).forEach(([k, v]) => { if (v) prunedDates[k] = v as string; });
-
-    const snapshot = {
-        t: task.title,
-        d: task.description,
-        s: task.status,
-        py: task.priority || undefined,
-        u: task.summary || undefined,
-        g: task.tags?.length ? task.tags : undefined,
-        r: task.repositories?.length ? task.repositories : undefined,
-        e: task.relevantEnvironments?.length ? task.relevantEnvironments : undefined,
-        st: Object.keys(prunedStatus).length ? prunedStatus : undefined,
-        dt: Object.keys(prunedDates).length ? prunedDates : undefined,
-        at: (task.attachments || [])
-            .filter(a => !a.url.startsWith('data:'))
-            .map(a => ({ n: a.name, u: a.url, t: a.type })),
-        sd: task.devStartDate || undefined,
-        ed: task.devEndDate || undefined,
-        qsd: task.qaStartDate || undefined,
-        qed: task.qaEndDate || undefined,
-        da: task.dueAt || undefined,
-        dca: task.dueCompletedAt || undefined,
-        dra: task.dueReminderAt || undefined,
-        drp: task.dueReminderPreset || undefined,
-        cf: Object.keys(task.customFields || {}).length ? task.customFields : undefined,
-        dv: (task.developers || []).map(id => devMap.get(id)).filter(Boolean),
-        ts: (task.testers || []).map(id => testerMap.get(id)).filter(Boolean),
-        pr: Object.keys(task.prLinks || {}).length ? task.prLinks : undefined,
-        az: task.azureWorkItemId || undefined,
-        up: task.updatedAt,
-        cm: task.comments?.length ? task.comments : undefined,
-        fm: Object.keys(fieldMetadata).length ? fieldMetadata : undefined 
-    };
-
-    try {
-        const json = JSON.stringify(snapshot);
-        const compressed = LZString.compressToEncodedURIComponent(json);
-        return `${baseUrl}?p=${compressed}`;
-    } catch (e) {
-        console.error("Compression failed, using fallback encoding", e);
-        try {
-            const json = JSON.stringify(snapshot);
-            const encoded = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (match, p1) => 
-                String.fromCharCode(parseInt(p1, 16))
-            ));
-            return `${baseUrl}?p=${encoded}`;
-        } catch (innerE) {
-            return baseUrl;
-        }
+    if (getAuthMode() === 'authenticate') {
+      const token = await createTaskShareLink(task, uiConfig, developers, testers);
+      return `${window.location.origin}/s/${token}`;
     }
-  };
+
+    return buildFallbackTaskShareUrl(window.location.origin, task.id, snapshot);
+  }, [developers, task, testers, uiConfig]);
+
+  const withShareUrl = React.useCallback(async (handler: (url: string) => void | Promise<void>) => {
+    setIsGeneratingShareLink(true);
+    try {
+      const url = await getShareUrl();
+      await handler(url);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Share link unavailable',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsGeneratingShareLink(false);
+    }
+  }, [getShareUrl, toast]);
 
   const handleCopyShareLink = () => {
-    const url = getShareUrl();
-    navigator.clipboard.writeText(url).then(() => {
-        setCopiedUrl(url);
-        toast({ variant: 'success', title: 'Share link copied!' });
-        setTimeout(() => setCopiedUrl(null), 2000);
+    void withShareUrl(async (url) => {
+      await navigator.clipboard.writeText(url);
+      setHasCopiedShareUrl(true);
+      toast({ variant: 'success', title: 'Share link copied!' });
+      window.setTimeout(() => setHasCopiedShareUrl(false), 2000);
     });
   };
 
   const handleOpenSharedView = () => {
-    window.open(getShareUrl(), '_blank');
+    void withShareUrl((url) => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
   };
 
   const handleExportJson = () => {
@@ -233,12 +158,12 @@ export function ShareMenu({ task, uiConfig, developers, testers, attachment, chi
   const menuItems = (
     <>
       <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-primary/60 px-2 py-1.5">Public Publication</DropdownMenuLabel>
-      <DropdownMenuItem onSelect={handleCopyShareLink}>
-          {copiedUrl === getShareUrl() ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+      <DropdownMenuItem onSelect={handleCopyShareLink} disabled={isGeneratingShareLink}>
+          {isGeneratingShareLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : hasCopiedShareUrl ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
           <span>Copy Share Link</span>
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={handleOpenSharedView}>
-          <ExternalLink className="mr-2 h-4 w-4" />
+      <DropdownMenuItem onSelect={handleOpenSharedView} disabled={isGeneratingShareLink}>
+          {isGeneratingShareLink ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
           <span>Open Web View</span>
       </DropdownMenuItem>
       

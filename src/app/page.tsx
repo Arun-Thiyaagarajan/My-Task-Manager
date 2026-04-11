@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareUiFieldsForExport } from '@/lib/data';
+import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareUiConfigForExport } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedDuplicates as findExistingDuplicates, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
@@ -218,6 +218,7 @@ export default function Home() {
   
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
+  const [isBulkTagApplying, setIsBulkTagApplying] = useState(false);
 
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
@@ -1103,14 +1104,17 @@ export default function Home() {
 
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
 
+    const exportUiConfig = prepareUiConfigForExport(currentUiConfig, allDevelopers, allTesters);
+
     const exportData: any = {
-        appName: currentUiConfig.appName,
-        appIcon: currentUiConfig.appIcon,
-        fields: prepareUiFieldsForExport(currentUiConfig.fields, allDevelopers, allTesters),
-        repositoryConfigs: currentUiConfig.repositoryConfigs,
-        environments: currentUiConfig.environments,
-        statusConfigs: currentUiConfig.statusConfigs || [],
-        taskStatuses: currentUiConfig.taskStatuses || [],
+        appName: exportUiConfig.appName,
+        appIcon: exportUiConfig.appIcon,
+        fields: exportUiConfig.fields,
+        repositoryConfigs: exportUiConfig.repositoryConfigs,
+        environments: exportUiConfig.environments,
+        statusGroups: exportUiConfig.statusGroups || [],
+        statusConfigs: exportUiConfig.statusConfigs || [],
+        taskStatuses: exportUiConfig.taskStatuses || [],
         customFieldDefinitions: customFieldDefinitions,
         developers: allDevelopers.map(cleanPerson),
         testers: allTesters.map(cleanPerson),
@@ -1435,13 +1439,67 @@ export default function Home() {
     setIsSelectMode(false);
   }, [selectedTaskIds, toast, refreshData]);
 
-  const handleBulkApplyTags = useCallback(() => {
-    addTagsToMultipleTasks(selectedTaskIds, tagsToApply);
-    toast({ variant: 'success', title: 'Tags Applied' });
-    refreshData();
+  const handleBulkApplyTags = useCallback(async () => {
+    if (selectedTaskIds.length === 0 || tagsToApply.length === 0 || isBulkTagApplying) return;
+
+    setIsBulkTagApplying(true);
     setIsTagsDialogOpen(false);
-    setTagsToApply([]);
-  }, [selectedTaskIds, tagsToApply, toast, refreshData]);
+
+    const total = selectedTaskIds.length;
+    const batchSize = total > 300 ? 40 : 20;
+    const { id, update, dismiss } = toast({
+      variant: 'default',
+      title: 'Applying tags',
+      description: `0 of ${total} tasks updated`,
+      duration: 60000,
+    });
+
+    try {
+      for (let index = 0; index < selectedTaskIds.length; index += batchSize) {
+        const batch = selectedTaskIds.slice(index, index + batchSize);
+
+        batch.forEach((taskId) => {
+          const existingTask = getTasks().find((item) => item.id === taskId);
+          if (!existingTask) return;
+          const nextTags = Array.from(new Set([...(existingTask.tags || []), ...tagsToApply]));
+          updateTask(taskId, { tags: nextTags }, true);
+        });
+
+        const completed = Math.min(index + batch.length, total);
+        update({
+          id,
+          title: completed === total ? 'Finalizing tags' : 'Applying tags',
+          description: `${completed} of ${total} tasks updated`,
+        });
+
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve());
+        });
+      }
+
+      addLog({ message: `Applied tags [${tagsToApply.join(', ')}] to **${total}** task(s).` });
+      refreshData();
+      update({
+        id,
+        variant: 'success',
+        title: 'Tags applied',
+        description: `${tagsToApply.length} tag(s) applied to ${total} task(s).`,
+        duration: 4000,
+      });
+      window.setTimeout(() => dismiss(), 4200);
+      setTagsToApply([]);
+    } catch (error) {
+      update({
+        id,
+        variant: 'destructive',
+        title: 'Could not apply tags',
+        description: error instanceof Error ? error.message : 'Something went wrong during the bulk update.',
+        duration: 5000,
+      });
+    } finally {
+      setIsBulkTagApplying(false);
+    }
+  }, [isBulkTagApplying, refreshData, selectedTaskIds, tagsToApply, toast]);
 
   const handleBulkCopyText = useCallback(() => {
     if (!uiConfig) return;
@@ -1984,14 +2042,14 @@ export default function Home() {
   const hasCustomSort = sortDescriptor !== 'status-asc';
 
   const draftFilterControlsContent = (
-    <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2">
       <MultiSelect
         selected={desktopStatusFilterDraft}
         className={cn(desktopStatusFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={setDesktopStatusFilterDraft}
         options={sortedStatusOptions}
         placeholder="Status..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopStatusGroupFilterDraft}
@@ -1999,7 +2057,7 @@ export default function Home() {
         onChange={setDesktopStatusGroupFilterDraft}
         options={statusGroupOptions}
         placeholder="Status Group..."
-        maxVisible={3}
+        maxVisible={1}
       />
       {showRepositoryFilter && (
         <MultiSelect
@@ -2008,7 +2066,7 @@ export default function Home() {
           onChange={setDesktopRepoFilterDraft}
           options={repositoryOptions}
           placeholder="Repository..."
-          maxVisible={3}
+          maxVisible={1}
         />
       )}
       {showTagsFilter && (
@@ -2018,7 +2076,7 @@ export default function Home() {
           onChange={setDesktopTagsFilterDraft}
           options={tagOptions}
           placeholder="Tags..."
-          maxVisible={3}
+          maxVisible={1}
         />
       )}
       <MultiSelect
@@ -2027,7 +2085,7 @@ export default function Home() {
         onChange={setDesktopPriorityFilterDraft}
         options={priorityOptions}
         placeholder="Priority..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopDueStateFilterDraft}
@@ -2035,7 +2093,7 @@ export default function Home() {
         onChange={setDesktopDueStateFilterDraft}
         options={dueStateOptions}
         placeholder="Due state..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopReminderNoteFilterDraft}
@@ -2043,7 +2101,7 @@ export default function Home() {
         onChange={setDesktopReminderNoteFilterDraft}
         options={binaryReminderOptions}
         placeholder="Reminder note..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopDueReminderFilterDraft}
@@ -2051,7 +2109,7 @@ export default function Home() {
         onChange={setDesktopDueReminderFilterDraft}
         options={binaryReminderOptions}
         placeholder="Due reminder..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
@@ -2059,7 +2117,7 @@ export default function Home() {
         onChange={setDesktopDeploymentFilterDraft}
         options={deploymentOptions}
         placeholder="Deployment..."
-        maxVisible={3}
+        maxVisible={1}
       />
     </div>
   );
@@ -3362,7 +3420,7 @@ export default function Home() {
                     <DialogTitle>Apply Tags</DialogTitle>
                 </div>
                 <DialogDescription className="font-normal text-sm">
-                    Select tags to apply to the **{selectedTaskIds.length}** selected task(s).
+                    Select tags to apply to the <strong>{selectedTaskIds.length}</strong> selected task(s).
                 </DialogDescription>
             </DialogHeader>
             <div className="py-6">
@@ -3378,8 +3436,9 @@ export default function Home() {
                 />
             </div>
             <DialogFooter className="gap-2 sm:justify-end">
-                <Button variant="ghost" onClick={() => setIsTagsDialogOpen(false)} className="font-medium">Cancel</Button>
-                <Button onClick={handleBulkApplyTags} disabled={tagsToApply.length === 0} className="font-bold px-6">
+                <Button variant="ghost" onClick={() => setIsTagsDialogOpen(false)} disabled={isBulkTagApplying} className="font-medium">Cancel</Button>
+                <Button onClick={handleBulkApplyTags} disabled={tagsToApply.length === 0 || isBulkTagApplying} className="font-bold px-6">
+                    {isBulkTagApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Apply to {selectedTaskIds.length} Tasks
                 </Button>
             </DialogFooter>

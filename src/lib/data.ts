@@ -1,7 +1,7 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate, RepositoryConfig, SavedTaskView, StarterContentMeta } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, StatusGroupConfig, TaskTemplate, RepositoryConfig, SavedTaskView, StarterContentMeta } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
@@ -13,6 +13,7 @@ import { createId } from './id';
 import { buildReadCacheScope, clearAllReadCache, invalidateNoteReadCache, invalidateTaskReadCache } from './read-cache';
 import { formatTimestamp } from './utils';
 import { getDueReminderPresetLabel, getTaskPriorityLabel } from './task-planning';
+import { buildSharedTaskViewConfig, buildTaskShareSnapshot, isSharedTaskLinkExpired, type SharedTaskLinkDocument } from './task-share';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -20,6 +21,7 @@ const PREFERENCES_KEY = 'taskflow_user_preferences';
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const SHARED_RELEASE_UPDATES_COLLECTION = 'shared';
 const SHARED_RELEASE_UPDATES_DOC = 'release-updates';
+export const SHARED_TASK_LINKS_COLLECTION = 'sharedTaskLinks';
 
 function isQuotaExceededError(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
@@ -97,6 +99,19 @@ function sanitizeForFirestore<T>(value: T): T {
     }
 
     return value;
+}
+
+function generateShareToken(length = 9): string {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const cryptoApi = globalThis.crypto;
+
+    if (cryptoApi?.getRandomValues) {
+        const bytes = new Uint8Array(length);
+        cryptoApi.getRandomValues(bytes);
+        return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+    }
+
+    return Math.random().toString(36).slice(2, 2 + length);
 }
 
 export function setCloudCache(data: MyTaskManagerData | null) {
@@ -843,6 +858,79 @@ function dispatchMutation(
     }
 }
 
+export async function createTaskShareLink(task: Task, uiConfig: UiConfig, developers: Person[], testers: Person[]): Promise<string> {
+    if (getAuthMode() !== 'authenticate') {
+        throw new Error('Short share links are only available in cloud mode.');
+    }
+
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    const companyId = getActiveCompanyId();
+
+    if (!userId || !companyId) {
+        throw new Error('Please sign in before creating a short share link.');
+    }
+
+    const snapshot = buildTaskShareSnapshot(task, uiConfig, developers, testers, {
+        includeInlineAttachments: true,
+    });
+    const viewConfig = buildSharedTaskViewConfig(uiConfig);
+    const now = new Date().toISOString();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        const token = generateShareToken();
+        const docRef = doc(db, SHARED_TASK_LINKS_COLLECTION, token);
+        const existing = await getDoc(docRef);
+
+        if (existing.exists()) {
+            continue;
+        }
+
+        const shareRecord: SharedTaskLinkDocument = {
+            token,
+            taskId: task.id,
+            ownerUserId: userId,
+            companyId,
+            createdAt: now,
+            expiresAt: null,
+            version: 1,
+            snapshot,
+            viewConfig,
+        };
+
+        await setDoc(docRef, sanitizeForFirestore(shareRecord));
+        return token;
+    }
+
+    throw new Error('Unable to create a unique share link. Please try again.');
+}
+
+export async function getSharedTaskLinkByToken(token: string): Promise<SharedTaskLinkDocument | null> {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) return null;
+
+    const db = getFirestore();
+    const docRef = doc(db, SHARED_TASK_LINKS_COLLECTION, trimmedToken);
+    const snapshot = await getDoc(docRef);
+
+    if (!snapshot.exists()) {
+        return null;
+    }
+
+    const data = snapshot.data() as SharedTaskLinkDocument;
+
+    if (!data?.snapshot || !data?.taskId || !data?.token) {
+        return null;
+    }
+
+    if (data.token !== trimmedToken || isSharedTaskLinkExpired(data)) {
+        return null;
+    }
+
+    return data;
+}
+
 // Non-blocking notification creation
 export function createNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
     const auth = getAuth();
@@ -1071,6 +1159,33 @@ function normalizePersonFieldDefaultValueForExport(
     };
 }
 
+function prepareStatusGroupsForExport(uiConfig: UiConfig): StatusGroupConfig[] {
+    return (uiConfig.statusGroups || []).map((group, index) => ({
+        ...group,
+        id: group.name,
+        name: group.name,
+        order: typeof group.order === 'number' ? group.order : index,
+    }));
+}
+
+function prepareStatusConfigsForExport(uiConfig: UiConfig): StatusConfigItem[] {
+    const originalGroupNameById = new Map((uiConfig.statusGroups || []).map(group => [group.id, group.name]));
+    const normalizedGroupNameByName = new Map((uiConfig.statusGroups || []).map(group => [group.name.trim().toLowerCase(), group.name]));
+
+    return (uiConfig.statusConfigs || []).map((status, index) => ({
+        ...status,
+        id: status.name,
+        group: status.group
+            ? (
+                originalGroupNameById.get(status.group) ||
+                normalizedGroupNameByName.get(status.group.trim().toLowerCase()) ||
+                status.group
+            )
+            : status.group,
+        order: typeof status.order === 'number' ? status.order : index,
+    }));
+}
+
 export function prepareUiFieldsForExport(
     fields: FieldConfig[],
     developers: Person[],
@@ -1095,13 +1210,18 @@ export function prepareUiConfigForExport(
     testers: Person[]
 ): UiConfig {
     const normalized = syncTaskStatuses(uiConfig);
+    const statusGroups = prepareStatusGroupsForExport(normalized);
+    const statusConfigs = prepareStatusConfigsForExport({
+        ...normalized,
+        statusGroups,
+    });
 
     return {
         ...normalized,
         fields: prepareUiFieldsForExport(normalized.fields, developers, testers),
-        statusGroups: normalized.statusGroups || [],
-        statusConfigs: normalized.statusConfigs || [],
-        taskStatuses: normalized.taskStatuses || [],
+        statusGroups,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
     };
 }
 
@@ -1179,8 +1299,40 @@ function mergeImportedUiConfig(
         mergedEnvironments.push({ ...environment, id: environment.id || createId('env_') });
     });
 
+    const importedStatusGroups = Array.isArray(parsedJson.statusGroups)
+        ? parsedJson.statusGroups
+            .filter((group: any) => Boolean(group?.name || group?.id))
+            .map((group: any, index: number): StatusGroupConfig => ({
+                id: String(group.name || group.id).trim(),
+                name: String(group.name || group.id).trim(),
+                order: typeof group.order === 'number' ? group.order : index,
+                isDefault: Boolean(group.isDefault),
+            }))
+        : currentUi.statusGroups;
+    const importedStatusGroupNameByAnyKey = new Map<string, string>();
+    (Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : []).forEach((group: any) => {
+        const name = typeof group?.name === 'string' && group.name.trim()
+            ? group.name.trim()
+            : typeof group?.id === 'string'
+                ? group.id.trim()
+                : '';
+        if (!name) return;
+        if (typeof group?.id === 'string' && group.id.trim()) {
+            importedStatusGroupNameByAnyKey.set(group.id.trim().toLowerCase(), name);
+        }
+        importedStatusGroupNameByAnyKey.set(name.toLowerCase(), name);
+    });
     const importedStatusConfigs = Array.isArray(parsedJson.statusConfigs)
-        ? parsedJson.statusConfigs.filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+        ? parsedJson.statusConfigs
+            .filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+            .map((status: any, index: number) => ({
+                ...status,
+                id: String(status.name).trim(),
+                group: typeof status.group === 'string' && status.group.trim()
+                    ? importedStatusGroupNameByAnyKey.get(status.group.trim().toLowerCase()) || status.group.trim()
+                    : status.group,
+                order: typeof status.order === 'number' ? status.order : index,
+            }))
         : [];
     const importedTaskStatuses = Array.isArray(parsedJson.taskStatuses)
         ? parsedJson.taskStatuses.filter((status: any): status is string => typeof status === 'string' && status.trim().length > 0)
@@ -1224,7 +1376,7 @@ function mergeImportedUiConfig(
         fields: mergedFields,
         repositoryConfigs: mergedRepositoryConfigs,
         environments: mergedEnvironments,
-        statusGroups: Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : currentUi.statusGroups,
+        statusGroups: importedStatusGroups,
         statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
         taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
     });

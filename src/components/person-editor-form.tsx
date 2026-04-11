@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 const personFieldSchema = z.object({
   id: z.string(),
@@ -46,6 +47,7 @@ interface PersonEditorFormProps {
   saveLabel?: string;
   cancelLabel?: string;
   compact?: boolean;
+  formId?: string;
 }
 
 export function PersonEditorForm({
@@ -57,6 +59,7 @@ export function PersonEditorForm({
   saveLabel = 'Save Changes',
   cancelLabel = 'Cancel',
   compact = false,
+  formId,
 }: PersonEditorFormProps) {
   const form = useForm<PersonEditorFormData>({
     resolver: zodResolver(personEditorSchema),
@@ -101,7 +104,7 @@ export function PersonEditorForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSave)} className={compact ? 'space-y-4' : 'space-y-5'}>
+      <form id={formId} onSubmit={form.handleSubmit(onSave)} className={compact ? 'space-y-4' : 'space-y-5'}>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -241,7 +244,12 @@ export function PersonEditorForm({
         </div>
 
         {showFooter ? (
-          <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
+          <div
+            className={cn(
+              "sticky bottom-0 z-10 flex justify-end gap-2 border-t border-border/60 bg-background/95 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+              compact ? "-mx-4 mt-6 px-4 pb-1" : "-mx-1 mt-6 px-1 pb-1"
+            )}
+          >
             {onCancel ? (
               <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
                 {cancelLabel}

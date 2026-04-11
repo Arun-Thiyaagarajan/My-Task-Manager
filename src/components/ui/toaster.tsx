@@ -90,31 +90,31 @@ export function Toaster() {
             {...props}
             variant="premium"
             className={cn(
-              "mx-auto w-auto min-w-[min(270px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border-l-[3px] before:absolute before:inset-x-0 before:top-0 before:h-14 before:pointer-events-none before:rounded-t-2xl before:bg-gradient-to-b before:content-['']",
-              "after:pointer-events-none after:absolute after:inset-y-4 after:left-0 after:w-px after:bg-gradient-to-b after:via-current/10 after:to-transparent after:content-['']",
-              "bg-[linear-gradient(180deg,hsl(var(--background)/0.98)_0%,hsl(var(--card)/0.96)_100%)] shadow-[0_18px_44px_-26px_hsl(var(--foreground)/0.38)]",
-              "sm:mx-0 sm:w-full sm:min-w-0 sm:max-w-none sm:rounded-[26px] sm:border-l-[4px] sm:before:h-20 sm:before:rounded-t-[26px] sm:after:inset-y-5 sm:shadow-[0_30px_90px_-38px_hsl(var(--foreground)/0.58)]",
+              "mx-auto w-auto min-w-[min(248px,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] rounded-[20px] border-l-[3px] before:absolute before:inset-x-0 before:top-0 before:h-11 before:pointer-events-none before:rounded-t-[20px] before:bg-gradient-to-b before:content-['']",
+              "after:pointer-events-none after:absolute after:inset-y-3.5 after:left-0 after:w-px after:bg-gradient-to-b after:via-current/10 after:to-transparent after:content-['']",
+              "bg-[linear-gradient(180deg,hsl(var(--background)/0.985)_0%,hsl(var(--card)/0.97)_100%)] shadow-[0_16px_36px_-24px_hsl(var(--foreground)/0.24)]",
+              "sm:mx-0 sm:w-full sm:min-w-0 sm:max-w-none sm:rounded-[22px] sm:border-l-[4px] sm:before:h-14 sm:before:rounded-t-[22px] sm:after:inset-y-4 sm:shadow-[0_24px_60px_-34px_hsl(var(--foreground)/0.4)]",
               tone.shellClassName
             )}
           >
-            <div className="w-full px-3.5 py-3 sm:p-[18px]">
-              <div className="flex items-center gap-2.5 sm:items-start sm:gap-3.5">
-                <div className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-black/5 dark:border-white/8 sm:h-12 sm:w-12 sm:rounded-[20px]", tone.iconWrapClassName)}>
-                  <div className="absolute inset-[1px] rounded-[15px] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,255,255,0.5))] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] sm:rounded-[19px]" />
-                  <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.07),transparent_60%)] sm:rounded-[20px]" />
-                  <Icon className="relative h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+            <div className="w-full px-3 py-2.5 sm:px-4 sm:py-3.5">
+              <div className="flex items-center gap-2.5 sm:items-start sm:gap-3">
+                <div className={cn("relative flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-[16px] border border-black/5 dark:border-white/8 sm:h-10 sm:w-10 sm:rounded-[18px]", tone.iconWrapClassName)}>
+                  <div className="absolute inset-[1px] rounded-[13px] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,255,255,0.5))] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] sm:rounded-[17px]" />
+                  <div className="absolute inset-0 rounded-[16px] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.22),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.07),transparent_60%)] sm:rounded-[18px]" />
+                  <Icon className="relative h-[15px] w-[15px] sm:h-4 sm:w-4" />
                 </div>
-                <div className="min-w-0 flex-1 space-y-0.5 pr-1 sm:space-y-1.5 sm:pr-8 sm:pt-0.5">
-                  <p className="hidden text-[10px] font-black uppercase tracking-[0.26em] text-muted-foreground/60 sm:block">
+                <div className="min-w-0 flex-1 space-y-0.5 pr-0.5 sm:space-y-1 sm:pr-7 sm:pt-0.5">
+                  <p className="hidden text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground/55 sm:block">
                     {tone.eyebrow}
                   </p>
-                  {title && <ToastTitle className="text-[13.5px] font-semibold tracking-[-0.02em] text-foreground sm:text-[15.5px] sm:tracking-[-0.025em]">{title}</ToastTitle>}
+                  {title && <ToastTitle className="text-[12.5px] font-semibold tracking-[-0.018em] text-foreground sm:text-[14px] sm:tracking-[-0.022em]">{title}</ToastTitle>}
                   {description && (
-                    <ToastDescription className="text-[12px] leading-[1.45] text-muted-foreground/90 sm:text-[13px] sm:leading-[1.55] sm:text-muted-foreground/95">
+                    <ToastDescription className="text-[11px] leading-[1.4] text-muted-foreground/88 sm:text-[12px] sm:leading-[1.48] sm:text-muted-foreground/92">
                       {description}
                     </ToastDescription>
                   )}
-                  {action && <div className="hidden pt-1 sm:block">{action}</div>}
+                  {action && <div className="hidden pt-0.5 sm:block">{action}</div>}
                 </div>
               </div>
             </div>

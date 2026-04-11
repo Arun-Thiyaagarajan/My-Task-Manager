@@ -24,12 +24,14 @@ import { clearExpiredReminders } from '@/lib/data';
  */
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isSharedPage = pathname?.startsWith('/share/');
+  const isSharedPage = pathname?.startsWith('/share/') || pathname?.startsWith('/s/');
+  const isTaskDetailPage = Boolean(pathname?.match(/^\/tasks\/[^/]+$/));
   const isTaskForm =
     pathname === '/tasks/new' ||
     pathname === '/tasks/templates/new' ||
     pathname?.startsWith('/tasks/templates/') && pathname?.endsWith('/edit') ||
     pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit');
+  const enableMobilePullToRefresh = pathname === '/' || isTaskDetailPage;
 
   useEffect(() => {
     const runExpirySweep = () => {
@@ -64,7 +66,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
         <div className="relative flex min-h-screen flex-col">
         {!isSharedPage && <Header />}
         <NavigationLoader />
-        <PullToRefresh>
+        <PullToRefresh enabled={enableMobilePullToRefresh}>
           <main className={cn("flex-1", (!isSharedPage && !isTaskForm) && "pb-32 md:pb-0")}>
             {children}
           </main>
