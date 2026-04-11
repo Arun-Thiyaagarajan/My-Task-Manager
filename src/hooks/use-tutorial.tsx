@@ -90,11 +90,6 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         description: 'Open your general reminders from here to track workspace-wide notes and important follow-ups outside individual tasks.',
       },
       {
-        element: '#header-theme-toggle',
-        title: 'Switch Themes',
-        description: 'Switch between light and dark modes to match your comfort and viewing preference.',
-      },
-      {
         element: '#header-profile-trigger',
         title: 'Profile And Sign-In',
         description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About, and in local mode you will also see Sign In / Cloud Sync.',

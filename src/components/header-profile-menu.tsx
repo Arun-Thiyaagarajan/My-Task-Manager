@@ -165,7 +165,7 @@ export function HeaderProfileMenu({
           <ActionCard icon={Cog} title="Settings" description="Workspace and app controls" onSelect={onNavigateSettings} />
           <ActionCard icon={History} title="What&apos;s New" description="Release history and updates" onSelect={onNavigateReleases} />
           <ActionCard icon={HelpCircle} title="Help & About" description="Guides, support, and app details" onSelect={onNavigateHelp} />
-          {!isSignedIn ? (
+          {/* {!isSignedIn ? (
             <ActionCard
               icon={ShieldCheck}
               title="Sign In / Cloud Sync"
@@ -173,7 +173,7 @@ export function HeaderProfileMenu({
               onSelect={onSignIn}
               accentClassName="sm:col-span-2 border-primary/20 bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary"
             />
-          ) : null}
+          ) : null} */}
         </DropdownMenuGroup>
       </div>
 

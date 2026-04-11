@@ -661,8 +661,6 @@ export function Header() {
                 </div>
             )}
             
-            <div className="shrink-0"><ThemeToggle /></div>
-
             {/* Sign In Button - Only for Mobile, hidden on Auth page */}
             {mounted && authMode === 'localStorage' && !pathname.startsWith('/auth') && (
                 <Button 
