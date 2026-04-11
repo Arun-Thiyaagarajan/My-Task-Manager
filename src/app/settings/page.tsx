@@ -23,6 +23,7 @@ import {
     updateTask,
     prepareUiFieldsForImport,
     prepareUiConfigForExport,
+    prepareUiConfigForImport,
     getAppData,
     getActiveCompanyId
 } from '@/lib/data';
@@ -121,6 +122,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase } from '@/firebase';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { Icons } from '@/components/icons';
 import { PeopleManagementContent } from '@/components/people-management-content';
 import { useTheme } from 'next-themes';
 import { FieldFormContent } from '@/components/field-form-content';
@@ -630,21 +632,39 @@ export default function SettingsPage() {
             throw new Error("Invalid settings file format.");
         }
         
-        // Merge with existing config to preserve missing properties
-        const mergedConfig = {
-          ...getUiConfig(),
-          ...importedConfig,
-          fields: prepareUiFieldsForImport(
-            Array.isArray(importedConfig.fields) ? importedConfig.fields : [],
-            getDevelopers(),
-            getTesters()
-          ),
-        };
-        
+        const currentUi = getUiConfig();
+        const developers = getDevelopers();
+        const testers = getTesters();
+        const { config: mergedConfig, warnings } = prepareUiConfigForImport(
+          currentUi,
+          {
+            ...importedConfig,
+            fields: prepareUiFieldsForImport(
+              Array.isArray(importedConfig.fields) ? importedConfig.fields : [],
+              developers,
+              testers
+            ),
+          },
+          developers,
+          testers
+        );
+
         setUiConfigState(mergedConfig);
+        setLocalFields(mergedConfig.fields || []);
+        setLocalRepositoryConfigs(mergedConfig.repositoryConfigs || []);
+        setLocalStatusConfigs(getStatusConfigs(mergedConfig));
+        setLocalStatusGroups(getStatusGroupConfigs(mergedConfig));
+        setLocalPendingStatusConversions([]);
+        setAppName(mergedConfig.appName || '');
+        setAppIcon(mergedConfig.appIcon || '');
+        setTimeFormat(mergedConfig.timeFormat || '12h');
         setUiConfig(mergedConfig);
         window.dispatchEvent(new Event('config-changed'));
-        toast({ variant: 'success', title: 'Settings Imported' });
+        toast({
+          variant: warnings.length > 0 ? 'warning' : 'success',
+          title: 'Settings Imported',
+          description: warnings.length > 0 ? `${warnings.length} mapping warning${warnings.length === 1 ? '' : 's'} need review.` : undefined,
+        });
       } catch (error: any) {
         toast({ variant: 'destructive', title: 'Import Failed', description: error.message || 'An error occurred.' });
       } finally {
@@ -742,6 +762,7 @@ export default function SettingsPage() {
   const authMode = getAuthMode();
   const isAdmin = authMode === 'authenticate' && userProfile?.role === 'admin';
   const isDataURIIcon = appIcon && appIcon.startsWith('data:image');
+  const hasPreviewableAppIcon = isActualImage(appIcon) || isActualImage(uiConfig?.previousAppIcon);
 
   const handleBackToProfile = () => {
     window.dispatchEvent(new Event('navigation-end'));
@@ -1054,19 +1075,28 @@ export default function SettingsPage() {
                                 <div className="flex items-center gap-3">
                                     <button 
                                         type="button"
-                                        onClick={() => (appIcon || uiConfig?.previousAppIcon) ? setIsPreviewOpen(true) : iconFileInputRef.current?.click()}
-                                        className="relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 group hover:border-primary/40 transition-all active:scale-95"
+                                        onClick={() => { if (hasPreviewableAppIcon) setIsPreviewOpen(true); }}
+                                        className={cn(
+                                          "relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 transition-all",
+                                          hasPreviewableAppIcon ? "group hover:border-primary/40 active:scale-95" : "cursor-default"
+                                        )}
                                     >
                                         {isActualImage(appIcon) ? (
                                             <img src={appIcon!} alt="App Icon" className="h-full w-full object-cover" />
-                                        ) : (
+                                        ) : appIcon ? (
                                             <div className="h-full w-full flex items-center justify-center text-2xl bg-muted/30">
-                                                {appIcon || '🚀'}
+                                                {appIcon}
+                                            </div>
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center bg-muted/30 text-primary">
+                                                <Icons.logo className="h-6 w-6" />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <Maximize2 className="h-4 w-4 text-white" />
-                                        </div>
+                                        {hasPreviewableAppIcon && (
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                              <Maximize2 className="h-4 w-4 text-white" />
+                                          </div>
+                                        )}
                                     </button>
                                     <div className="flex-1 flex gap-2">
                                         <Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" />
@@ -1456,19 +1486,28 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-3">
                             <button 
                                 type="button"
-                                onClick={() => (appIcon || uiConfig?.previousAppIcon) ? setIsPreviewOpen(true) : iconFileInputRef.current?.click()}
-                                className="relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 group hover:border-primary/40 transition-all active:scale-95"
+                                onClick={() => { if (hasPreviewableAppIcon) setIsPreviewOpen(true); }}
+                                className={cn(
+                                  "relative h-12 w-12 rounded-xl overflow-hidden border-2 border-primary/20 shadow-sm flex-shrink-0 transition-all",
+                                  hasPreviewableAppIcon ? "group hover:border-primary/40 active:scale-95" : "cursor-default"
+                                )}
                             >
                                 {isActualImage(appIcon) ? (
                                     <img src={appIcon!} alt="App Icon" className="h-full w-full object-cover" />
-                                ) : (
+                                ) : appIcon ? (
                                     <div className="h-full w-full flex items-center justify-center text-2xl bg-muted/30">
-                                        {appIcon || '🚀'}
+                                        {appIcon}
+                                    </div>
+                                ) : (
+                                    <div className="h-full w-full flex items-center justify-center bg-muted/30 text-primary">
+                                        <Icons.logo className="h-6 w-6" />
                                     </div>
                                 )}
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <Maximize2 className="h-4 w-4 text-white" />
-                                </div>
+                                {hasPreviewableAppIcon && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Maximize2 className="h-4 w-4 text-white" />
+                                  </div>
+                                )}
                             </button>
                             <div className="flex-1 flex gap-2">
                                 <Input value={isDataURIIcon ? '' : (appIcon || '')} onChange={e => setAppIcon(e.target.value)} placeholder={isDataURIIcon ? "Custom image uploaded" : "Emoji or URL..."} className="h-10 flex-1 font-normal transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40" />

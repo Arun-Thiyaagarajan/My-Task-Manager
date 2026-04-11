@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -906,30 +906,32 @@ export default function TaskPage() {
     const testersToExport = testers.filter(t => testerIdsInTask.has(t.id));
     const logsToExport = getLogsForTask(task.id);
 
-    const devIdToName = new Map(developers.map(d => [d.id, d.name]));
-    const testerIdToName = new Map(testers.map(t => [t.id, t.name]));
-
-    const taskWithNames = {
-        ...task,
-        developers: (task.developers || []).map(id => devIdToName.get(id)).filter(Boolean),
-        testers: (task.testers || []).map(id => testerIdToName.get(id)).filter(Boolean),
-    };
+    const taskWithNames = prepareTaskForExport(task, uiConfig, developers, testers);
+    const exportUiConfig = prepareUiConfigForExport(uiConfig, developers, testers);
 
     const exportData = {
-        appName: uiConfig.appName,
-        appIcon: uiConfig.appIcon,
-        repositoryConfigs: uiConfig.repositoryConfigs,
+        appName: exportUiConfig.appName,
+        appIcon: exportUiConfig.appIcon,
+        fields: exportUiConfig.fields,
+        repositoryConfigs: exportUiConfig.repositoryConfigs,
+        environments: exportUiConfig.environments,
+        statusGroups: exportUiConfig.statusGroups || [],
+        statusConfigs: exportUiConfig.statusConfigs || [],
+        taskStatuses: exportUiConfig.taskStatuses || [],
         developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         tasks: [taskWithNames],
         logs: logsToExport,
+        exportedAt: new Date().toISOString(),
     };
-    
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = jsonString;
+    link.href = downloadUrl;
     link.download = jsonFilename;
     link.click();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
 
     toast({
         variant: 'success',

@@ -387,166 +387,170 @@ export function StatusManagementContent({
     executeDelete(deleteTarget);
   };
 
-  const renderEditorContent = () => (
+  const renderEditorContent = (includeInlineActions = true) => (
     <Form {...form}>
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Preview</Label>
-          <div className="flex items-center gap-3 rounded-2xl border bg-muted/20 p-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-background">
-              <StatusIcon
-                status={form.watch('name') || 'Preview'}
-                uiConfig={{
-                  ...previewUiConfig,
-                  statusConfigs: [buildStatusConfigItem({
-                    id: editorTarget?.id || 'preview',
-                    name: form.watch('name') || 'Preview',
-                    group: form.watch('group') || undefined,
-                    color: form.watch('color') || '#64748b',
-                    icon: form.watch('icon') || 'circle',
-                    iconType: 'lucide',
-                    aliases: editorTarget?.aliases || [],
-                    order: 0,
-                  }, 0)],
-                }}
-                className="h-4 w-4"
-              />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate font-semibold">{form.watch('name') || 'New Status'}</p>
-              <p className="truncate text-xs text-muted-foreground">{getStatusGroupName(form.watch('group'), previewUiConfig) || 'No group assigned'}</p>
+      <div className="flex min-h-0 flex-col">
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Preview</Label>
+            <div className="flex items-center gap-3 rounded-2xl border bg-muted/20 p-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-background">
+                <StatusIcon
+                  status={form.watch('name') || 'Preview'}
+                  uiConfig={{
+                    ...previewUiConfig,
+                    statusConfigs: [buildStatusConfigItem({
+                      id: editorTarget?.id || 'preview',
+                      name: form.watch('name') || 'Preview',
+                      group: form.watch('group') || undefined,
+                      color: form.watch('color') || '#64748b',
+                      icon: form.watch('icon') || 'circle',
+                      iconType: 'lucide',
+                      aliases: editorTarget?.aliases || [],
+                      order: 0,
+                    }, 0)],
+                  }}
+                  className="h-4 w-4"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{form.watch('name') || 'New Status'}</p>
+                <p className="truncate text-xs text-muted-foreground">{getStatusGroupName(form.watch('group'), previewUiConfig) || 'No group assigned'}</p>
+              </div>
             </div>
           </div>
+
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status Name</FormLabel>
+                <FormControl>
+                  <Input {...field} value={field.value ?? ''} className="h-11 bg-background" placeholder="e.g. In Progress" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="group"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Group</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="h-11 bg-background">
+                      <SelectValue placeholder="Choose group" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {draftStatusGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  This decides which accordion the status appears under on the home page.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="color"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Color</FormLabel>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input type="color" {...field} value={field.value ?? '#64748b'} className="h-11 w-14 shrink-0 bg-background p-1" />
+                  </FormControl>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? '#64748b'} className="h-11 bg-background font-mono text-xs" />
+                  </FormControl>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {STATUS_COLOR_SWATCHES.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => form.setValue('color', color, { shouldDirty: true })}
+                      className={cn(
+                        'h-5 w-5 rounded-full border-2 transition-transform',
+                        (form.watch('color') || '').toLowerCase() === color.toLowerCase() ? 'scale-110 border-foreground' : 'border-transparent'
+                      )}
+                      style={{ backgroundColor: color }}
+                      aria-label={`Use color ${color}`}
+                    />
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="icon"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Icon</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="h-11 bg-background">
+                      <SelectValue placeholder="Choose icon" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {AVAILABLE_STATUS_ICONS.map(icon => (
+                      <SelectItem key={icon.value} value={icon.value}>
+                        <div className="flex items-center gap-2">
+                          <StatusIcon
+                            status={form.watch('name') || 'Preview'}
+                            uiConfig={{
+                              ...previewUiConfig,
+                              statusConfigs: [buildStatusConfigItem({
+                                id: editorTarget?.id || 'preview',
+                                name: form.watch('name') || 'Preview',
+                                group: form.watch('group') || undefined,
+                                color: form.watch('color') || '#64748b',
+                                icon: icon.value,
+                                iconType: 'lucide',
+                                aliases: editorTarget?.aliases || [],
+                                order: 0,
+                              }, 0)],
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <span>{icon.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status Name</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ''} className="h-11 bg-background" placeholder="e.g. In Progress" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="group"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Group</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger className="h-11 bg-background">
-                    <SelectValue placeholder="Choose group" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {draftStatusGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                This decides which accordion the status appears under on the home page.
-              </p>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="color"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Color</FormLabel>
-              <div className="flex gap-2">
-                <FormControl>
-                  <Input type="color" {...field} value={field.value ?? '#64748b'} className="h-11 w-14 shrink-0 bg-background p-1" />
-                </FormControl>
-                <FormControl>
-                  <Input {...field} value={field.value ?? '#64748b'} className="h-11 bg-background font-mono text-xs" />
-                </FormControl>
-              </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {STATUS_COLOR_SWATCHES.map(color => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => form.setValue('color', color, { shouldDirty: true })}
-                    className={cn(
-                      'h-5 w-5 rounded-full border-2 transition-transform',
-                      (form.watch('color') || '').toLowerCase() === color.toLowerCase() ? 'scale-110 border-foreground' : 'border-transparent'
-                    )}
-                    style={{ backgroundColor: color }}
-                    aria-label={`Use color ${color}`}
-                  />
-                ))}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="icon"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Icon</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger className="h-11 bg-background">
-                    <SelectValue placeholder="Choose icon" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {AVAILABLE_STATUS_ICONS.map(icon => (
-                    <SelectItem key={icon.value} value={icon.value}>
-                      <div className="flex items-center gap-2">
-                        <StatusIcon
-                          status={form.watch('name') || 'Preview'}
-                          uiConfig={{
-                            ...previewUiConfig,
-                            statusConfigs: [buildStatusConfigItem({
-                              id: editorTarget?.id || 'preview',
-                              name: form.watch('name') || 'Preview',
-                              group: form.watch('group') || undefined,
-                              color: form.watch('color') || '#64748b',
-                              icon: icon.value,
-                              iconType: 'lucide',
-                              aliases: editorTarget?.aliases || [],
-                              order: 0,
-                            }, 0)],
-                          }}
-                          className="h-4 w-4"
-                        />
-                        <span>{icon.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex gap-2 pt-2">
-          <Button type="button" variant="outline" className="h-11 flex-1 rounded-xl" onClick={closeEditor}>
-            Cancel
-          </Button>
-          <Button type="button" className="h-11 flex-1 rounded-xl font-bold" onClick={form.handleSubmit(handleSaveStatus)}>
-            Save Status
-          </Button>
-        </div>
+        {includeInlineActions && (
+          <div className="mt-5 flex gap-2 border-t border-border/70 bg-background pt-4">
+            <Button type="button" variant="outline" className="h-11 flex-1 rounded-xl" onClick={closeEditor}>
+              Cancel
+            </Button>
+            <Button type="button" className="h-11 flex-1 rounded-xl font-bold" onClick={form.handleSubmit(handleSaveStatus)}>
+              Save Status
+            </Button>
+          </div>
+        )}
       </div>
     </Form>
   );
@@ -677,14 +681,26 @@ export function StatusManagementContent({
       </Button>
 
       <Dialog open={!isMobile && editorOpen} onOpenChange={(open) => { if (!open) closeEditor(); }}>
-        <DialogContent className="sm:max-w-lg rounded-3xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(88vh,44rem)] w-[calc(100vw-1.25rem)] max-w-lg flex-col overflow-hidden rounded-3xl p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6">
             <DialogTitle>{editingStatusId ? 'Edit Status' : 'Create Status'}</DialogTitle>
             <DialogDescription>
               Update the name, color, icon, and group for this status.
             </DialogDescription>
           </DialogHeader>
-          {renderEditorContent()}
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-2">
+            {renderEditorContent(false)}
+          </div>
+          <div className="shrink-0 border-t border-border/70 bg-background px-6 pb-6 pt-4">
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="h-11 flex-1 rounded-xl" onClick={closeEditor}>
+                Cancel
+              </Button>
+              <Button type="button" className="h-11 flex-1 rounded-xl font-bold" onClick={form.handleSubmit(handleSaveStatus)}>
+                Save Status
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareTaskForExport, prepareUiConfigForExport } from '@/lib/data';
+import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareTaskForExport, prepareUiConfigForExport, setUiConfig as persistUiConfig, type MissingImportedStatusGroupIssue } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedDuplicates as findExistingDuplicates, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
@@ -59,7 +59,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
-import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
+import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, getStatusConfigs, resolveStatusConfig, syncTaskStatuses } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode, SavedTaskView, SavedTaskViewState } from '@/lib/types';
 import {
   Popover,
@@ -109,6 +109,8 @@ import { Badge } from '@/components/ui/badge';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
@@ -224,6 +226,13 @@ export default function Home() {
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
 
   const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[]; warnings: string[] } | null>(null);
+  const [missingStatusGroupReview, setMissingStatusGroupReview] = useState<{
+    issues: Array<MissingImportedStatusGroupIssue & {
+      resolution: 'create' | 'move';
+      targetGroupName: string;
+      targetExistingGroupId: string;
+    }>;
+  } | null>(null);
   const importInFlightRef = useRef(false);
   const hasInitializedGroupStateRef = useRef(false);
   const hasVisibleTaskDataRef = useRef(false);
@@ -1375,6 +1384,17 @@ export default function Home() {
                         //     description: `Successfully imported ${result.importedCount} tasks.` 
                         // });
                     }
+                    if (Array.isArray(result.missingStatusGroupIssues) && result.missingStatusGroupIssues.length > 0) {
+                        const availableGroups = getStatusGroupConfigs(getUiConfig());
+                        setMissingStatusGroupReview({
+                          issues: result.missingStatusGroupIssues.map((issue: MissingImportedStatusGroupIssue) => ({
+                            ...issue,
+                            resolution: 'create',
+                            targetGroupName: issue.suggestedName,
+                            targetExistingGroupId: availableGroups[0]?.id || '',
+                          })),
+                        });
+                    }
                 }
             } catch (error: any) {
                 triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'error', progress: 0, error: 'Import failed' });
@@ -2269,6 +2289,208 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <Dialog open={!!missingStatusGroupReview} onOpenChange={(open) => !open && setMissingStatusGroupReview(null)}>
+        <DialogContent
+          className="sm:max-w-3xl rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
+          <div className="p-6 pb-4 shrink-0">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-2 bg-amber-500/10 rounded-full text-amber-500">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <DialogTitle className="text-xl font-bold">Resolve Missing Status Groups</DialogTitle>
+              </div>
+              <DialogDescription className="font-normal text-sm leading-relaxed">
+                Some imported statuses belong to custom groups that were not available to map safely. Review the affected tasks below and choose whether to create those groups or move the imported statuses into an existing group.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6">
+            <div className="space-y-4 pb-6">
+              {missingStatusGroupReview?.issues.map((issue, index) => (
+                <div key={`${issue.groupKey}-${index}`} className="rounded-2xl border bg-muted/20 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold">{issue.targetGroupName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {issue.statusNames.length} status{issue.statusNames.length === 1 ? '' : 'es'} will be reviewed for this missing group.
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                      {issue.taskTitles.length} affected task{issue.taskTitles.length === 1 ? '' : 's'}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {issue.statusNames.map((statusName) => (
+                      <Badge key={statusName} variant="outline" className="rounded-full px-3 py-1 text-xs font-medium">
+                        {statusName}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">Action</Label>
+                      <Select
+                        value={issue.resolution}
+                        onValueChange={(value: 'create' | 'move') => {
+                          setMissingStatusGroupReview((current) => current ? {
+                            issues: current.issues.map((currentIssue, currentIndex) =>
+                              currentIndex === index ? { ...currentIssue, resolution: value } : currentIssue
+                            ),
+                          } : current);
+                        }}
+                      >
+                        <SelectTrigger className="h-11 bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="create">Create missing group</SelectItem>
+                          <SelectItem value="move">Move to existing group</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {issue.resolution === 'create' ? (
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-semibold text-muted-foreground">Group name</Label>
+                        <Input
+                          value={issue.targetGroupName}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setMissingStatusGroupReview((current) => current ? {
+                              issues: current.issues.map((currentIssue, currentIndex) =>
+                                currentIndex === index ? { ...currentIssue, targetGroupName: nextValue } : currentIssue
+                              ),
+                            } : current);
+                          }}
+                          className="h-11 bg-background"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-semibold text-muted-foreground">Existing group</Label>
+                        <Select
+                          value={issue.targetExistingGroupId}
+                          onValueChange={(value) => {
+                            setMissingStatusGroupReview((current) => current ? {
+                              issues: current.issues.map((currentIssue, currentIndex) =>
+                                currentIndex === index ? { ...currentIssue, targetExistingGroupId: value } : currentIssue
+                              ),
+                            } : current);
+                          }}
+                        >
+                          <SelectTrigger className="h-11 bg-background">
+                            <SelectValue placeholder="Choose group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getStatusGroupConfigs(uiConfig).map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">Affected tasks</Label>
+                    <div className="max-h-44 overflow-y-auto rounded-2xl border bg-background/70 p-3">
+                      <div className="space-y-2">
+                        {issue.taskTitles.length > 0 ? issue.taskTitles.map((taskTitle) => (
+                          <div key={taskTitle} className="rounded-xl border bg-background px-3 py-2 text-sm font-medium">
+                            {taskTitle}
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground">No imported tasks matched these statuses directly, but the statuses still need review.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 bg-muted/10 shrink-0">
+            <div className="flex w-full gap-2">
+              <Button variant="outline" onClick={() => setMissingStatusGroupReview(null)} className="flex-1 h-11 rounded-xl font-medium">
+                Review Later
+              </Button>
+              <Button
+                className="flex-1 h-11 rounded-xl font-bold"
+                onClick={() => {
+                  if (!missingStatusGroupReview) return;
+
+                  const currentUiConfig = getUiConfig();
+                  const currentGroups = getStatusGroupConfigs(currentUiConfig);
+                  const currentStatuses = getStatusConfigs(currentUiConfig);
+                  const nextGroups = [...currentGroups];
+                  const nextStatuses = [...currentStatuses];
+
+                  missingStatusGroupReview.issues.forEach((issue) => {
+                    let resolvedGroupName = '';
+
+                    if (issue.resolution === 'create') {
+                      const trimmedName = issue.targetGroupName.trim();
+                      if (!trimmedName) return;
+                      resolvedGroupName = trimmedName;
+                      if (!nextGroups.some((group) => group.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+                        nextGroups.push({
+                          id: trimmedName,
+                          name: trimmedName,
+                          order: nextGroups.length,
+                          isDefault: false,
+                        });
+                      }
+                    } else {
+                      const targetGroup = nextGroups.find((group) => group.id === issue.targetExistingGroupId);
+                      if (!targetGroup) return;
+                      resolvedGroupName = targetGroup.name;
+                    }
+
+                    issue.statusNames.forEach((statusName) => {
+                      const statusIndex = nextStatuses.findIndex((status) => status.name === statusName);
+                      if (statusIndex >= 0) {
+                        nextStatuses[statusIndex] = {
+                          ...nextStatuses[statusIndex],
+                          group: resolvedGroupName,
+                        };
+                      }
+                    });
+                  });
+
+                  const nextConfig = syncTaskStatuses({
+                    ...currentUiConfig,
+                    statusGroups: nextGroups,
+                    statusConfigs: nextStatuses,
+                    taskStatuses: nextStatuses.map((status) => status.name),
+                  });
+
+                  persistUiConfig(nextConfig);
+                  setUiConfig(nextConfig);
+                  setMissingStatusGroupReview(null);
+                  toast({
+                    variant: 'success',
+                    title: 'Status groups resolved',
+                    description: 'Imported statuses were mapped to your selected groups.',
+                  });
+                }}
+              >
+                Apply Resolution
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Summary Dialog */}
       <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl">

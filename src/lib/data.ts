@@ -28,6 +28,13 @@ export interface CreateTaskShareLinkOptions {
     password?: string | null;
 }
 
+export interface MissingImportedStatusGroupIssue {
+    groupKey: string;
+    suggestedName: string;
+    statusNames: string[];
+    taskTitles: string[];
+}
+
 function isQuotaExceededError(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
     const err = error as DOMException & { code?: number };
@@ -1261,7 +1268,7 @@ export function prepareTaskForExport(
 }
 
 function prepareStatusGroupsForExport(uiConfig: UiConfig): StatusGroupConfig[] {
-    return (uiConfig.statusGroups || []).map((group, index) => ({
+    return getStatusGroupConfigs(uiConfig).map((group, index) => ({
         ...group,
         id: group.name,
         name: group.name,
@@ -1270,10 +1277,11 @@ function prepareStatusGroupsForExport(uiConfig: UiConfig): StatusGroupConfig[] {
 }
 
 function prepareStatusConfigsForExport(uiConfig: UiConfig): StatusConfigItem[] {
-    const originalGroupNameById = new Map((uiConfig.statusGroups || []).map(group => [group.id, group.name]));
-    const normalizedGroupNameByName = new Map((uiConfig.statusGroups || []).map(group => [group.name.trim().toLowerCase(), group.name]));
+    const normalizedGroups = getStatusGroupConfigs(uiConfig);
+    const originalGroupNameById = new Map(normalizedGroups.map(group => [group.id, group.name]));
+    const normalizedGroupNameByName = new Map(normalizedGroups.map(group => [group.name.trim().toLowerCase(), group.name]));
 
-    return (uiConfig.statusConfigs || []).map((status, index) => ({
+    return getStatusConfigs({ ...uiConfig, statusGroups: normalizedGroups }).map((status, index) => ({
         ...status,
         id: status.name,
         group: status.group
@@ -1499,8 +1507,39 @@ function mergeImportedUiConfig(
     const currentStatusGroups = getStatusGroupConfigs(currentUi);
     const currentGroupNameById = new Map(currentStatusGroups.map(group => [group.id.trim().toLowerCase(), group.name]));
     const currentGroupNameByName = new Map(currentStatusGroups.map(group => [group.name.trim().toLowerCase(), group.name]));
-    const importedStatusGroups = Array.isArray(parsedJson.statusGroups)
-        ? parsedJson.statusGroups
+    const importedRawStatusConfigs = Array.isArray(parsedJson.statusConfigs) ? parsedJson.statusConfigs : [];
+    const parsedStatusGroups = Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : [];
+    const inferGroupNameFromImportedStatuses = (rawGroupKey: string) => {
+        const normalizedGroupKey = rawGroupKey.trim().toLowerCase();
+        if (!normalizedGroupKey) return '';
+
+        const matchingStatuses = importedRawStatusConfigs.filter((status: any) => {
+            const group = typeof status?.group === 'string' ? status.group.trim().toLowerCase() : '';
+            return group === normalizedGroupKey;
+        });
+
+        if (matchingStatuses.length === 0) return '';
+
+        const inferredGroupCounts = new Map<string, number>();
+        matchingStatuses.forEach((status: any) => {
+            const statusName = typeof status?.name === 'string' ? status.name.trim() : '';
+            if (!statusName) return;
+
+            const inferredGroupId = getStatusGroupId(undefined, currentUi, { id: statusName, name: statusName });
+            const inferredGroupName =
+                currentGroupNameById.get(inferredGroupId.trim().toLowerCase()) ||
+                currentGroupNameByName.get(inferredGroupId.trim().toLowerCase()) ||
+                '';
+
+            if (!inferredGroupName) return;
+            inferredGroupCounts.set(inferredGroupName, (inferredGroupCounts.get(inferredGroupName) || 0) + 1);
+        });
+
+        const sortedCandidates = Array.from(inferredGroupCounts.entries()).sort((a, b) => b[1] - a[1]);
+        return sortedCandidates[0]?.[0] || '';
+    };
+    const importedStatusGroups = parsedStatusGroups.length > 0
+        ? parsedStatusGroups
             .map((group: any, index: number): StatusGroupConfig | null => {
                 const rawName = typeof group?.name === 'string' ? group.name.trim() : '';
                 const rawId = typeof group?.id === 'string' ? group.id.trim() : '';
@@ -1508,6 +1547,7 @@ function mergeImportedUiConfig(
                     rawName ||
                     currentGroupNameById.get(rawId.toLowerCase()) ||
                     currentGroupNameByName.get(rawId.toLowerCase()) ||
+                    inferGroupNameFromImportedStatuses(rawId) ||
                     (!isLikelyInternalReferenceId(rawId) ? rawId : '');
 
                 if (!resolvedName) {
@@ -1523,9 +1563,14 @@ function mergeImportedUiConfig(
                 };
             })
             .filter((group: StatusGroupConfig | null): group is StatusGroupConfig => !!group)
-        : currentUi.statusGroups;
+        : getStatusGroupConfigs({
+            ...currentUi,
+            statusGroups: currentUi.statusGroups,
+            statusConfigs: Array.isArray(parsedJson.statusConfigs) ? parsedJson.statusConfigs : currentUi.statusConfigs,
+        });
+    const synthesizedStatusGroups: StatusGroupConfig[] = [];
     const importedStatusGroupNameByAnyKey = new Map<string, string>();
-    (Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : []).forEach((group: any) => {
+    parsedStatusGroups.forEach((group: any) => {
         const name = typeof group?.name === 'string' && group.name.trim()
             ? group.name.trim()
             : typeof group?.id === 'string'
@@ -1545,6 +1590,43 @@ function mergeImportedUiConfig(
         importedStatusGroupNameByAnyKey.set(group.id.trim().toLowerCase(), group.name);
         importedStatusGroupNameByAnyKey.set(group.name.trim().toLowerCase(), group.name);
     });
+    const ensureImportedGroup = (rawGroup: string, index: number) => {
+        const trimmedGroup = rawGroup.trim();
+        if (!trimmedGroup) return '';
+
+        const normalizedGroup = trimmedGroup.toLowerCase();
+        const existingName =
+            importedStatusGroupNameByAnyKey.get(normalizedGroup) ||
+            currentGroupNameById.get(normalizedGroup) ||
+            currentGroupNameByName.get(normalizedGroup);
+
+        if (existingName) return existingName;
+
+        let resolvedName = '';
+        if (isLikelyInternalReferenceId(trimmedGroup)) {
+            const matchingParsedGroup = parsedStatusGroups.find((group: any) =>
+                typeof group?.id === 'string' && group.id.trim().toLowerCase() === normalizedGroup
+            );
+            resolvedName =
+                (typeof matchingParsedGroup?.name === 'string' ? matchingParsedGroup.name.trim() : '') ||
+                inferGroupNameFromImportedStatuses(trimmedGroup);
+        } else {
+            resolvedName = trimmedGroup;
+        }
+
+        if (!resolvedName) return '';
+
+        const nextGroup: StatusGroupConfig = {
+            id: resolvedName,
+            name: resolvedName,
+            order: importedStatusGroups.length + synthesizedStatusGroups.length + index,
+            isDefault: false,
+        };
+        synthesizedStatusGroups.push(nextGroup);
+        importedStatusGroupNameByAnyKey.set(trimmedGroup.toLowerCase(), resolvedName);
+        importedStatusGroupNameByAnyKey.set(resolvedName.toLowerCase(), resolvedName);
+        return resolvedName;
+    };
     const importedStatusConfigs = Array.isArray(parsedJson.statusConfigs)
         ? parsedJson.statusConfigs
             .filter((status: any): status is StatusConfigItem => Boolean(status?.name))
@@ -1556,11 +1638,18 @@ function mergeImportedUiConfig(
 
                 if (!resolvedGroup && rawGroup) {
                     if (isLikelyInternalReferenceId(rawGroup)) {
-                        warnings.push(`Unknown status group: ${rawGroup}`);
                         const inferredGroupId = getStatusGroupId(undefined, currentUi, { id: String(status.name).trim(), name: String(status.name).trim() });
-                        resolvedGroup = importedStatusGroupNameByAnyKey.get(inferredGroupId.toLowerCase()) || currentGroupNameById.get(inferredGroupId.toLowerCase()) || '';
+                        resolvedGroup =
+                            importedStatusGroupNameByAnyKey.get(inferredGroupId.toLowerCase()) ||
+                            currentGroupNameById.get(inferredGroupId.toLowerCase()) ||
+                            currentGroupNameByName.get(inferredGroupId.toLowerCase()) ||
+                            ensureImportedGroup(rawGroup, index) ||
+                            '';
+                        if (!resolvedGroup) {
+                            warnings.push(`Unknown status group: ${rawGroup}`);
+                        }
                     } else {
-                        resolvedGroup = rawGroup;
+                        resolvedGroup = ensureImportedGroup(rawGroup, index) || rawGroup;
                     }
                 }
 
@@ -1572,6 +1661,7 @@ function mergeImportedUiConfig(
                 };
             })
         : [];
+    const allImportedStatusGroups = [...importedStatusGroups, ...synthesizedStatusGroups];
     const importedTaskStatuses = Array.isArray(parsedJson.taskStatuses)
         ? parsedJson.taskStatuses.filter((status: any): status is string => typeof status === 'string' && status.trim().length > 0)
         : [];
@@ -1606,6 +1696,27 @@ function mergeImportedUiConfig(
         return field;
     }), currentDevelopers, currentTesters);
 
+    const normalizedImportedStatusGroups = getStatusGroupConfigs({
+        ...currentUi,
+        statusGroups: allImportedStatusGroups,
+        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
+    });
+
+    const baseStatusConfigs: StatusConfigItem[] = importedStatusConfigs.length > 0
+        ? importedStatusConfigs
+        : (currentUi.statusConfigs || []);
+
+    const normalizedImportedStatusConfigs = baseStatusConfigs.map((status: StatusConfigItem, index: number) => ({
+        ...status,
+        group: status.group
+            ? (
+                normalizedImportedStatusGroups.find(group => group.id === status.group || group.name.trim().toLowerCase() === status.group?.trim().toLowerCase())?.name
+                || status.group
+            )
+            : status.group,
+        order: typeof status.order === 'number' ? status.order : index,
+    }));
+
     return syncTaskStatuses({
         ...currentUi,
         appName: parsedJson.appName || currentUi.appName,
@@ -1614,10 +1725,88 @@ function mergeImportedUiConfig(
         fields: mergedFields,
         repositoryConfigs: mergedRepositoryConfigs,
         environments: mergedEnvironments,
-        statusGroups: importedStatusGroups,
-        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
-        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
+        statusGroups: normalizedImportedStatusGroups,
+        statusConfigs: normalizedImportedStatusConfigs,
+        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : normalizedImportedStatusConfigs.map((status: StatusConfigItem) => status.name),
     });
+}
+
+export function prepareUiConfigForImport(
+    currentUi: UiConfig,
+    parsedJson: any,
+    currentDevelopers: Person[] = [],
+    currentTesters: Person[] = []
+) {
+    const warnings: string[] = [];
+    const config = mergeImportedUiConfig(currentUi, parsedJson, currentDevelopers, currentTesters, warnings);
+    return {
+        config,
+        warnings: Array.from(new Set(warnings)),
+    };
+}
+
+function collectMissingImportedStatusGroupIssues(
+    currentUi: UiConfig,
+    parsedJson: any,
+    rawTasks: any[]
+): MissingImportedStatusGroupIssue[] {
+    const currentGroups = getStatusGroupConfigs(currentUi);
+    const currentGroupKeys = new Set(
+        currentGroups.flatMap(group => [group.id.trim().toLowerCase(), group.name.trim().toLowerCase()])
+    );
+    const parsedStatusGroups = Array.isArray(parsedJson?.statusGroups) ? parsedJson.statusGroups : [];
+    const parsedGroupNameByAnyKey = new Map<string, string>();
+    parsedStatusGroups.forEach((group: any) => {
+        const groupName = typeof group?.name === 'string' ? group.name.trim() : '';
+        const groupId = typeof group?.id === 'string' ? group.id.trim() : '';
+        if (groupName) parsedGroupNameByAnyKey.set(groupName.toLowerCase(), groupName);
+        if (groupId && groupName) parsedGroupNameByAnyKey.set(groupId.toLowerCase(), groupName);
+    });
+
+    const importedStatusConfigs = Array.isArray(parsedJson?.statusConfigs) ? parsedJson.statusConfigs : [];
+    const issuesByGroupKey = new Map<string, MissingImportedStatusGroupIssue>();
+    importedStatusConfigs.forEach((status: any) => {
+        if (!status?.name || typeof status.name !== 'string') return;
+        const rawGroup = typeof status.group === 'string' ? status.group.trim() : '';
+        if (!rawGroup) return;
+
+        const normalizedRawGroup = rawGroup.toLowerCase();
+        if (currentGroupKeys.has(normalizedRawGroup) || parsedGroupNameByAnyKey.has(normalizedRawGroup)) {
+            return;
+        }
+
+        const existingIssue = issuesByGroupKey.get(rawGroup);
+        if (existingIssue) {
+            if (!existingIssue.statusNames.includes(status.name.trim())) {
+                existingIssue.statusNames.push(status.name.trim());
+            }
+            return;
+        }
+
+        const suggestedName = parsedGroupNameByAnyKey.get(normalizedRawGroup)
+            || (!/^status_group_/i.test(rawGroup) ? rawGroup : '');
+
+        issuesByGroupKey.set(rawGroup, {
+            groupKey: rawGroup,
+            suggestedName: suggestedName || status.name.trim(),
+            statusNames: [status.name.trim()],
+            taskTitles: [],
+        });
+    });
+
+    rawTasks.forEach((task: any) => {
+        const taskStatus = typeof task?.status === 'string' ? task.status.trim() : '';
+        const taskTitle = typeof task?.title === 'string' ? task.title.trim() : 'Untitled task';
+        if (!taskStatus) return;
+
+        issuesByGroupKey.forEach((issue) => {
+            if (issue.statusNames.includes(taskStatus) && !issue.taskTitles.includes(taskTitle)) {
+                issue.taskTitles.push(taskTitle);
+            }
+        });
+    });
+
+    return Array.from(issuesByGroupKey.values());
 }
 
 export function setUiConfig(config: UiConfig) {
@@ -3366,6 +3555,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         });
     });
 
+    const missingStatusGroupIssues = collectMissingImportedStatusGroupIssues(uiConfig, parsedJson, tasksToImport);
     const importedUiConfig = mergeImportedUiConfig(uiConfig, parsedJson, currentDevs, currentTesters, importWarnings);
 
     const taskIdMap = new Map<string, string>();
@@ -3516,6 +3706,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         importedCount: processedTasks.length, 
         skippedDuplicates: skippedTasks,
         warnings: Array.from(new Set(importWarnings)),
+        missingStatusGroupIssues,
     };
 }
 
