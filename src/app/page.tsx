@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareUiConfigForExport } from '@/lib/data';
+import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareTaskForExport, prepareUiConfigForExport } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedDuplicates as findExistingDuplicates, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
@@ -223,7 +223,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
 
-  const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
+  const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[]; warnings: string[] } | null>(null);
   const importInFlightRef = useRef(false);
   const hasInitializedGroupStateRef = useRef(false);
   const hasVisibleTaskDataRef = useRef(false);
@@ -1086,21 +1086,14 @@ export default function Home() {
     }
 
     const fileName = `${appNamePrefix} ${dateSuffix}.json`;
-    const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
-    const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
-    
-    const mapPersonIdsToNames = (task: Task) => {
-        const { developers, testers, ...restOfTask } = task;
-        return {
-            ...restOfTask,
-            isFavorite: task.isFavorite || false,
-            developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
-            testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
-        };
-    };
-
-    const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
-    const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
+    const activeTasksWithNames = activeTasksToExport.map(task => ({
+      ...prepareTaskForExport(task, currentUiConfig, allDevelopers, allTesters),
+      isFavorite: task.isFavorite || false,
+    }));
+    const binnedTasksWithNames = binnedTasksToExport.map(task => ({
+      ...prepareTaskForExport(task, currentUiConfig, allDevelopers, allTesters),
+      isFavorite: task.isFavorite || false,
+    }));
 
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
 
@@ -1362,10 +1355,11 @@ export default function Home() {
                 
                 if (result.success) {
                     triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'complete', progress: 100 });
-                    if (result.skippedDuplicates.length > 0) {
+                    if (result.skippedDuplicates.length > 0 || result.warnings.length > 0) {
                         setImportSummary({ 
                             importedCount: result.importedCount, 
-                            skippedDuplicates: result.skippedDuplicates 
+                            skippedDuplicates: result.skippedDuplicates,
+                            warnings: result.warnings,
                         });
                     } else {
                         // toast({ 
@@ -2282,6 +2276,7 @@ export default function Home() {
                     <DialogDescription className="font-normal text-sm leading-relaxed">
                         Processed {importSummary?.importedCount} tasks successfully. 
                         {importSummary && importSummary.skippedDuplicates.length > 0 && ` ${importSummary.skippedDuplicates.length} items were omitted due to uniqueness constraints.`}
+                        {importSummary && importSummary.warnings.length > 0 && ` ${importSummary.warnings.length} values need review.`}
                     </DialogDescription>
                 </DialogHeader>
             </div>
@@ -2302,6 +2297,24 @@ export default function Home() {
                                             <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
                                                 Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
                                             </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {importSummary && importSummary.warnings.length > 0 && (
+                        <>
+                            <p className="mb-3 mt-5 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <AlertTriangle className="h-3 w-3" />
+                                Mapping warnings
+                            </p>
+                            <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
+                                <div className="divide-y divide-border/50">
+                                    {importSummary.warnings.map((warning, i) => (
+                                        <div key={`${warning}-${i}`} className="p-3 bg-background/50 hover:bg-background transition-colors">
+                                            <p className="text-sm font-medium">{warning}</p>
                                         </div>
                                     ))}
                                 </div>

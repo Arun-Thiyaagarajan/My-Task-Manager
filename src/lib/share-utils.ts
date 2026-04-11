@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
 import { pickDefaultIconName, resolveStatusConfig } from './status-config';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from './repository-config';
+import { getTaskDueLabel, getTaskPriorityLabel } from './task-planning';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -421,6 +422,8 @@ const _drawTaskOnPage = async (
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs || 'None');
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
+    drawKeyValue(fieldLabels.get('priority') || 'Priority', getTaskPriorityLabel(task.priority));
+    drawKeyValue(fieldLabels.get('dueAt') || 'Due Date', getTaskDueLabel(task));
     if (isRepositoryFieldActive(uiConfig) && visibleRepositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', visibleRepositories.join(', '));
     }
@@ -459,39 +462,40 @@ const _drawTaskOnPage = async (
         }
     });
 
-    if (shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0 && task.prLinks && Object.keys(task.prLinks).length > 0) {
-        let firstPrLabel = '';
-        let firstPrValue: { text: string; link: string } | '' = '';
-        outer: for (const [env, repos] of Object.entries(task.prLinks)) {
-            if (!repos) continue;
-            for (const [repoName, prIdString] of Object.entries(repos)) {
-                if (!prIdString) continue;
-                const firstPrId = prIdString.split(',').map(s => s.trim()).filter(Boolean)[0];
-                if (!firstPrId) continue;
-                const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
-                const baseUrl = repoConfig?.baseUrl || '';
-                const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${firstPrId}` : '';
-                firstPrLabel = `${repoName} #${firstPrId} (${env})`;
-                firstPrValue = { text: `PR #${firstPrId}`, link: fullUrl };
-                break outer;
-            }
-        }
-        drawSectionHeader('Pull Requests', estimateKeyValueHeight(firstPrLabel, firstPrValue));
-        Object.entries(task.prLinks).forEach(([env, repos]) => {
+    if (shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0) {
+        const prEntries: Array<{ env: string; repoName: string; id: string; fullUrl: string }> = [];
+        Object.entries(task.prLinks || {}).forEach(([env, repos]) => {
             if (!repos) return;
             Object.entries(repos).forEach(([repoName, prIdString]) => {
                 if (!prIdString) return;
                 const prIds = prIdString.split(',').map(s => s.trim()).filter(Boolean);
                 const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
-                
-                prIds.forEach(id => {
-                    const baseUrl = repoConfig?.baseUrl || '';
-                    const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '';
-                    const label = `${repoName} #${id} (${env})`;
-                    drawKeyValue(label, { text: fullUrl ? `PR #${id}` : 'Link not available', link: fullUrl });
+                const baseUrl = repoConfig?.baseUrl || '';
+
+                prIds.forEach((id) => {
+                    const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`}${id}` : '';
+                    prEntries.push({ env, repoName, id, fullUrl });
                 });
             });
         });
+
+        if (prEntries.length === 0) {
+            drawSectionHeader('Pull Requests', estimateKeyValueHeight('Status', 'No Pull request found'));
+            drawKeyValue('Status', 'No Pull request found');
+        } else {
+        let firstPrLabel = '';
+        let firstPrValue: { text: string; link: string } | '' = '';
+        const firstPr = prEntries[0];
+        if (firstPr) {
+            firstPrLabel = `${firstPr.repoName} #${firstPr.id} (${firstPr.env})`;
+            firstPrValue = { text: `PR #${firstPr.id}`, link: firstPr.fullUrl };
+        }
+        drawSectionHeader('Pull Requests', estimateKeyValueHeight(firstPrLabel, firstPrValue));
+        prEntries.forEach(({ env, repoName, id, fullUrl }) => {
+            const label = `${repoName} #${id} (${env})`;
+            drawKeyValue(label, { text: fullUrl ? `PR #${id}` : 'Link not available', link: fullUrl });
+        });
+        }
     }
 
     if (task.attachments && task.attachments.length > 0) {

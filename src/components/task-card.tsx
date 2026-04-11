@@ -617,15 +617,18 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                 onUpdate={onTaskUpdate}
               />
               {showMoreOptions ? (
-                 <DropdownMenu>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8 rounded-full bg-background/20 hover:bg-background/50">
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">More options</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                    <DropdownMenuLabel className="font-medium">Actions</DropdownMenuLabel>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48 rounded-xl border-border/60 p-1.5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.4)]"
+                    onClick={e => e.stopPropagation()}
+                  >
                     <ShareMenu 
                       task={task} 
                       uiConfig={uiConfig!} 
@@ -634,16 +637,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                       asSubmenu
                     >
                       <Share2 className="mr-2 h-4 w-4" />
-                      <span className="font-normal">Share</span>
+                      <span>Share</span>
                     </ShareMenu>
-                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                    <DropdownMenuSeparator className="mx-1 my-1.5 bg-border/45" />
+                    <DropdownMenuItem
+                      onSelect={e => e.preventDefault()}
+                      className="min-h-0 rounded-lg px-2 py-1.5 text-[13px] font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
                       <DeleteTaskButton
                         taskId={task.id}
                         taskTitle={task.title}
                         onSuccess={onTaskDelete}
                       >
-                        <div className="flex items-center font-normal">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <div className="flex items-center">
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
                           <span>Delete</span>
                         </div>
                       </DeleteTaskButton>

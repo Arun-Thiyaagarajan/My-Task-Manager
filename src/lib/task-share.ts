@@ -64,9 +64,16 @@ export interface SharedTaskLinkDocument {
   companyId: string;
   createdAt: string;
   expiresAt?: string | null;
+  revokedAt?: string | null;
+  passwordProtected?: boolean;
   version: number;
-  snapshot: TaskShareSnapshot;
   viewConfig: SharedTaskViewConfig;
+  snapshot?: TaskShareSnapshot;
+  encryptedPayload?: {
+    salt: string;
+    iv: string;
+    cipherText: string;
+  };
 }
 
 const DEFAULT_FIELD_LABELS: Record<string, string> = {
@@ -320,4 +327,69 @@ export function isSharedTaskLinkExpired(link: Pick<SharedTaskLinkDocument, 'expi
   if (!link?.expiresAt) return false;
   const expiresAt = new Date(link.expiresAt);
   return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now();
+}
+
+export function isSharedTaskLinkRevoked(link: Pick<SharedTaskLinkDocument, 'revokedAt'> | null | undefined): boolean {
+  return Boolean(link?.revokedAt);
+}
+
+function encodeBytes(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function decodeBytes(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+async function derivePasswordKey(password: string, salt: Uint8Array) {
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt,
+      iterations: 120000,
+      hash: 'SHA-256',
+    },
+    baseKey,
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+export async function encryptTaskShareSnapshot(snapshot: TaskShareSnapshot, password: string) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await derivePasswordKey(password, salt);
+  const payload = new TextEncoder().encode(JSON.stringify(snapshot));
+  const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, payload);
+
+  return {
+    salt: encodeBytes(salt),
+    iv: encodeBytes(iv),
+    cipherText: encodeBytes(new Uint8Array(cipherBuffer)),
+  };
+}
+
+export async function decryptTaskShareSnapshot(
+  encryptedPayload: NonNullable<SharedTaskLinkDocument['encryptedPayload']>,
+  password: string
+): Promise<TaskShareSnapshot> {
+  const salt = decodeBytes(encryptedPayload.salt);
+  const iv = decodeBytes(encryptedPayload.iv);
+  const cipherBytes = decodeBytes(encryptedPayload.cipherText);
+  const key = await derivePasswordKey(password, salt);
+  const plainBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
+  const plainText = new TextDecoder().decode(plainBuffer);
+  return JSON.parse(plainText) as TaskShareSnapshot;
 }

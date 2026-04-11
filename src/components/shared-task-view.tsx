@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   Clock,
   Code2,
+  Copy,
   ExternalLink,
   GitMerge,
   Link2,
@@ -20,12 +21,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CommentsSection } from '@/components/comments-section';
+import { Icons } from '@/components/icons';
 import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { PrLinksGroup } from '@/components/pr-links-group';
 import { Separator } from '@/components/ui/separator';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { TaskPriorityBadge } from '@/components/task-priority-badge';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
+import { useToast } from '@/hooks/use-toast';
 import type { SharedFieldMetadata } from '@/lib/task-share';
 import type { Environment, Task, UiConfig } from '@/lib/types';
 import { getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasDueReminder, parseTaskDate, getDueReminderPresetLabel } from '@/lib/task-planning';
@@ -46,6 +49,7 @@ export function SharedTaskView({
   fieldMetadata,
 }: SharedTaskViewProps) {
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const { toast } = useToast();
   const statusConfig = getStatusConfig(task.status, uiConfig);
   const dueLabel = getTaskDueLabel(task);
   const dueBadgeLabel = getTaskDueBadgeLabel(task);
@@ -94,6 +98,21 @@ export function SharedTaskView({
     return fieldMetadata.has(key);
   });
 
+  const handleCopySharedLink = async () => {
+    if (typeof window === 'undefined') return;
+    const sharedLink = window.location.href;
+    if (!sharedLink) return;
+    await navigator.clipboard.writeText(sharedLink);
+    toast({ variant: 'success', title: 'Shared link copied!' });
+  };
+
+  const handleOpenSharedLink = () => {
+    if (typeof window === 'undefined') return;
+    const sharedLink = window.location.href;
+    if (!sharedLink) return;
+    window.open(sharedLink, '_blank', 'noopener,noreferrer');
+  };
+
   const renderCustomFieldValue = (fieldKey: string, value: any) => {
     if (value === null || value === undefined || value === '') {
       return <span className="text-muted-foreground font-normal">N/A</span>;
@@ -139,6 +158,33 @@ export function SharedTaskView({
   return (
     <div className="min-h-screen bg-muted/5 pb-20 selection:bg-primary selection:text-white">
       <div className="container mx-auto max-w-7xl space-y-8 px-4 pt-10 sm:px-6">
+        <div className="sticky top-3 z-20">
+          <div className="flex flex-col gap-3 rounded-[1rem] border border-border/65 bg-background/95 px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_34px_-30px_rgba(15,23,42,0.2)] backdrop-blur-[3px] sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="min-w-0 flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] border border-border/55 bg-muted/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <Icons.logo className="h-[1.05rem] w-[1.05rem] text-primary/80" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1 className="truncate text-[0.98rem] font-semibold tracking-tight text-foreground">Task Flow</h1>
+                  <span className="hidden text-muted-foreground/65 sm:inline">•</span>
+                  <span className="hidden truncate text-[12px] font-medium text-muted-foreground sm:inline">Shared View</span>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 rounded-full border-border/50 bg-muted/[0.16] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                  >
+                    Read Only
+                  </Badge>
+                </div>
+                <p className="truncate text-[12px] font-normal text-muted-foreground/90 sm:hidden">Shared Task</p>
+                <p className="hidden truncate text-[12px] font-normal text-muted-foreground/90 sm:block">Shared Task with view-only access</p>
+              </div>
+            </div>
+
+          </div>
+          <div className="mx-1 mt-2 h-px bg-border/50" />
+        </div>
+
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
           <div className="space-y-6 lg:col-span-2">
             <Card

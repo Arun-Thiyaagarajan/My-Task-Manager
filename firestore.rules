@@ -96,16 +96,22 @@ service cloud.firestore {
     match /sharedTaskLinks/{token} {
       allow read: if resource == null || (
                     resource.data.token == token
-                    && resource.data.snapshot is map
                     && resource.data.viewConfig is map
-                    && (!('expiresAt' in resource.data) || resource.data.expiresAt == null)
+                    && (!('revokedAt' in resource.data) || resource.data.revokedAt == null)
+                    && (
+                      resource.data.snapshot is map ||
+                      resource.data.encryptedPayload is map
+                    )
                   );
 
       allow create: if isSignedIn()
                     && request.resource.data.token == token
                     && request.resource.data.ownerUserId == request.auth.uid
-                    && request.resource.data.snapshot is map
                     && request.resource.data.viewConfig is map;
+                    && (
+                      request.resource.data.snapshot is map ||
+                      request.resource.data.encryptedPayload is map
+                    );
 
       allow update, delete: if isSignedIn()
                             && (resource.data.ownerUserId == request.auth.uid || isAdmin());
