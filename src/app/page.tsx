@@ -56,6 +56,7 @@ import {
   FileSpreadsheet,
   BookmarkPlus,
   FolderKanban,
+  RefreshCw,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
 import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
@@ -145,6 +146,14 @@ const HOME_SKELETON_DELAY_MS = 250;
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 const HOME_RETURN_SKELETON_MS = 220;
 
+function normalizeSavedTaskView(view: SavedTaskView, fallbackDateIso: string): SavedTaskView {
+  return {
+    ...view,
+    pinned: Boolean(view.pinned),
+    state: normalizeSavedViewState(view.state, fallbackDateIso),
+  };
+}
+
 export default function Home() {
   const { user, isUserLoading } = useFirebase();
   const activeCompanyId = useActiveCompany();
@@ -176,6 +185,10 @@ export default function Home() {
   const [repoFilter, setRepoFilter] = useState<string[]>([]);
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [dueStateFilter, setDueStateFilter] = useState<string[]>([]);
+  const [reminderNoteFilter, setReminderNoteFilter] = useState<string[]>([]);
+  const [dueReminderFilter, setDueReminderFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +202,10 @@ export default function Home() {
   const [desktopRepoFilterDraft, setDesktopRepoFilterDraft] = useState<string[]>([]);
   const [desktopDeploymentFilterDraft, setDesktopDeploymentFilterDraft] = useState<string[]>([]);
   const [desktopTagsFilterDraft, setDesktopTagsFilterDraft] = useState<string[]>([]);
+  const [desktopPriorityFilterDraft, setDesktopPriorityFilterDraft] = useState<string[]>([]);
+  const [desktopDueStateFilterDraft, setDesktopDueStateFilterDraft] = useState<string[]>([]);
+  const [desktopReminderNoteFilterDraft, setDesktopReminderNoteFilterDraft] = useState<string[]>([]);
+  const [desktopDueReminderFilterDraft, setDesktopDueReminderFilterDraft] = useState<string[]>([]);
   const [hasPreservedFilterDraftNotice, setHasPreservedFilterDraftNotice] = useState(false);
   const suppressNextFilterSheetCloseRef = useRef(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -215,6 +232,7 @@ export default function Home() {
   const tutorialOpenedSelectModeRef = useRef(false);
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
   const [showReturnSkeleton, setShowReturnSkeleton] = useState(false);
+  const [isRefreshingTaskCards, setIsRefreshingTaskCards] = useState(false);
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [savedTaskViews, setSavedTaskViews] = useState<SavedTaskView[]>([]);
   const [isSaveViewDialogOpen, setIsSaveViewDialogOpen] = useState(false);
@@ -261,7 +279,11 @@ export default function Home() {
     setSearchQuery(resolvedHomeViewState.searchQuery);
     setExecutedSearchQuery(resolvedHomeViewState.searchQuery);
     setOpenGroups(resolvedHomeViewState.openGroups);
-    setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
+    setSavedTaskViews(
+      Array.isArray(prefs.savedTaskViews)
+        ? prefs.savedTaskViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso))
+        : []
+    );
 
     const shouldShowStarterCallout =
       Boolean(prefs.starterContentAvailable) &&
@@ -278,6 +300,10 @@ export default function Home() {
     setRepoFilter(resolvedHomeViewState.filters.repo);
     setDeploymentFilter(resolvedHomeViewState.filters.deployment);
     setTagsFilter(resolvedHomeViewState.filters.tags);
+    setPriorityFilter(resolvedHomeViewState.filters.priority);
+    setDueStateFilter(resolvedHomeViewState.filters.dueState);
+    setReminderNoteFilter(resolvedHomeViewState.filters.reminderNote);
+    setDueReminderFilter(resolvedHomeViewState.filters.dueReminder);
 
     const resolvedDate = resolvedHomeViewState.selectedDate ? new Date(resolvedHomeViewState.selectedDate) : new Date();
     setSelectedDate(isValid(resolvedDate) ? resolvedDate : new Date());
@@ -300,6 +326,10 @@ export default function Home() {
     repoFilter.forEach(r => params.append('repo', r));
     deploymentFilter.forEach(d => params.append('deployment', d));
     tagsFilter.forEach(t => params.append('tags', t));
+    priorityFilter.forEach(priority => params.append('priority', priority));
+    dueStateFilter.forEach(value => params.append('dueState', value));
+    reminderNoteFilter.forEach(value => params.append('reminderNote', value));
+    dueReminderFilter.forEach(value => params.append('dueReminder', value));
 
     const currentQuery = searchParams.toString();
     const newQuery = params.toString();
@@ -322,6 +352,10 @@ export default function Home() {
         repo: repoFilter,
         deployment: deploymentFilter,
         tags: tagsFilter,
+        priority: priorityFilter,
+        dueState: dueStateFilter,
+        reminderNote: reminderNoteFilter,
+        dueReminder: dueReminderFilter,
       },
     });
 
@@ -337,15 +371,22 @@ export default function Home() {
             statusGroup: statusGroupFilter,
             repo: repoFilter,
             deployment: deploymentFilter,
-            tags: tagsFilter
+            tags: tagsFilter,
+            priority: priorityFilter,
+            dueState: dueStateFilter,
+            reminderNote: reminderNoteFilter,
+            dueReminder: dueReminderFilter,
         },
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, priorityFilter, dueStateFilter, reminderNoteFilter, dueReminderFilter, router, pathname, searchParams, mounted]);
 
   const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[]) => {
-    setSavedTaskViews(nextViews);
+    const fallbackDateIso = new Date().toISOString();
+    const normalizedViews = nextViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso));
+
+    setSavedTaskViews(normalizedViews);
     updateUserPreferences({
-      savedTaskViews: nextViews,
+      savedTaskViews: normalizedViews,
     });
   }, []);
 
@@ -363,6 +404,10 @@ export default function Home() {
       repo: repoFilter,
       deployment: deploymentFilter,
       tags: tagsFilter,
+      priority: priorityFilter,
+      dueState: dueStateFilter,
+      reminderNote: reminderNoteFilter,
+      dueReminder: dueReminderFilter,
     },
     overrides,
   }), [
@@ -378,18 +423,17 @@ export default function Home() {
     repoFilter,
     deploymentFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
   ]);
   const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => buildSavedViewState(), [buildSavedViewState]);
 
   const applySavedTaskView = useCallback((view: SavedTaskView) => {
-    const { state } = view;
-    const nextFilters = {
-      status: state.filters?.status || [],
-      statusGroup: state.filters?.statusGroup || [],
-      repo: state.filters?.repo || [],
-      deployment: state.filters?.deployment || [],
-      tags: state.filters?.tags || [],
-    };
+    const fallbackDateIso = selectedDate?.toISOString() || new Date().toISOString();
+    const state = normalizeSavedViewState(view.state, fallbackDateIso);
+    const nextFilters = state.filters;
 
     setIsSearching(true);
     if (state.dateView === 'calendar') {
@@ -408,6 +452,10 @@ export default function Home() {
     setRepoFilter(nextFilters.repo);
     setDeploymentFilter(nextFilters.deployment);
     setTagsFilter(nextFilters.tags);
+    setPriorityFilter(nextFilters.priority);
+    setDueStateFilter(nextFilters.dueState);
+    setReminderNoteFilter(nextFilters.reminderNote);
+    setDueReminderFilter(nextFilters.dueReminder);
 
     const nextDate = state.selectedDate ? new Date(state.selectedDate) : new Date();
     setSelectedDate(isValid(nextDate) ? nextDate : new Date());
@@ -431,6 +479,10 @@ export default function Home() {
       repo: [],
       deployment: [],
       tags: [],
+      priority: [],
+      dueState: [],
+      reminderNote: [],
+      dueReminder: [],
     };
     const hasAnySelectedFilters =
       filtersToSave.status.length > 0 ||
@@ -438,6 +490,10 @@ export default function Home() {
       filtersToSave.repo.length > 0 ||
       filtersToSave.deployment.length > 0 ||
       filtersToSave.tags.length > 0 ||
+      filtersToSave.priority.length > 0 ||
+      filtersToSave.dueState.length > 0 ||
+      filtersToSave.reminderNote.length > 0 ||
+      filtersToSave.dueReminder.length > 0 ||
       stateToSave.searchQuery.trim().length > 0;
 
     if (!trimmedName) {
@@ -514,6 +570,10 @@ export default function Home() {
     setDeploymentFilter([]);
     setTagsFilter([]);
     setStatusGroupFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
     setSearchQuery('');
     setExecutedSearchQuery('');
   }, []);
@@ -529,6 +589,10 @@ export default function Home() {
     setDesktopRepoFilterDraft(repoFilter);
     setDesktopDeploymentFilterDraft(deploymentFilter);
     setDesktopTagsFilterDraft(tagsFilter);
+    setDesktopPriorityFilterDraft(priorityFilter);
+    setDesktopDueStateFilterDraft(dueStateFilter);
+    setDesktopReminderNoteFilterDraft(reminderNoteFilter);
+    setDesktopDueReminderFilterDraft(dueReminderFilter);
     setHasPreservedFilterDraftNotice(false);
   }, [
     statusFilter,
@@ -536,6 +600,10 @@ export default function Home() {
     repoFilter,
     deploymentFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
   ]);
 
   const handleApplyDesktopFilters = useCallback(() => {
@@ -547,6 +615,10 @@ export default function Home() {
     setRepoFilter(desktopRepoFilterDraft);
     setDeploymentFilter(desktopDeploymentFilterDraft);
     setTagsFilter(desktopTagsFilterDraft);
+    setPriorityFilter(desktopPriorityFilterDraft);
+    setDueStateFilter(desktopDueStateFilterDraft);
+    setReminderNoteFilter(desktopReminderNoteFilterDraft);
+    setDueReminderFilter(desktopDueReminderFilterDraft);
     setIsDesktopFiltersOpen(false);
   }, [
     desktopStatusFilterDraft,
@@ -554,6 +626,10 @@ export default function Home() {
     desktopRepoFilterDraft,
     desktopDeploymentFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const handleApplyMobileFilters = useCallback(() => {
@@ -565,6 +641,10 @@ export default function Home() {
     setRepoFilter(desktopRepoFilterDraft);
     setDeploymentFilter(desktopDeploymentFilterDraft);
     setTagsFilter(desktopTagsFilterDraft);
+    setPriorityFilter(desktopPriorityFilterDraft);
+    setDueStateFilter(desktopDueStateFilterDraft);
+    setReminderNoteFilter(desktopReminderNoteFilterDraft);
+    setDueReminderFilter(desktopDueReminderFilterDraft);
     setIsMobileFiltersOpen(false);
   }, [
     desktopStatusFilterDraft,
@@ -572,6 +652,10 @@ export default function Home() {
     desktopRepoFilterDraft,
     desktopDeploymentFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const handleResetDesktopFilterDraft = useCallback(() => {
@@ -582,11 +666,19 @@ export default function Home() {
     setDesktopRepoFilterDraft([]);
     setDesktopDeploymentFilterDraft([]);
     setDesktopTagsFilterDraft([]);
+    setDesktopPriorityFilterDraft([]);
+    setDesktopDueStateFilterDraft([]);
+    setDesktopReminderNoteFilterDraft([]);
+    setDesktopDueReminderFilterDraft([]);
     setStatusFilter([]);
     setStatusGroupFilter([]);
     setRepoFilter([]);
     setDeploymentFilter([]);
     setTagsFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
   }, []);
 
   const handleResetMobileFilterDraft = useCallback(() => {
@@ -598,11 +690,19 @@ export default function Home() {
     setDesktopRepoFilterDraft([]);
     setDesktopDeploymentFilterDraft([]);
     setDesktopTagsFilterDraft([]);
+    setDesktopPriorityFilterDraft([]);
+    setDesktopDueStateFilterDraft([]);
+    setDesktopReminderNoteFilterDraft([]);
+    setDesktopDueReminderFilterDraft([]);
     setStatusFilter([]);
     setStatusGroupFilter([]);
     setRepoFilter([]);
     setDeploymentFilter([]);
     setTagsFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
     setIsMobileFiltersOpen(false);
   }, []);
 
@@ -613,8 +713,16 @@ export default function Home() {
     setDesktopRepoFilterDraft(repoFilter);
     setDesktopDeploymentFilterDraft(deploymentFilter);
     setDesktopTagsFilterDraft(tagsFilter);
+    setDesktopPriorityFilterDraft(priorityFilter);
+    setDesktopDueStateFilterDraft(dueStateFilter);
+    setDesktopReminderNoteFilterDraft(reminderNoteFilter);
+    setDesktopDueReminderFilterDraft(dueReminderFilter);
   }, [
     deploymentFilter,
+    dueReminderFilter,
+    dueStateFilter,
+    priorityFilter,
+    reminderNoteFilter,
     repoFilter,
     statusFilter,
     statusGroupFilter,
@@ -716,6 +824,10 @@ export default function Home() {
     statusGroupFilter,
     repoFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
     deploymentFilter,
     favoritesOnly,
     sortDescriptor,
@@ -904,6 +1016,32 @@ export default function Home() {
       { value: `not_${env.name}`, label: `Not on ${env.name}` },
     ]),
     [uiConfig]
+  );
+  const priorityOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+      { value: 'urgent', label: 'Urgent' },
+    ],
+    []
+  );
+  const dueStateOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'overdue', label: 'Overdue' },
+      { value: 'today', label: 'Due today' },
+      { value: 'tomorrow', label: 'Due tomorrow' },
+      { value: 'upcoming', label: 'Upcoming' },
+      { value: 'no_due_date', label: 'No due date' },
+    ],
+    []
+  );
+  const binaryReminderOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'has', label: 'Has reminder' },
+      { value: 'none', label: 'No reminder' },
+    ],
+    []
   );
 
   const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
@@ -1351,8 +1489,20 @@ export default function Home() {
   const isCloudDataPending = currentAuthMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const isInitialBlockingLoad = mounted && !hasRenderableTaskData && (isLoading || isUserLoading || isCloudDataPending || !hasInitialized);
   const shouldShowDelayedSkeleton = mounted && showDelayedSkeleton && isInitialBlockingLoad;
-  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showReturnSkeleton;
+  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showReturnSkeleton || isRefreshingTaskCards;
   const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !shouldShowListSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
+
+  const handleRefreshTaskCards = useCallback(() => {
+    if (isRefreshingTaskCards) return;
+
+    setIsRefreshingTaskCards(true);
+    window.setTimeout(() => {
+      refreshData();
+      window.setTimeout(() => {
+        setIsRefreshingTaskCards(false);
+      }, 220);
+    }, 0);
+  }, [isRefreshingTaskCards, refreshData]);
 
   useEffect(() => {
     if (!isInitialBlockingLoad) {
@@ -1410,14 +1560,27 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
-  const activeFilterCount = statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length;
+  const activeFilterCount =
+    statusFilter.length +
+    statusGroupFilter.length +
+    repoFilter.length +
+    deploymentFilter.length +
+    tagsFilter.length +
+    priorityFilter.length +
+    dueStateFilter.length +
+    reminderNoteFilter.length +
+    dueReminderFilter.length;
   const totalActiveFilters = activeFilterCount + (executedSearchQuery ? 1 : 0);
   const desktopDraftFilterCount =
     desktopStatusFilterDraft.length +
     desktopStatusGroupFilterDraft.length +
     desktopRepoFilterDraft.length +
     desktopDeploymentFilterDraft.length +
-    desktopTagsFilterDraft.length;
+    desktopTagsFilterDraft.length +
+    desktopPriorityFilterDraft.length +
+    desktopDueStateFilterDraft.length +
+    desktopReminderNoteFilterDraft.length +
+    desktopDueReminderFilterDraft.length;
 
   const areStringArraysEqual = (left: string[] = [], right: string[] = []) =>
     left.length === right.length && left.every((value, index) => value === right[index]);
@@ -1427,7 +1590,11 @@ export default function Home() {
     !areStringArraysEqual(desktopStatusGroupFilterDraft, statusGroupFilter) ||
     !areStringArraysEqual(desktopRepoFilterDraft, repoFilter) ||
     !areStringArraysEqual(desktopDeploymentFilterDraft, deploymentFilter) ||
-    !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter);
+    !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter) ||
+    !areStringArraysEqual(desktopPriorityFilterDraft, priorityFilter) ||
+    !areStringArraysEqual(desktopDueStateFilterDraft, dueStateFilter) ||
+    !areStringArraysEqual(desktopReminderNoteFilterDraft, reminderNoteFilter) ||
+    !areStringArraysEqual(desktopDueReminderFilterDraft, dueReminderFilter);
   const draftSavedViewState = useMemo(() => buildSavedViewState({
     filters: {
       status: desktopStatusFilterDraft,
@@ -1435,6 +1602,10 @@ export default function Home() {
       repo: desktopRepoFilterDraft,
       deployment: desktopDeploymentFilterDraft,
       tags: desktopTagsFilterDraft,
+      priority: desktopPriorityFilterDraft,
+      dueState: desktopDueStateFilterDraft,
+      reminderNote: desktopReminderNoteFilterDraft,
+      dueReminder: desktopDueReminderFilterDraft,
     },
   }), [
     buildSavedViewState,
@@ -1443,6 +1614,10 @@ export default function Home() {
     desktopStatusFilterDraft,
     desktopStatusGroupFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const doesDraftHaveAnyFilters =
@@ -1451,6 +1626,10 @@ export default function Home() {
     draftSavedViewState.filters.repo.length > 0 ||
     draftSavedViewState.filters.deployment.length > 0 ||
     draftSavedViewState.filters.tags.length > 0 ||
+    draftSavedViewState.filters.priority.length > 0 ||
+    draftSavedViewState.filters.dueState.length > 0 ||
+    draftSavedViewState.filters.reminderNote.length > 0 ||
+    draftSavedViewState.filters.dueReminder.length > 0 ||
     draftSavedViewState.searchQuery.trim().length > 0;
 
   const showPreservedFilterDraftNotice = hasPreservedFilterDraftNotice && hasUnappliedFilterDraftChanges;
@@ -1461,20 +1640,18 @@ export default function Home() {
       doesDraftHaveAnyFilters &&
       !isFilterSaveSuggestionDismissed &&
       !savedTaskViews.some((view) => {
-        const viewFilters = view.state.filters || {
-          status: [],
-          statusGroup: [],
-          repo: [],
-          deployment: [],
-          tags: [],
-        };
+        const viewFilters = normalizeSavedViewState(view.state, draftSavedViewState.selectedDate).filters;
 
         return (
-          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
-          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
-          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
-          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
-          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+          areStringArraysEqual(viewFilters.status, draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup, draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo, draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment, draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags, draftSavedViewState.filters.tags) &&
+          areStringArraysEqual(viewFilters.priority, draftSavedViewState.filters.priority) &&
+          areStringArraysEqual(viewFilters.dueState, draftSavedViewState.filters.dueState) &&
+          areStringArraysEqual(viewFilters.reminderNote, draftSavedViewState.filters.reminderNote) &&
+          areStringArraysEqual(viewFilters.dueReminder, draftSavedViewState.filters.dueReminder)
         );
       });
 
@@ -1494,7 +1671,7 @@ export default function Home() {
       setIsFilterSaveSuggestionDismissed(true);
     }
     setIsDesktopFiltersOpen(open);
-  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, draftSavedViewState.filters.priority, draftSavedViewState.filters.dueState, draftSavedViewState.filters.reminderNote, draftSavedViewState.filters.dueReminder, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
 
   const handleMobileFiltersOpenChange = useCallback((open: boolean) => {
     const shouldRevealSaveSuggestion =
@@ -1503,20 +1680,18 @@ export default function Home() {
       doesDraftHaveAnyFilters &&
       !isFilterSaveSuggestionDismissed &&
       !savedTaskViews.some((view) => {
-        const viewFilters = view.state.filters || {
-          status: [],
-          statusGroup: [],
-          repo: [],
-          deployment: [],
-          tags: [],
-        };
+        const viewFilters = normalizeSavedViewState(view.state, draftSavedViewState.selectedDate).filters;
 
         return (
-          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
-          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
-          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
-          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
-          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+          areStringArraysEqual(viewFilters.status, draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup, draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo, draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment, draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags, draftSavedViewState.filters.tags) &&
+          areStringArraysEqual(viewFilters.priority, draftSavedViewState.filters.priority) &&
+          areStringArraysEqual(viewFilters.dueState, draftSavedViewState.filters.dueState) &&
+          areStringArraysEqual(viewFilters.reminderNote, draftSavedViewState.filters.reminderNote) &&
+          areStringArraysEqual(viewFilters.dueReminder, draftSavedViewState.filters.dueReminder)
         );
       });
 
@@ -1536,50 +1711,47 @@ export default function Home() {
       setIsFilterSaveSuggestionDismissed(true);
     }
     setIsMobileFiltersOpen(open);
-  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, draftSavedViewState.filters.priority, draftSavedViewState.filters.dueState, draftSavedViewState.filters.reminderNote, draftSavedViewState.filters.dueReminder, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
   const currentSavedViewState = buildCurrentSavedViewState();
 
   const doesSavedViewStateMatch = useCallback((view: SavedTaskView, candidateState: SavedTaskViewState) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state, candidateState.selectedDate);
+    const viewFilters = normalizedViewState.filters;
     const currentFilters = candidateState.filters;
 
     return (
-      view.state.viewMode === candidateState.viewMode &&
-      view.state.sortDescriptor === candidateState.sortDescriptor &&
-      view.state.dateView === candidateState.dateView &&
-      view.state.favoritesOnly === candidateState.favoritesOnly &&
-      (view.state.searchQuery || '') === candidateState.searchQuery &&
-      (view.state.selectedDate || '') === (candidateState.selectedDate || '') &&
-      areStringArraysEqual(view.state.openGroups || [], candidateState.openGroups) &&
-      areStringArraysEqual(viewFilters.status || [], currentFilters.status) &&
-      areStringArraysEqual(viewFilters.statusGroup || [], currentFilters.statusGroup) &&
-      areStringArraysEqual(viewFilters.repo || [], currentFilters.repo) &&
-      areStringArraysEqual(viewFilters.deployment || [], currentFilters.deployment) &&
-      areStringArraysEqual(viewFilters.tags || [], currentFilters.tags)
+      normalizedViewState.viewMode === candidateState.viewMode &&
+      normalizedViewState.sortDescriptor === candidateState.sortDescriptor &&
+      normalizedViewState.dateView === candidateState.dateView &&
+      normalizedViewState.favoritesOnly === candidateState.favoritesOnly &&
+      normalizedViewState.searchQuery === candidateState.searchQuery &&
+      (normalizedViewState.selectedDate || '') === (candidateState.selectedDate || '') &&
+      areStringArraysEqual(normalizedViewState.openGroups, candidateState.openGroups) &&
+      areStringArraysEqual(viewFilters.status, currentFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup, currentFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo, currentFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment, currentFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags, currentFilters.tags) &&
+      areStringArraysEqual(viewFilters.priority, currentFilters.priority) &&
+      areStringArraysEqual(viewFilters.dueState, currentFilters.dueState) &&
+      areStringArraysEqual(viewFilters.reminderNote, currentFilters.reminderNote) &&
+      areStringArraysEqual(viewFilters.dueReminder, currentFilters.dueReminder)
     );
   }, []);
 
   const doSavedViewFiltersMatchDraft = useCallback((view: SavedTaskView, draftFilters: SavedTaskViewState['filters']) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const viewFilters = normalizeSavedViewState(view.state).filters;
 
     return (
-      areStringArraysEqual(viewFilters.status || [], draftFilters.status) &&
-      areStringArraysEqual(viewFilters.statusGroup || [], draftFilters.statusGroup) &&
-      areStringArraysEqual(viewFilters.repo || [], draftFilters.repo) &&
-      areStringArraysEqual(viewFilters.deployment || [], draftFilters.deployment) &&
-      areStringArraysEqual(viewFilters.tags || [], draftFilters.tags)
+      areStringArraysEqual(viewFilters.status, draftFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup, draftFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo, draftFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment, draftFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags, draftFilters.tags) &&
+      areStringArraysEqual(viewFilters.priority, draftFilters.priority) &&
+      areStringArraysEqual(viewFilters.dueState, draftFilters.dueState) &&
+      areStringArraysEqual(viewFilters.reminderNote, draftFilters.reminderNote) &&
+      areStringArraysEqual(viewFilters.dueReminder, draftFilters.dueReminder)
     );
   }, []);
 
@@ -1591,16 +1763,11 @@ export default function Home() {
   };
 
   const getSavedViewPreviewGroups = useCallback((view: SavedTaskView) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state);
+    const viewFilters = normalizedViewState.filters;
 
     return [
-      view.state.searchQuery ? { label: 'Search', values: [view.state.searchQuery] } : null,
+      normalizedViewState.searchQuery ? { label: 'Search', values: [normalizedViewState.searchQuery] } : null,
       viewFilters.status.length > 0 ? { label: 'Status', values: viewFilters.status } : null,
       viewFilters.statusGroup.length > 0 ? {
         label: 'Status Group',
@@ -1608,11 +1775,15 @@ export default function Home() {
       } : null,
       viewFilters.repo.length > 0 ? { label: 'Repository', values: viewFilters.repo } : null,
       viewFilters.tags.length > 0 ? { label: 'Tags', values: viewFilters.tags } : null,
+      viewFilters.priority.length > 0 ? { label: 'Priority', values: viewFilters.priority.map((value) => value.charAt(0).toUpperCase() + value.slice(1)) } : null,
+      viewFilters.dueState.length > 0 ? { label: 'Due', values: viewFilters.dueState.map((value) => value.replace(/_/g, ' ')) } : null,
+      viewFilters.reminderNote.length > 0 ? { label: 'Note', values: viewFilters.reminderNote.map((value) => value === 'has' ? 'Has reminder note' : 'No reminder note') } : null,
+      viewFilters.dueReminder.length > 0 ? { label: 'Due Alert', values: viewFilters.dueReminder.map((value) => value === 'has' ? 'Has due reminder' : 'No due reminder') } : null,
       viewFilters.deployment.length > 0 ? {
         label: 'Deployment',
         values: viewFilters.deployment.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value),
       } : null,
-      view.state.favoritesOnly ? { label: 'Mode', values: ['Favorites only'] } : null,
+      normalizedViewState.favoritesOnly ? { label: 'Mode', values: ['Favorites only'] } : null,
     ].filter((group): group is { label: string; values: string[] } => !!group && group.values.length > 0);
   }, [statusGroupOptions]);
 
@@ -1621,40 +1792,43 @@ export default function Home() {
     { label: 'Group', values: desktopStatusGroupFilterDraft.map((groupId) => statusGroupOptions.find(option => option.value === groupId)?.label || groupId) },
     { label: 'Repo', values: desktopRepoFilterDraft },
     { label: 'Tags', values: desktopTagsFilterDraft },
+    { label: 'Priority', values: desktopPriorityFilterDraft.map((value) => value.charAt(0).toUpperCase() + value.slice(1)) },
+    { label: 'Due', values: desktopDueStateFilterDraft.map((value) => value.replace(/_/g, ' ')) },
+    { label: 'Note', values: desktopReminderNoteFilterDraft.map((value) => value === 'has' ? 'Has reminder note' : 'No reminder note') },
+    { label: 'Alert', values: desktopDueReminderFilterDraft.map((value) => value === 'has' ? 'Has due reminder' : 'No due reminder') },
     { label: 'Deploy', values: desktopDeploymentFilterDraft.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value) },
   ].filter(section => section.values.length > 0);
   const visibleActiveFilterSections = activeFilterSections.slice(0, 3);
   const hiddenActiveFilterSectionsCount = Math.max(activeFilterSections.length - visibleActiveFilterSections.length, 0);
 
   const getSavedViewSummary = (view: SavedTaskView) => {
-    const filters = {
-      status: view.state.filters?.status || [],
-      statusGroup: view.state.filters?.statusGroup || [],
-      repo: view.state.filters?.repo || [],
-      deployment: view.state.filters?.deployment || [],
-      tags: view.state.filters?.tags || [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state);
+    const filters = normalizedViewState.filters;
     const filtersCount =
       filters.status.length +
       filters.statusGroup.length +
       filters.repo.length +
       filters.deployment.length +
       filters.tags.length +
-      (view.state.searchQuery ? 1 : 0);
+      filters.priority.length +
+      filters.dueState.length +
+      filters.reminderNote.length +
+      filters.dueReminder.length +
+      (normalizedViewState.searchQuery ? 1 : 0);
 
-    if (view.state.dateView === 'calendar') {
+    if (normalizedViewState.dateView === 'calendar') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Calendar`;
     }
 
-    if (view.state.dateView === 'monthly') {
+    if (normalizedViewState.dateView === 'monthly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Monthly`;
     }
 
-    if (view.state.dateView === 'yearly') {
+    if (normalizedViewState.dateView === 'yearly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Yearly`;
     }
 
-    return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${view.state.favoritesOnly ? 'Favorites' : 'All tasks'}`;
+    return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${normalizedViewState.favoritesOnly ? 'Favorites' : 'All tasks'}`;
   };
   const isDraftAlreadySaved = savedTaskViews.some((view) => doSavedViewFiltersMatchDraft(view, draftSavedViewState.filters));
   const canShowFilterSaveSuggestion =
@@ -1792,6 +1966,11 @@ export default function Home() {
   const sortOptions = useMemo(() => ([
     { value: 'status-asc', label: 'Status (Asc)' },
     { value: 'status-desc', label: 'Status (Desc)' },
+    { value: 'priority-desc', label: 'Priority (High to Low)' },
+    { value: 'priority-asc', label: 'Priority (Low to High)' },
+    { value: 'due-asc', label: 'Nearest Due Date' },
+    { value: 'due-desc', label: 'Farthest Due Date' },
+    { value: 'overdue-first', label: 'Overdue First' },
     { value: 'title-asc', label: 'Title (A-Z)' },
     { value: 'title-desc', label: 'Title (Z-A)' },
     { value: 'updated-desc', label: 'Recently Updated' },
@@ -1842,6 +2021,38 @@ export default function Home() {
           maxVisible={3}
         />
       )}
+      <MultiSelect
+        selected={desktopPriorityFilterDraft}
+        className={cn(desktopPriorityFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopPriorityFilterDraft}
+        options={priorityOptions}
+        placeholder="Priority..."
+        maxVisible={3}
+      />
+      <MultiSelect
+        selected={desktopDueStateFilterDraft}
+        className={cn(desktopDueStateFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueStateFilterDraft}
+        options={dueStateOptions}
+        placeholder="Due state..."
+        maxVisible={3}
+      />
+      <MultiSelect
+        selected={desktopReminderNoteFilterDraft}
+        className={cn(desktopReminderNoteFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopReminderNoteFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Reminder note..."
+        maxVisible={3}
+      />
+      <MultiSelect
+        selected={desktopDueReminderFilterDraft}
+        className={cn(desktopDueReminderFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueReminderFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Due reminder..."
+        maxVisible={3}
+      />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
         className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
@@ -1899,6 +2110,46 @@ export default function Home() {
           popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         />
       )}
+      <MultiSelect
+        selected={desktopPriorityFilterDraft}
+        className={cn(desktopPriorityFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopPriorityFilterDraft}
+        options={priorityOptions}
+        placeholder="Priority..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopDueStateFilterDraft}
+        className={cn(desktopDueStateFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueStateFilterDraft}
+        options={dueStateOptions}
+        placeholder="Due state..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopReminderNoteFilterDraft}
+        className={cn(desktopReminderNoteFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopReminderNoteFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Reminder note..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopDueReminderFilterDraft}
+        className={cn(desktopDueReminderFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueReminderFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Due reminder..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
         className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
@@ -2941,7 +3192,7 @@ export default function Home() {
                                                   <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
                                               </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                                          <TooltipContent><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
                                       </Tooltip>
                                   </TooltipProvider>
                                 )}
@@ -2963,7 +3214,7 @@ export default function Home() {
                                                   {isSelectMode ? <X className="h-4.5 w-4.5" /> : <CheckSquare className="h-4.5 w-4.5" />}
                                               </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent className="font-bold"><p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p></TooltipContent>
+                                          <TooltipContent><p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p></TooltipContent>
                                       </Tooltip>
                                   </TooltipProvider>
                                 )}
@@ -2984,7 +3235,7 @@ export default function Home() {
                                           </Button>
                                         </TooltipTrigger>
                                       </DropdownMenuTrigger>
-                                      <TooltipContent className="font-bold"><p>Saved views</p></TooltipContent>
+                                      <TooltipContent><p>Saved views</p></TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                   <SavedViewsMenuContent
@@ -2993,6 +3244,25 @@ export default function Home() {
                                     onOpenManageViews={() => setIsManageViewsDialogOpen(true)}
                                   />
                                 </DropdownMenu>
+
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        id="task-cards-refresh"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleRefreshTaskCards}
+                                        disabled={isRefreshingTaskCards}
+                                        className="h-11 w-11 rounded-xl shadow-sm text-muted-foreground"
+                                      >
+                                        <RefreshCw className={cn("h-4.5 w-4.5", isRefreshingTaskCards && "animate-spin")} />
+                                        <span className="sr-only">Refresh Task Cards</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Refresh task cards</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
 
                                 <TooltipProvider>
                                   <Tooltip>
@@ -3014,7 +3284,7 @@ export default function Home() {
                                         <span className="sr-only">Open filters</span>
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent className="font-bold"><p>Filters</p></TooltipContent>
+                                    <TooltipContent><p>Filters</p></TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
                             </div>

@@ -11,6 +11,8 @@ import { toast } from '@/hooks/use-toast';
 import { syncTaskStatuses } from './status-config';
 import { createId } from './id';
 import { buildReadCacheScope, clearAllReadCache, invalidateNoteReadCache, invalidateTaskReadCache } from './read-cache';
+import { formatTimestamp } from './utils';
+import { getDueReminderPresetLabel, getTaskPriorityLabel } from './task-planning';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -147,6 +149,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -170,6 +176,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -192,6 +202,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -1382,6 +1396,15 @@ function sanitizeTaskTemplateData(taskData: Partial<Task>): Partial<Task> {
 
     return cloneDeep({
         ...rest,
+        priority: rest.priority || 'medium',
+        dueAt: rest.dueAt || null,
+        dueCompletedAt: rest.dueCompletedAt || null,
+        dueReminderAt: rest.dueReminderAt || null,
+        dueReminderPreset: rest.dueReminderPreset || null,
+        dueReminderBackupAt: rest.dueReminderBackupAt || null,
+        dueReminderBackupPreset: rest.dueReminderBackupPreset || null,
+        reminder: rest.reminder || null,
+        reminderExpiresAt: rest.reminderExpiresAt || null,
         customFields: rest.customFields || {},
         attachments: rest.attachments || [],
         repositories: rest.repositories || [],
@@ -1992,6 +2015,7 @@ export function addTask(task: Partial<Task>): Task {
     const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
     const newTask: Task = {
         title: '', description: '', status: defaultStatus,
+        priority: 'medium',
         ...task,
         id, createdAt: now, updatedAt: now
     } as Task;
@@ -2009,6 +2033,11 @@ export function addTask(task: Partial<Task>): Task {
         dispatchMutation('tasks', id, newTask, 'create');
     }
     return newTask;
+}
+
+function formatPlanningTimestamp(value: unknown): string {
+    if (!value || typeof value !== 'string') return 'None';
+    return formatTimestamp(value, getUiConfig().timeFormat);
 }
 
 const formatLogVal = (val: any, key: string, uiConfig: UiConfig, peopleMap: Map<string, string>): string => {
@@ -2056,6 +2085,51 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 
             if (key === 'description') {
                 changes.push(`updated the **Description**`);
+            } else if (key === 'priority') {
+                changes.push(`set **Priority** to *${getTaskPriorityLabel(typeof newVal === 'string' ? newVal : null)}*`);
+            } else if (key === 'dueAt') {
+                changes.push(
+                    newVal
+                        ? `set **Due Date** to *${formatPlanningTimestamp(newVal)}*`
+                        : 'cleared **Due Date**'
+                );
+            } else if (key === 'dueCompletedAt') {
+                changes.push(
+                    newVal
+                        ? `marked **Due Completion** at *${formatPlanningTimestamp(newVal)}*`
+                        : 'reset **Due Completion**'
+                );
+            } else if (key === 'dueReminderAt') {
+                const nextPresetLabel = updates.dueReminderPreset
+                    ? getDueReminderPresetLabel(String(updates.dueReminderPreset))
+                    : oldTask.dueReminderPreset
+                        ? getDueReminderPresetLabel(oldTask.dueReminderPreset)
+                        : 'Custom time';
+                changes.push(
+                    newVal
+                        ? `scheduled **Due Reminder** for *${formatPlanningTimestamp(newVal)}* (${nextPresetLabel})`
+                        : oldVal
+                            ? 'cleared **Due Reminder**'
+                            : 'updated **Due Reminder**'
+                );
+            } else if (key === 'dueReminderPreset' || key === 'dueReminderBackupAt' || key === 'dueReminderBackupPreset') {
+                continue;
+            } else if (key === 'reminder') {
+                changes.push(
+                    newVal
+                        ? oldVal
+                            ? 'updated **Reminder Note**'
+                            : 'added a **Reminder Note**'
+                        : 'cleared **Reminder Note**'
+                );
+            } else if (key === 'reminderExpiresAt') {
+                changes.push(
+                    newVal
+                        ? `set **Reminder Note Auto-Clear** to *${formatPlanningTimestamp(newVal)}*`
+                        : oldVal
+                            ? 'cleared **Reminder Note Auto-Clear**'
+                            : 'updated **Reminder Note Auto-Clear**'
+                );
             } else if (key === 'isFavorite') {
                 changes.push(newVal ? `marked as **Favourite**` : `removed from **Favourites**`);
             } else if (key === 'deploymentStatus') {
@@ -2895,7 +2969,14 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             testers: testerIds,
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
-            deletedAt: t.deletedAt || null 
+            deletedAt: t.deletedAt || null,
+            dueCompletedAt: t.dueCompletedAt || null,
+            dueReminderAt: t.dueReminderAt || null,
+            dueReminderPreset: t.dueReminderPreset || null,
+            dueReminderBackupAt: t.dueReminderBackupAt || null,
+            dueReminderBackupPreset: t.dueReminderBackupPreset || null,
+            reminder: t.reminder || null,
+            reminderExpiresAt: t.reminderExpiresAt || null,
         });
         
         if (processedTasks.length % 100 === 0) await new Promise(r => setTimeout(r, 0));

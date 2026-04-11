@@ -280,6 +280,10 @@ function buildImportTaskPayload(
         : {},
     azureWorkItemId: typeof normalizedTask.azureWorkItemId === 'string' ? normalizedTask.azureWorkItemId : '',
     summary: normalizedTask.summary ?? null,
+    priority: normalizedTask.priority === 'low' || normalizedTask.priority === 'high' || normalizedTask.priority === 'urgent' ? normalizedTask.priority : 'medium',
+    dueAt: normalizedTask.dueAt ?? null,
+    dueReminderAt: normalizedTask.dueReminderAt ?? null,
+    dueReminderPreset: normalizedTask.dueReminderPreset ?? null,
     reminder: normalizedTask.reminder ?? null,
     reminderExpiresAt: normalizedTask.reminderExpiresAt ?? null,
     devStartDate:

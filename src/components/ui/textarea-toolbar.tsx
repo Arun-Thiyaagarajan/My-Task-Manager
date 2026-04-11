@@ -301,6 +301,23 @@ export function TextareaToolbar({ onFormatClick, className, storageKey, textarea
         }
     }, [storageKey]);
 
+    useEffect(() => {
+        const target = textareaRef?.current;
+        const wrapper = toolbarWrapperRef.current;
+
+        if (!target || !wrapper) {
+            return;
+        }
+
+        const currentPaddingBottom = window.getComputedStyle(target).paddingBottom;
+        const reservedSpace = wrapper.offsetHeight + 16;
+        target.style.paddingBottom = `max(${currentPaddingBottom}, ${reservedSpace}px)`;
+
+        return () => {
+            target.style.paddingBottom = '';
+        };
+    }, [isExpanded, textareaRef]);
+
     const updatePreviewPosition = useCallback(() => {
         const wrapper = toolbarWrapperRef.current;
         if (!wrapper) return;

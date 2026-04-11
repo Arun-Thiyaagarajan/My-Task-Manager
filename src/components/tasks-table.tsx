@@ -15,9 +15,12 @@ import { Button } from '@/components/ui/button';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import {
   ArrowRight,
+  BellRing,
+  CalendarClock,
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock3,
   Loader2,
 } from 'lucide-react';
 import type { Task, UiConfig, Person, TaskStatus, Environment } from '@/lib/types';
@@ -48,6 +51,8 @@ import { Skeleton } from './ui/skeleton';
 import { StatusIcon, getOrderedTaskStatusGroups, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive } from '@/lib/repository-config';
+import { TaskPriorityBadge } from './task-priority-badge';
+import { getTaskDueLabel, getTaskDueToneClassName, hasDueReminder, hasReminderNote } from '@/lib/task-planning';
 
 interface TasksTableRowProps {
   task: Task;
@@ -199,6 +204,7 @@ const TasksTableRow = memo(function TasksTableRow({
   const visibleRepositories = getTaskRepositories(task, uiConfig);
   const visibleRepoBadges = visibleRepositories.slice(0, 2);
   const hiddenRepositories = visibleRepositories.slice(2);
+  const dueLabel = getTaskDueLabel(task);
 
   return (
     <TableRow 
@@ -240,6 +246,28 @@ const TasksTableRow = memo(function TasksTableRow({
             <p className="text-muted-foreground text-sm truncate mt-1 font-normal">
               {task.summary || task.description}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <TaskPriorityBadge priority={task.priority} compact />
+              <Badge
+                variant="outline"
+                className={cn('max-w-full rounded-full border px-2 py-0.5 text-[10px] font-medium', getTaskDueToneClassName(task))}
+              >
+                <CalendarClock className="mr-1 h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{dueLabel}</span>
+              </Badge>
+              {hasReminderNote(task) ? (
+                <Badge variant="outline" className="rounded-full border-border/60 bg-muted/[0.28] px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <BellRing className="mr-1 h-3.5 w-3.5" />
+                  Note
+                </Badge>
+              ) : null}
+              {hasDueReminder(task) ? (
+                <Badge variant="outline" className="rounded-full border-primary/18 bg-primary/[0.06] px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <Clock3 className="mr-1 h-3.5 w-3.5" />
+                  Due
+                </Badge>
+              ) : null}
+            </div>
         </div>
       </TableCell>
       <TableCell className="align-top">

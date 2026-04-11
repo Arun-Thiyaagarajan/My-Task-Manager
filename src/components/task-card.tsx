@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2, Loader2 } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2, Loader2, CalendarClock } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getSmartTextPreview, stripRichText, formatTimestamp } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { updateTask } from '@/lib/data';
@@ -40,6 +40,8 @@ import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories } from '@/lib/repository-config';
 import { RichTextViewer } from './ui/rich-text-viewer';
+import { TaskPriorityBadge } from './task-priority-badge';
+import { getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasCompletedDue, hasDueReminder } from '@/lib/task-planning';
 
 interface TaskCardProps {
   task: Task;
@@ -229,6 +231,15 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const visibleRepositories = getTaskRepositories(task, uiConfig);
   const visibleRepoBadges = visibleRepositories.slice(0, 2);
   const hiddenRepositories = visibleRepositories.slice(2);
+  const dueLabel = getTaskDueLabel(task);
+  const dueBadgeLabel = getTaskDueBadgeLabel(task);
+  const hasTaskDueReminder = hasDueReminder(task);
+  const hasTaskDueCompleted = hasCompletedDue(task);
+  const cardDescriptionSource = task.summary?.trim() || task.description || '';
+  const cardDescriptionWordCount = stripRichText(cardDescriptionSource).split(/\s+/).filter(Boolean).length;
+  const cardDescriptionPreview = cardDescriptionWordCount > 22
+    ? getSmartTextPreview(cardDescriptionSource, 22)
+    : cardDescriptionSource;
 
   return (
     <>
@@ -273,7 +284,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           <div className="flex flex-col flex-grow z-10">
             <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
-                    <div className="flex-grow min-w-0 flex items-center gap-2">
+                    <div className="flex-grow min-w-0 flex items-start gap-2">
                         <Link
                           href={`/tasks/${task.id}?${currentQueryString}`}
                           className="flex-grow min-w-0 group/title"
@@ -306,7 +317,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                       </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                      <p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p>
+                                      <p className="font-normal">{task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}</p>
                                   </TooltipContent>
                               </Tooltip>
                             </div>
@@ -371,11 +382,39 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             </CardHeader>
             <CardContent className="flex flex-grow flex-col p-4 pt-2">
               <div className="relative mb-3 min-h-[40px] text-sm text-muted-foreground">
-                <div className="line-clamp-2 leading-relaxed font-normal text-foreground/78 [&_blockquote]:my-0 [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0">
-                  <RichTextViewer text={task.summary || task.description} />
+                <div className="line-clamp-2 leading-relaxed font-normal text-muted-foreground [&_blockquote]:my-0 [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0">
+                  <RichTextViewer
+                    text={cardDescriptionPreview}
+                    tone="muted"
+                  />
                 </div>
               </div>
               <div className="flex-grow space-y-3">
+                <div className="flex flex-wrap items-center gap-2 overflow-hidden">
+                  <TaskPriorityBadge priority={task.priority} compact />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'max-w-full rounded-full border px-2.5 py-1 text-[10px] font-medium whitespace-normal break-words leading-[1.25]',
+                          getTaskDueToneClassName(task)
+                        )}
+                      >
+                        <CalendarClock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{dueBadgeLabel}</span>
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="max-w-[16rem]">
+                      <div className="space-y-1 text-xs font-normal">
+                        <p>{dueLabel}</p>
+                        {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
+                        {hasTaskDueCompleted && task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig?.timeFormat || '12h')}</p> : null}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
                 {visibleRepositories.length > 0 && (
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <GitMerge className="mt-0.5 h-4 w-4 shrink-0" />

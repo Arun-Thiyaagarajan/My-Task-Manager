@@ -98,6 +98,10 @@ export interface SavedTaskViewState {
     repo: string[];
     deployment: string[];
     tags: string[];
+    priority: string[];
+    dueState: string[];
+    reminderNote: string[];
+    dueReminder: string[];
   };
 }
 
@@ -166,6 +170,10 @@ export interface UserPreferences {
     repo?: string[];
     deployment?: string[];
     tags?: string[];
+    priority?: string[];
+    dueState?: string[];
+    reminderNote?: string[];
+    dueReminder?: string[];
   };
   noteFilters?: {
     search?: string;
@@ -196,6 +204,13 @@ export interface Task {
   summary?: string | null;
   deletedAt?: string | null;
   isFavorite?: boolean;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  dueAt?: string | null;
+  dueCompletedAt?: string | null;
+  dueReminderAt?: string | null;
+  dueReminderPreset?: 'at_due' | '15m_before' | '1h_before' | '1d_before' | 'custom' | null;
+  dueReminderBackupAt?: string | null;
+  dueReminderBackupPreset?: 'at_due' | '15m_before' | '1h_before' | '1d_before' | 'custom' | null;
   reminder?: string | null;
   reminderExpiresAt?: string | null;
   

@@ -219,3 +219,42 @@ export function formatBytes(bytes: number, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
+
+export function stripRichText(text: string): string {
+  if (!text) return '';
+
+  return text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/@<([^>]+)>/g, '@$1')
+    .replace(/https?:\/\/[^\s<]+/g, ' ')
+    .replace(/^[\t ]*>\s?/gm, '')
+    .replace(/^[\t ]*[-*+]\s+/gm, '')
+    .replace(/^[\t ]*\d+\.\s+/gm, '')
+    .replace(/[*_~`#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function getSmartTextPreview(text: string, maxWords = 22): string {
+  const normalized = stripRichText(text);
+  if (!normalized) return '';
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return normalized;
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const firstSentence = sentences[0];
+  if (firstSentence) {
+    const firstSentenceWordCount = firstSentence.split(/\s+/).filter(Boolean).length;
+    if (firstSentenceWordCount >= 6 && firstSentenceWordCount <= maxWords) {
+      return firstSentence;
+    }
+  }
+
+  return `${words.slice(0, maxWords).join(' ')}...`;
+}

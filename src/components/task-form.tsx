@@ -8,7 +8,7 @@ import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Enviro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { 
     Loader2, 
     CalendarIcon, 
@@ -58,6 +58,7 @@ import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-confi
 import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TASK_PRIORITY_OPTIONS } from '@/lib/task-planning';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
@@ -111,6 +112,12 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         title: '',
         description: '',
         status: uiConfig?.taskStatuses?.[0] || 'To Do',
+        priority: 'medium',
+        dueAt: null,
+        dueReminderAt: null,
+        dueReminderPreset: null,
+        reminder: null,
+        reminderExpiresAt: null,
         repositories: [],
         developers: [],
         testers: [],
@@ -162,6 +169,12 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         title: task.title ?? defaults.title,
         description: task.description ?? defaults.description,
         status: getStatusDisplayName(task.status || defaults.status, uiConfig),
+        priority: task.priority || defaults.priority,
+        dueAt: safeParseDate(task.dueAt),
+        dueReminderAt: safeParseDate(task.dueReminderAt),
+        dueReminderPreset: task.dueReminderPreset ?? defaults.dueReminderPreset,
+        reminder: task.reminder ?? defaults.reminder,
+        reminderExpiresAt: safeParseDate(task.reminderExpiresAt),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
@@ -343,6 +356,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     
     skipDraftAutosaveRef.current = true;
     const restored = { ...(draftData.data || draftData) };
+    restored.dueAt = safeParseDate(restored.dueAt);
+    restored.dueReminderAt = safeParseDate(restored.dueReminderAt);
+    restored.reminderExpiresAt = safeParseDate(restored.reminderExpiresAt);
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
     restored.qaStartDate = safeParseDate(restored.qaStartDate);
@@ -388,6 +404,40 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     control: form.control,
     name: 'attachments',
   });
+  const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+
+  const handleAttachmentLinkAdd = useCallback(async (pastedText: string) => {
+    try {
+      const url = new URL(pastedText.trim());
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return false;
+      }
+
+      const newAttachment: Attachment = {
+        name: pastedText,
+        url: pastedText,
+        type: 'link',
+      };
+      const newAttachmentIndex = attachments.length;
+      appendAttachment(newAttachment);
+      toast({ variant: 'success', title: 'Link added.', description: 'Generating a smart title...' });
+
+      try {
+        const alias = await getLinkAlias({ url: pastedText });
+        updateAttachment(newAttachmentIndex, {
+          ...newAttachment,
+          name: alias.name || pastedText,
+        });
+        toast({ variant: 'success', title: 'Smart title generated!' });
+      } catch (error) {
+        console.error('Failed to generate smart title', error);
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }, [appendAttachment, attachments.length, toast, updateAttachment]);
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader();
@@ -403,61 +453,71 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     };
     reader.readAsDataURL(file);
   };
-  
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items;
-      if (!items) return;
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            event.preventDefault();
-            handleImageUpload(file);
-            break;
-          }
-        }
-        if (items[i].type === 'text/plain') {
-          items[i].getAsString(async (pastedText) => {
-            try {
-              const url = new URL(pastedText);
-              if (url.protocol === 'http:' || url.protocol === 'https:') {
-                event.preventDefault();
-                
-                const newAttachment: Attachment = {
-                  name: pastedText,
-                  url: pastedText,
-                  type: 'link',
-                };
-                const newAttachmentIndex = attachments.length;
-                appendAttachment(newAttachment);
-                toast({ variant: 'success', title: 'Link added. Generating title...' });
+  const handleAttachmentPaste = useCallback((event: React.ClipboardEvent<HTMLElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
 
-                try {
-                  const alias = await getLinkAlias({ url: pastedText });
-                  updateAttachment(newAttachmentIndex, {
-                    ...newAttachment,
-                    name: alias.name || pastedText,
-                  });
-                   toast({ variant: 'success', title: 'Smart title generated!' });
-                } catch(e) {
-                  console.error('Failed to generate smart title', e);
-                }
-              }
-            } catch (_) {
-            }
-          });
-          break;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          event.preventDefault();
+          handleImageUpload(file);
+          return;
         }
       }
-    };
+    }
 
-    window.addEventListener('paste', handlePaste);
-    return () => {
-      window.removeEventListener('paste', handlePaste);
-    };
-  }, [appendAttachment, toast, updateAttachment, attachments.length]);
+    const pastedText = event.clipboardData.getData('text/plain').trim();
+    if (!pastedText) return;
+
+    event.preventDefault();
+    void handleAttachmentLinkAdd(pastedText).then((didAdd) => {
+      if (!didAdd) {
+        toast({
+          variant: 'destructive',
+          title: 'Paste a valid link or image',
+          description: 'Attachments support pasted images and http/https links here.',
+        });
+      }
+    });
+  }, [handleAttachmentLinkAdd, toast]);
+
+  const handleAttachmentDrop = useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsAttachmentDropActive(false);
+
+    const files = Array.from(event.dataTransfer.files || []);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (imageFiles.length > 0) {
+      imageFiles.forEach(handleImageUpload);
+      return;
+    }
+
+    if (files.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Unsupported file',
+        description: 'Attachments currently support dropped images and web links.',
+      });
+      return;
+    }
+
+    const droppedText = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
+    if (!droppedText.trim()) return;
+
+    void handleAttachmentLinkAdd(droppedText.trim()).then((didAdd) => {
+      if (!didAdd) {
+        toast({
+          variant: 'destructive',
+          title: 'Drop a valid link or image',
+          description: 'Attachments currently support dropped images and http/https links.',
+        });
+      }
+    });
+  }, [handleAttachmentLinkAdd, toast]);
 
   const watchedRepositories = form.watch('repositories', []);
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
@@ -539,6 +599,13 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const normalizeTaskFormData = (data: TaskFormData): Partial<Task> => ({
     ...data,
+    priority: data.priority || 'medium',
+    dueAt: data.dueAt ? data.dueAt.toISOString() : null,
+    dueCompletedAt: data.dueCompletedAt ? data.dueCompletedAt.toISOString() : null,
+    dueReminderAt: data.dueReminderAt ? data.dueReminderAt.toISOString() : null,
+    dueReminderPreset: data.dueReminderPreset ?? null,
+    dueReminderBackupAt: data.dueReminderBackupAt ? data.dueReminderBackupAt.toISOString() : null,
+    dueReminderBackupPreset: data.dueReminderBackupPreset ?? null,
     reminderExpiresAt: data.reminderExpiresAt ? data.reminderExpiresAt.toISOString() : null,
     prLinks: normalizePrLinks(data.prLinks),
     devStartDate: data.devStartDate ? data.devStartDate.toISOString() : null,
@@ -1574,7 +1641,46 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                                {(groupedFields[groupName] || []).map(field => <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>)}
+                                {(groupedFields[groupName] || []).map(field => {
+                                  if (field.key === 'status') {
+                                    return (
+                                      <div key={`${field.id}-with-priority`} className="max-w-full overflow-hidden md:col-span-2">
+                                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                          <div>{renderField(field)}</div>
+                                          <FormField
+                                            control={form.control}
+                                            name="priority"
+                                            render={({ field: priorityField }) => (
+                                              <FormItem>
+                                                <FormLabel className="font-medium">Priority</FormLabel>
+                                                <Select value={priorityField.value || 'medium'} onValueChange={priorityField.onChange}>
+                                                  <FormControl>
+                                                    <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
+                                                      <SelectValue placeholder="Select priority" />
+                                                    </SelectTrigger>
+                                                  </FormControl>
+                                                  <SelectContent>
+                                                    {TASK_PRIORITY_OPTIONS.map((option) => (
+                                                      <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                                <FormDescription className="text-xs">
+                                                  Due dates, due reminders, and reminder notes can be managed from the planning popup on the task detail page.
+                                                </FormDescription>
+                                                <FormMessage />
+                                              </FormItem>
+                                            )}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  return <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>;
+                                })}
                             </CardContent>
                         </Card>
                     )
@@ -1588,7 +1694,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 {fieldLabels.get('attachments') || 'Attachments'}
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent
+                            className="space-y-4"
+                            onPaste={handleAttachmentPaste}
+                            onDragEnter={() => setIsAttachmentDropActive(true)}
+                            onDragOver={(event) => {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'copy';
+                                setIsAttachmentDropActive(true);
+                            }}
+                            onDragLeave={(event) => {
+                                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                    setIsAttachmentDropActive(false);
+                                }
+                            }}
+                            onDrop={handleAttachmentDrop}
+                        >
                             <div className="space-y-3">
                                 {attachments.map((item, index) => (
                                     <div key={item.id} className="flex items-center gap-4 p-3 border rounded-xl bg-muted/20 shadow-sm transition-colors hover:bg-muted/30">
@@ -1627,9 +1748,15 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                     </div>
                                 ))}
                                 {(attachments.length || 0) === 0 && (
-                                     <div className="border-2 border-dashed rounded-2xl p-8 text-center bg-muted/10">
+                                     <div
+                                        tabIndex={0}
+                                        className={cn(
+                                            "border-2 border-dashed rounded-2xl p-8 text-center bg-muted/10 outline-none transition-colors",
+                                            isAttachmentDropActive && "border-primary/70 bg-primary/5"
+                                        )}
+                                     >
                                         <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                                        <p className="text-sm font-medium text-muted-foreground">Drop files, or paste an image/link</p>
+                                        <p className="text-sm font-medium text-muted-foreground">Drop images here, or paste an image/link while this section is focused</p>
                                      </div>
                                 )}
                             </div>

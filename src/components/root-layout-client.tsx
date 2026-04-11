@@ -15,6 +15,7 @@ import { GlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { OfflineScreen } from '@/components/offline-screen';
 import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect-handler';
 import { AIAssistant } from '@/components/ai-assistant';
+import { DueReminderWatcher } from '@/components/due-reminder-watcher';
 import { clearExpiredReminders } from '@/lib/data';
 
 /**
@@ -59,6 +60,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
     <Providers>
         <GoogleAuthRedirectHandler />
         <FaviconSync />
+        <DueReminderWatcher />
         <div className="relative flex min-h-screen flex-col">
         {!isSharedPage && <Header />}
         <NavigationLoader />

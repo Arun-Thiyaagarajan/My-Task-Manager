@@ -41,6 +41,7 @@ const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
     title: { l: 'Title', t: 'text' },
     description: { l: 'Description', t: 'textarea' },
     status: { l: 'Status', t: 'select' },
+    priority: { l: 'Priority', t: 'select' },
     summary: { l: 'Summary', t: 'text' },
     tags: { l: 'Tags', t: 'tags' },
     repositories: { l: 'Repositories', t: 'multiselect' },
@@ -55,6 +56,10 @@ const DEFAULT_METADATA: Record<string, { l: string, t: string, u?: string }> = {
     devEndDate: { l: 'Dev End Date', t: 'date' },
     qaStartDate: { l: 'QA Start Date', t: 'date' },
     qaEndDate: { l: 'QA End Date', t: 'date' },
+    dueAt: { l: 'Due Date', t: 'date' },
+    dueCompletedAt: { l: 'Due Completed At', t: 'date' },
+    dueReminderAt: { l: 'Due Reminder At', t: 'date' },
+    dueReminderPreset: { l: 'Due Reminder Preset', t: 'select' },
     comments: { l: 'Comments', t: 'object' },
     customFields: { l: 'Other Details', t: 'object' }
 };
@@ -116,6 +121,7 @@ function SharedTaskContent() {
                         title: snapshot.t,
                         description: snapshot.d,
                         status: snapshot.s,
+                        priority: snapshot.py || 'medium',
                         summary: snapshot.u,
                         tags: snapshot.g || [],
                         repositories: snapshot.r || [],
@@ -127,6 +133,10 @@ function SharedTaskContent() {
                         devEndDate: snapshot.ed,
                         qaStartDate: snapshot.qsd,
                         qaEndDate: snapshot.qed,
+                        dueAt: snapshot.da,
+                        dueCompletedAt: snapshot.dca,
+                        dueReminderAt: snapshot.dra,
+                        dueReminderPreset: snapshot.drp || null,
                         customFields: snapshot.cf || {},
                         developers: snapshot.dv || [], 
                         testers: snapshot.ts || [], 
@@ -227,7 +237,7 @@ function SharedTaskContent() {
     const sharedUpdatedLabel = formatTimestamp(task.updatedAt, uiConfig.timeFormat);
 
     // Standard fields we don't treat as "custom" in the other details section
-    const standardKeys = ['title', 'description', 'status', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'comments', 'summary'];
+    const standardKeys = ['title', 'description', 'status', 'priority', 'repositories', 'developers', 'testers', 'azureWorkItemId', 'tags', 'prLinks', 'attachments', 'deploymentStatus', 'relevantEnvironments', 'devStartDate', 'devEndDate', 'qaStartDate', 'qaEndDate', 'dueAt', 'dueReminderAt', 'dueReminderPreset', 'comments', 'summary'];
 
     const customFieldEntries = Object.entries(task.customFields || {}).filter(([key]) => {
         if (key.endsWith('_alias')) return false;

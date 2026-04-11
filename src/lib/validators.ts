@@ -69,6 +69,13 @@ export const createTaskSchema = (
     comments: z.array(commentSchema).optional(),
     summary: z.string().nullable().optional(),
     isFavorite: z.boolean().optional(),
+    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium'),
+    dueAt: z.coerce.date().optional().nullable(),
+    dueCompletedAt: z.coerce.date().optional().nullable(),
+    dueReminderAt: z.coerce.date().optional().nullable(),
+    dueReminderPreset: z.enum(['at_due', '15m_before', '1h_before', '1d_before', 'custom']).optional().nullable(),
+    dueReminderBackupAt: z.coerce.date().optional().nullable(),
+    dueReminderBackupPreset: z.enum(['at_due', '15m_before', '1h_before', '1d_before', 'custom']).optional().nullable(),
     reminder: z.string().nullable().optional(),
     reminderExpiresAt: z.coerce.date().optional().nullable(),
     
@@ -145,6 +152,28 @@ export const createTaskSchema = (
 
 
   return schema.refine(
+      (data) => {
+        if (!data.dueAt && data.dueReminderPreset && data.dueReminderPreset !== 'custom') {
+          return false;
+        }
+        return true;
+      },
+      {
+          message: 'Choose a due date before using due-based reminder presets.',
+          path: ['dueReminderPreset'],
+      }
+  ).refine(
+      (data) => {
+        if (data.dueReminderPreset === 'custom') {
+          return !!data.dueReminderAt;
+        }
+        return true;
+      },
+      {
+          message: 'Please select a custom reminder time.',
+          path: ['dueReminderAt'],
+      }
+  ).refine(
       (data) => {
         if (data.devStartDate && data.devEndDate) {
           return data.devEndDate >= data.devStartDate;

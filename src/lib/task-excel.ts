@@ -58,8 +58,13 @@ const EXTRA_EXPORT_COLUMNS: ExcelTaskColumn[] = [
   { key: 'deletedAt', label: 'Deleted At', header: 'Deleted At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
   { key: 'summary', label: 'Summary', header: 'Summary', type: 'textarea', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
   { key: 'isFavorite', label: 'Favorite', header: 'Favorite', type: 'checkbox', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
-  { key: 'reminder', label: 'Reminder', header: 'Reminder', type: 'text', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
-  { key: 'reminderExpiresAt', label: 'Reminder Expires At', header: 'Reminder Expires At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
+  { key: 'priority', label: 'Priority', header: 'Priority', type: 'select', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true, options: ['low', 'medium', 'high', 'urgent'] },
+  { key: 'dueAt', label: 'Due At', header: 'Due At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true },
+  { key: 'dueCompletedAt', label: 'Due Completed At', header: 'Due Completed At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true },
+  { key: 'dueReminderAt', label: 'Due Reminder At', header: 'Due Reminder At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true },
+  { key: 'dueReminderPreset', label: 'Due Reminder Preset', header: 'Due Reminder Preset', type: 'select', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true, options: ['at_due', '15m_before', '1h_before', '1d_before', 'custom'] },
+  { key: 'reminder', label: 'Reminder', header: 'Reminder', type: 'text', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true },
+  { key: 'reminderExpiresAt', label: 'Reminder Expires At', header: 'Reminder Expires At', type: 'date', isRequired: false, isUnique: false, isCustom: false, importable: true, exportable: true },
   { key: 'attachments', label: 'Attachments', header: 'Attachments', type: 'object', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
   { key: 'comments', label: 'Comments', header: 'Comments', type: 'object', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
   { key: 'prLinks', label: 'Pull Request Links', header: 'Pull Request Links', type: 'object', isRequired: false, isUnique: false, isCustom: false, importable: false, exportable: true },
@@ -207,9 +212,10 @@ export function getExcelTaskColumns(uiConfig: UiConfig) {
   const uiColumns = uiConfig.fields
     .filter(field => field.isActive)
     .map(buildColumnFromField);
+  const importableExtraColumns = EXTRA_EXPORT_COLUMNS.filter(column => column.importable);
 
   return {
-    importColumns: uiColumns.filter(column => column.importable),
+    importColumns: [...uiColumns.filter(column => column.importable), ...importableExtraColumns],
     exportColumns: [...uiColumns, ...EXTRA_EXPORT_COLUMNS],
   };
 }

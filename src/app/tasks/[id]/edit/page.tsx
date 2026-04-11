@@ -100,7 +100,14 @@ export default function EditTaskPage() {
 
 	    const taskDataToUpdate: Partial<Task> = {
 	        ...otherData,
-	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
+	        dueAt: task.dueAt ?? null,
+	        dueCompletedAt: task.dueCompletedAt ?? null,
+	        dueReminderAt: task.dueReminderAt ?? null,
+	        dueReminderPreset: task.dueReminderPreset ?? null,
+	        dueReminderBackupAt: task.dueReminderBackupAt ?? null,
+	        dueReminderBackupPreset: task.dueReminderBackupPreset ?? null,
+	        reminder: task.reminder ?? null,
+	        reminderExpiresAt: task.reminderExpiresAt ?? null,
 	        prLinks: normalizePrLinks(otherData.prLinks),
 	        devStartDate: devStartDate ? devStartDate.toISOString() : null,
 	        devEndDate: devEndDate ? devEndDate.toISOString() : null,

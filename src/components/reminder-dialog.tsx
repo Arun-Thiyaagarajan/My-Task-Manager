@@ -126,8 +126,8 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
 
         toast({
           variant: 'success',
-          title: 'Reminder Saved',
-          description: `The reminder for "${task.title}" has been updated.`,
+          title: 'Reminder Note Saved',
+          description: `The reminder note for "${task.title}" has been updated.`,
         });
 
         onSuccess(updatedTask);
@@ -152,8 +152,8 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
 
         toast({
           variant: 'success',
-          title: 'Reminder Removed',
-          description: `The reminder for "${task.title}" has been removed.`,
+          title: 'Reminder Note Removed',
+          description: `The reminder note for "${task.title}" has been removed.`,
         });
         onSuccess(updatedTask);
         onOpenChange(false);
@@ -511,11 +511,11 @@ export function ReminderDialog({ isOpen, onOpenChange, task, onSuccess, pinnedTa
               )}
               {isMobile ? (
                 <SheetDescription className="mt-1 text-sm leading-relaxed">
-                  Set or edit a reminder. Pinned notes appear on the main page.
+                  Set or edit a note pinned to this task. Due-date reminders are managed separately in planning.
                 </SheetDescription>
               ) : (
                 <DialogDescription className="mt-1 text-sm leading-relaxed">
-                  Set or edit a reminder. Pinned notes appear on the main page.
+                  Set or edit a note pinned to this task. Due-date reminders are managed separately in planning.
                 </DialogDescription>
               )}
             </div>

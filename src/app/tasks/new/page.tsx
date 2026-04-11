@@ -103,10 +103,16 @@ export default function NewTaskPage() {
       return;
     }
   
-    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
+    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, dueAt, dueReminderAt, ...otherData } = validationResult.data;
 
 	    const taskDataToCreate: Partial<Task> = {
 	        ...otherData,
+	        dueAt: dueAt ? dueAt.toISOString() : null,
+	        dueCompletedAt: null,
+	        dueReminderAt: dueReminderAt ? dueReminderAt.toISOString() : null,
+	        dueReminderPreset: otherData.dueReminderPreset ?? null,
+	        dueReminderBackupAt: null,
+	        dueReminderBackupPreset: null,
 	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
 	        prLinks: normalizePrLinks(otherData.prLinks),
 	        devStartDate: devStartDate ? devStartDate.toISOString() : new Date().toISOString(),

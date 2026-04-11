@@ -3,6 +3,7 @@ import { endOfMonth, endOfYear, startOfMonth, startOfYear } from 'date-fns';
 import type { Task, UiConfig } from '@/lib/types';
 import { fuzzySearch } from '@/lib/utils';
 import { getStatusDisplayName, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
+import { getTaskPriorityValue, hasDueReminder, hasReminderNote, matchesTaskDueStateFilter } from '@/lib/task-planning';
 
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
 
@@ -63,6 +64,10 @@ export function matchesTaskFilters(
     statusGroupFilter,
     repoFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
     deploymentFilter,
     showRepositoryFilter,
     query,
@@ -77,6 +82,10 @@ export function matchesTaskFilters(
     statusGroupFilter: string[];
     repoFilter: string[];
     tagsFilter: string[];
+    priorityFilter: string[];
+    dueStateFilter: string[];
+    reminderNoteFilter: string[];
+    dueReminderFilter: string[];
     deploymentFilter: string[];
     showRepositoryFilter: boolean;
     query: string;
@@ -103,6 +112,14 @@ export function matchesTaskFilters(
     (Array.isArray(task.repositories) && task.repositories.some((repo) => repoFilter.includes(repo))) ||
     false;
   const tagsMatch = tagsFilter.length === 0 || (task.tags?.some((tag) => tagsFilter.includes(tag)) ?? false);
+  const priorityMatch = priorityFilter.length === 0 || priorityFilter.includes(getTaskPriorityValue(task.priority));
+  const dueStateMatch = dueStateFilter.length === 0 || dueStateFilter.some((value) => matchesTaskDueStateFilter(task, value));
+  const reminderNoteMatch =
+    reminderNoteFilter.length === 0 ||
+    reminderNoteFilter.some((value) => (value === 'has' ? hasReminderNote(task) : !hasReminderNote(task)));
+  const dueReminderMatch =
+    dueReminderFilter.length === 0 ||
+    dueReminderFilter.some((value) => (value === 'has' ? hasDueReminder(task) : !hasDueReminder(task)));
   const searchMatch = matchesTaskSearchQuery(task, query, developersById, testersById);
   const dateMatch = matchesTaskDateView(task, dateView, selectedDate);
   const deploymentMatch =
@@ -114,5 +131,5 @@ export function matchesTaskFilters(
       return isNegative ? !isDeployed : isDeployed;
     });
 
-  return statusMatch && statusGroupMatch && repoMatch && tagsMatch && searchMatch && dateMatch && deploymentMatch;
+  return statusMatch && statusGroupMatch && repoMatch && tagsMatch && priorityMatch && dueStateMatch && reminderNoteMatch && dueReminderMatch && searchMatch && dateMatch && deploymentMatch;
 }
