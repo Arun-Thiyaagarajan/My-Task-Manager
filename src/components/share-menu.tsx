@@ -560,7 +560,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, children, asSub
                         <SelectTrigger className="h-9 rounded-lg border-border/60 bg-background text-sm">
                           <SelectValue placeholder="Select expiry" />
                         </SelectTrigger>
-                        <SelectContent position="popper" className="z-[180] rounded-xl border-border/60">
+                        <SelectContent position="popper" className="rounded-xl border-border/60">
                           {expiryOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}

@@ -2126,7 +2126,7 @@ export default function Home() {
         placeholder="Status..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopStatusGroupFilterDraft}
@@ -2136,7 +2136,7 @@ export default function Home() {
         placeholder="Status Group..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       {showRepositoryFilter && (
         <MultiSelect
@@ -2147,7 +2147,7 @@ export default function Home() {
           placeholder="Repository..."
           maxVisible={1}
           mobileBehavior="popover"
-          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+          popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         />
       )}
       {showTagsFilter && (
@@ -2159,7 +2159,7 @@ export default function Home() {
           placeholder="Tags..."
           maxVisible={1}
           mobileBehavior="popover"
-          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+          popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         />
       )}
       <MultiSelect
@@ -2170,7 +2170,7 @@ export default function Home() {
         placeholder="Priority..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopDueStateFilterDraft}
@@ -2180,7 +2180,7 @@ export default function Home() {
         placeholder="Due state..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopReminderNoteFilterDraft}
@@ -2190,7 +2190,7 @@ export default function Home() {
         placeholder="Reminder note..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopDueReminderFilterDraft}
@@ -2200,7 +2200,7 @@ export default function Home() {
         placeholder="Due reminder..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
@@ -2210,7 +2210,7 @@ export default function Home() {
         placeholder="Deployment..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
     </div>
   );
