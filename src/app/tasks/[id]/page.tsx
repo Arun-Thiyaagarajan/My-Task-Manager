@@ -2181,7 +2181,11 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                         <TooltipTrigger asChild>
                         <button 
                             className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)]"
-                            onClick={() => setPersonInView({ person, isDeveloper })}
+                            onClick={() => {
+                              const latestPerson =
+                                (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
+                              setPersonInView({ person: latestPerson, isDeveloper });
+                            }}
                         >
                             <Avatar className="h-8 w-8 ring-1 ring-border/35">
                             <AvatarFallback

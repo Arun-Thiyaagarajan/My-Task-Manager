@@ -165,6 +165,7 @@ export function HeaderProfileMenu({
           <ActionCard icon={Cog} title="Settings" description="Workspace and app controls" onSelect={onNavigateSettings} />
           <ActionCard icon={History} title="What&apos;s New" description="Release history and updates" onSelect={onNavigateReleases} />
           <ActionCard icon={HelpCircle} title="Help & About" description="Guides, support, and app details" onSelect={onNavigateHelp} />
+          {/* DONT TOUCH THIS CODE */}
           {/* {!isSignedIn ? (
             <ActionCard
               icon={ShieldCheck}

@@ -3293,8 +3293,31 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const devMap = new Map<string, string>(currentDevs.map(d => [d.name.toLowerCase(), d.id]));
     const testerMap = new Map<string, string>(currentTesters.map(t => [t.name.toLowerCase(), t.id]));
 
+    const mergeImportedPersonDetails = (person: Person, details?: any): Person => {
+        if (!details || typeof details !== 'object') return person;
+
+        const nextEmail = typeof details.email === 'string' ? details.email : person.email;
+        const nextPhone = typeof details.phone === 'string' ? details.phone : person.phone;
+        const nextAdditionalFields = Array.isArray(details.additionalFields)
+            ? details.additionalFields
+            : (person.additionalFields || []);
+
+        return {
+            ...person,
+            email: nextEmail || '',
+            phone: nextPhone || '',
+            additionalFields: nextAdditionalFields,
+        };
+    };
+
     const ensureDev = (name: string, details?: any) => {
-        if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
+        if (!name) return '';
+        const normalizedName = name.toLowerCase();
+        const existingId = devMap.get(normalizedName);
+        if (existingId) {
+            currentDevs = currentDevs.map(dev => dev.id === existingId ? mergeImportedPersonDetails(dev, details) : dev);
+            return existingId;
+        }
         const id = createId('dev-');
         currentDevs.push({ 
             id, name, 
@@ -3302,12 +3325,18 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
         });
-        devMap.set(name.toLowerCase(), id);
+        devMap.set(normalizedName, id);
         return id;
     };
 
     const ensureTester = (name: string, details?: any) => {
-        if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
+        if (!name) return '';
+        const normalizedName = name.toLowerCase();
+        const existingId = testerMap.get(normalizedName);
+        if (existingId) {
+            currentTesters = currentTesters.map(tester => tester.id === existingId ? mergeImportedPersonDetails(tester, details) : tester);
+            return existingId;
+        }
         const id = createId('tester-');
         currentTesters.push({ 
             id, name, 
@@ -3315,7 +3344,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
         });
-        testerMap.set(name.toLowerCase(), id);
+        testerMap.set(normalizedName, id);
         return id;
     };
 

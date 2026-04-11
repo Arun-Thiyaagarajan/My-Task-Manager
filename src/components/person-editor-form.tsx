@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { getPhoneValidationMessage } from '@/lib/phone';
 
 const personFieldSchema = z.object({
   id: z.string(),
@@ -24,7 +26,18 @@ const personFieldSchema = z.object({
 export const personEditorSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   email: z.string().email('Invalid email address.').optional().or(z.literal('')),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .superRefine((value, ctx) => {
+      const validationMessage = getPhoneValidationMessage(value);
+      if (validationMessage) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: validationMessage,
+        });
+      }
+    }),
   additionalFields: z.array(personFieldSchema).optional(),
 });
 
@@ -139,7 +152,16 @@ export function PersonEditorForm({
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder="+1 123-456-7890" className="font-normal" />
+                  <PhoneInput
+                    {...field}
+                    value={field.value ?? ''}
+                    placeholder="9876543210"
+                    className="font-normal"
+                    onBlur={(event) => {
+                      field.onBlur();
+                      void form.trigger('phone');
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

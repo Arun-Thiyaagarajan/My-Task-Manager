@@ -1045,11 +1045,13 @@ export default function Home() {
     []
   );
 
-  const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
+  const handleExport = useCallback(async (exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
     const customFieldDefinitions = currentUiConfig.fields.filter(f => f.isCustom);
+    const yieldToBrowser = () =>
+      new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
     const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
     const dateSuffix = format(new Date(), "do MMM yyyy");
@@ -1119,11 +1121,16 @@ export default function Home() {
         exportData.trash = binnedTasksWithNames;
     }
 
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+    await yieldToBrowser();
+    const jsonString = JSON.stringify(exportData, null, 2);
+    await yieldToBrowser();
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = jsonString;
+    link.href = downloadUrl;
     link.download = fileName;
     link.click();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
     
     toast({
         variant: 'success',

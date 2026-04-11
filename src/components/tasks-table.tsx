@@ -42,7 +42,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { updateTask } from '@/lib/data';
+import { getDevelopers, getTesters, updateTask } from '@/lib/data';
 import { PersonProfileCard } from './person-profile-card';
 import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
@@ -530,7 +530,9 @@ export const TasksTable = memo(function TasksTable({
   const testersById = new Map(testers.map((t) => [t.id, t.name]).map(([id, name]) => [id, { id, name } as Person]));
 
   const handleAvatarClick = (person: Person, isDeveloper: boolean) => {
-    setPersonInView({ person, isDeveloper });
+    const latestPerson =
+      (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
+    setPersonInView({ person: latestPerson, isDeveloper });
   };
   
   const handleToggleSelection = (taskId: string, checked: boolean) => {

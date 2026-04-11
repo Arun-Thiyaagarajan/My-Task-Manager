@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Briefcase, ExternalLink, Mail, Pencil, Phone, UserCheck } from 'lucide-react';
 
 import {
+  getDevelopers,
+  getTesters,
   updateDeveloper,
   updateTester,
 } from '@/lib/data';
@@ -20,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -57,31 +60,50 @@ export function PersonProfileCard({
 }: PersonProfileCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [displayPerson, setDisplayPerson] = useState<Person | null>(person);
   const editFormId = `person-profile-edit-${person?.id || 'unknown'}`;
+  const { toast } = useToast();
 
-  if (!person) return null;
+  useEffect(() => {
+    setDisplayPerson(person);
+  }, [person]);
+
+  if (!displayPerson) return null;
 
   const TypeIcon = isDeveloper ? Briefcase : UserCheck;
-  const nameColor = getAvatarColor(person.name);
+  const nameColor = getAvatarColor(displayPerson.name);
   const badgeStyle = {
     backgroundColor: `#${nameColor}20`,
     color: `#${nameColor}`,
     borderColor: `#${nameColor}40`,
   };
-  const hasContactInfo = Boolean(person.email || person.phone);
-  const hasAdditionalFields = Boolean(person.additionalFields && person.additionalFields.length > 0);
+  const hasContactInfo = Boolean(displayPerson.email || displayPerson.phone);
+  const hasAdditionalFields = Boolean(displayPerson.additionalFields && displayPerson.additionalFields.length > 0);
 
   const handleSave = (data: PersonEditorFormData) => {
     setIsPending(true);
     try {
-      const nextPerson = { ...person, ...data };
       if (isDeveloper) {
-        updateDeveloper(person.id, data);
+        updateDeveloper(displayPerson.id, data);
       } else {
-        updateTester(person.id, data);
+        updateTester(displayPerson.id, data);
       }
-      onPersonUpdated?.(nextPerson, false);
+
+      const refreshedPerson = (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === displayPerson.id) || {
+        ...displayPerson,
+        ...data,
+      };
+
+      setDisplayPerson(refreshedPerson);
+      onPersonUpdated?.(refreshedPerson, false);
+      toast({ variant: 'success', title: `${typeLabel} updated` });
       setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.message || 'Could not save these changes.',
+      });
     } finally {
       setIsPending(false);
     }
@@ -120,14 +142,14 @@ export function PersonProfileCard({
                       className="text-4xl font-semibold text-white"
                       style={{ backgroundColor: `#${nameColor}` }}
                     >
-                      {getInitials(person.name)}
+                      {getInitials(displayPerson.name)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
 
                 <div className="min-w-0 text-center md:text-left">
                   <div className="flex items-center justify-center gap-2 md:justify-start">
-                    <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{person.name}</DialogTitle>
+                    <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{displayPerson.name}</DialogTitle>
                     {!isEditing ? (
                       <Button
                         variant="ghost"
@@ -140,7 +162,7 @@ export function PersonProfileCard({
                       </Button>
                     ) : null}
                   </div>
-                  <DialogDescription className="sr-only">Profile information and edit controls for {person.name}</DialogDescription>
+                  <DialogDescription className="sr-only">Profile information and edit controls for {displayPerson.name}</DialogDescription>
                   <div className="mt-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
                     <Badge variant="outline" className="rounded-full border px-3 py-1 text-[11px] font-semibold" style={badgeStyle}>
                       <TypeIcon className="mr-1.5 h-3 w-3" />
@@ -161,7 +183,7 @@ export function PersonProfileCard({
               {isEditing ? (
                 <div className="rounded-[1.25rem] border border-border/60 bg-muted/[0.045] p-4 sm:p-5">
                   <PersonEditorForm
-                    personToEdit={person}
+                    personToEdit={displayPerson}
                     onSave={handleSave}
                     isPending={isPending}
                     compact
@@ -173,28 +195,28 @@ export function PersonProfileCard({
 
               {!isEditing && hasContactInfo ? (
                 <PersonInfoGrid>
-                  {person.email ? (
+                  {displayPerson.email ? (
                     <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground">
                         <Mail className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Email</p>
-                        <a href={`mailto:${person.email}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
-                          {person.email}
+                        <a href={`mailto:${displayPerson.email}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
+                          {displayPerson.email}
                         </a>
                       </div>
                     </div>
                   ) : null}
-                  {person.phone ? (
+                  {displayPerson.phone ? (
                     <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground">
                         <Phone className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Phone</p>
-                        <a href={`tel:${person.phone}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
-                          {person.phone}
+                        <a href={`tel:${displayPerson.phone}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
+                          {displayPerson.phone}
                         </a>
                       </div>
                     </div>
@@ -206,7 +228,7 @@ export function PersonProfileCard({
 
               {!isEditing && hasAdditionalFields ? (
                 <PersonInfoGrid className="items-start">
-                  {person.additionalFields?.map(field => (
+                  {displayPerson.additionalFields?.map(field => (
                     <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3">
                       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
                       <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>

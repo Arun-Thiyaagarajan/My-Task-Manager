@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getSmartTextPreview, stripRichText, formatTimestamp } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
-import { updateTask } from '@/lib/data';
+import { getDevelopers, getTesters, updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -520,7 +520,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
-                                        setPersonInView({ person: dev, isDeveloper: true });
+                                        const latestDeveloper = getDevelopers().find((entry) => entry.id === dev.id) || dev;
+                                        setPersonInView({ person: latestDeveloper, isDeveloper: true });
                                     }}
                                     disabled={isOpening}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
@@ -572,7 +573,12 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                             <Tooltip key={tester.id}>
                               <TooltipTrigger asChild>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPersonInView({ person: tester, isDeveloper: false }); }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        const latestTester = getTesters().find((entry) => entry.id === tester.id) || tester;
+                                        setPersonInView({ person: latestTester, isDeveloper: false });
+                                    }}
                                     disabled={isOpening}
                                     className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
                                 >
