@@ -1518,7 +1518,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                 </Tooltip>
                                             </TooltipProvider>
                                         )}
-                                        {selectedTemplate && (
+                                        {/* {selectedTemplate && (
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -1538,7 +1538,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-                                        )}
+                                        )} */}
                                     </div>
                                 </div>
 
