@@ -91,8 +91,8 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
       },
       {
         element: '#header-profile-trigger',
-        title: 'Profile And Sign-In',
-        description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About, and in local mode you will also see Sign In / Cloud Sync.',
+        title: 'Profile',
+        description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About.',
       },
       {
         element: '#floating-ai-assistant-trigger',
