@@ -1263,6 +1263,8 @@ export function prepareTaskForExport(
         status: getStatusDisplayName(task.status, uiConfig),
         developers: (task.developers || []).map(id => devIdToName.get(id) || id),
         testers: (task.testers || []).map(id => testerIdToName.get(id) || id),
+        parentTaskId: task.parentTaskId ?? null,
+        linkedTaskIds: Array.isArray(task.linkedTaskIds) ? [...new Set(task.linkedTaskIds.filter(Boolean))] : [],
         customFields: normalizeTaskCustomFieldsForExport(task, uiConfig),
     };
 }
@@ -1996,6 +1998,10 @@ function sanitizeTaskTemplateData(taskData: Partial<Task>): Partial<Task> {
         relevantEnvironments: rest.relevantEnvironments || ['dev', 'stage', 'production'],
         summary: rest.summary ?? null,
         azureWorkItemId: rest.azureWorkItemId || '',
+        parentTaskId: typeof rest.parentTaskId === 'string' && rest.parentTaskId.trim().length > 0 ? rest.parentTaskId : null,
+        linkedTaskIds: Array.isArray(rest.linkedTaskIds)
+            ? [...new Set(rest.linkedTaskIds.filter((item): item is string => typeof item === 'string' && item.trim().length > 0))]
+            : [],
     });
 }
 
@@ -2479,6 +2485,149 @@ export function getTaskById(id: string): Task | undefined {
            appData.companyData[companyId].trash.find(t => t.id === id);
 }
 
+function normalizeTaskRelationshipIds(ids: string[] | undefined, activeTasks: Task[], selfTaskId: string): string[] {
+    const activeTaskIds = new Set(activeTasks.map(task => task.id));
+    const normalized = Array.isArray(ids) ? ids : [];
+    return [...new Set(normalized.filter((value): value is string => typeof value === 'string' && value.length > 0))]
+        .filter(taskId => taskId !== selfTaskId && activeTaskIds.has(taskId));
+}
+
+function collectDescendantTaskIds(tasks: Task[], taskId: string): Set<string> {
+    const descendants = new Set<string>();
+    const queue = tasks
+        .filter(task => task.parentTaskId === taskId)
+        .map(task => task.id);
+
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        if (!currentId || descendants.has(currentId)) continue;
+        descendants.add(currentId);
+        tasks.forEach(task => {
+            if (task.parentTaskId === currentId && !descendants.has(task.id)) {
+                queue.push(task.id);
+            }
+        });
+    }
+
+    return descendants;
+}
+
+function resolveParentTaskId(parentTaskId: string | null | undefined, activeTasks: Task[], selfTaskId: string): string | null {
+    if (!parentTaskId) return null;
+    if (parentTaskId === selfTaskId) {
+        throw new Error('A task cannot be its own parent.');
+    }
+
+    const parentTask = activeTasks.find(task => task.id === parentTaskId);
+    if (!parentTask) {
+        return null;
+    }
+
+    const descendantIds = collectDescendantTaskIds(activeTasks, selfTaskId);
+    if (descendantIds.has(parentTaskId)) {
+        throw new Error('A task cannot be assigned to one of its subtasks as the parent.');
+    }
+
+    return parentTaskId;
+}
+
+function syncLinkedTaskRelationships(tasks: Task[], sourceTaskId: string, previousLinkedTaskIds: string[], nextLinkedTaskIds: string[]): string[] {
+    const changedTaskIds = new Set<string>();
+    const previousSet = new Set(previousLinkedTaskIds);
+    const nextSet = new Set(nextLinkedTaskIds);
+
+    tasks.forEach(task => {
+        if (task.id === sourceTaskId) return;
+
+        const hadLink = previousSet.has(task.id);
+        const shouldHaveLink = nextSet.has(task.id);
+        if (hadLink === shouldHaveLink) return;
+
+        const currentLinkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, tasks, task.id);
+        const updatedLinkedTaskIds = shouldHaveLink
+            ? [...new Set([...currentLinkedTaskIds, sourceTaskId])]
+            : currentLinkedTaskIds.filter(linkedTaskId => linkedTaskId !== sourceTaskId);
+
+        task.linkedTaskIds = updatedLinkedTaskIds;
+        task.updatedAt = new Date().toISOString();
+        changedTaskIds.add(task.id);
+    });
+
+    return [...changedTaskIds];
+}
+
+export function getChildTasks(parentTaskId: string): Task[] {
+    if (!parentTaskId) return [];
+    return getTasks().filter(task => task.parentTaskId === parentTaskId);
+}
+
+export function getLinkedTasks(taskId: string): Task[] {
+    const task = getTaskById(taskId);
+    if (!task) return [];
+
+    const activeTasks = getTasks();
+    const linkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+    return linkedTaskIds
+        .map(linkedTaskId => activeTasks.find(activeTask => activeTask.id === linkedTaskId))
+        .filter((linkedTask): linkedTask is Task => !!linkedTask);
+}
+
+export function syncTaskSubtasks(parentTaskId: string, nextSubtaskIds: string[]): string[] {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const activeTasks = data.companyData[companyId].tasks;
+    const parentTask = activeTasks.find(task => task.id === parentTaskId);
+
+    if (!parentTask) return [];
+
+    const normalizedSubtaskIds = normalizeTaskRelationshipIds(nextSubtaskIds, activeTasks, parentTaskId);
+    const currentSubtaskIds = activeTasks
+        .filter(task => task.parentTaskId === parentTaskId)
+        .map(task => task.id);
+    const nextSubtaskIdSet = new Set(normalizedSubtaskIds);
+    const changedTaskIds = new Set<string>();
+
+    currentSubtaskIds.forEach(subtaskId => {
+        if (nextSubtaskIdSet.has(subtaskId)) return;
+        const childTask = activeTasks.find(task => task.id === subtaskId);
+        if (!childTask) return;
+        childTask.parentTaskId = null;
+        childTask.updatedAt = new Date().toISOString();
+        changedTaskIds.add(subtaskId);
+    });
+
+    normalizedSubtaskIds.forEach(subtaskId => {
+        const childTask = activeTasks.find(task => task.id === subtaskId);
+        if (!childTask) return;
+
+        const resolvedParentTaskId = resolveParentTaskId(parentTaskId, activeTasks, childTask.id);
+        if (childTask.parentTaskId !== resolvedParentTaskId) {
+            childTask.parentTaskId = resolvedParentTaskId;
+            childTask.updatedAt = new Date().toISOString();
+            changedTaskIds.add(subtaskId);
+        }
+    });
+
+    if (changedTaskIds.size === 0) {
+        return [];
+    }
+
+    setAppData(data);
+    invalidateCurrentTaskReadCache(parentTaskId);
+    changedTaskIds.forEach(taskId => invalidateCurrentTaskReadCache(taskId));
+
+    if (getAuthMode() === 'authenticate') {
+        changedTaskIds.forEach(taskId => {
+            const changedTask = activeTasks.find(task => task.id === taskId);
+            if (changedTask) {
+                dispatchMutation('tasks', taskId, changedTask, 'update');
+            }
+        });
+    }
+
+    return [...changedTaskIds];
+}
+
 export function getRecentTasks(limitCount = 5): Task[] {
     const tasks = getTasks();
     const sevenDaysAgo = new Date();
@@ -2592,15 +2741,22 @@ export function addTask(task: Partial<Task>): Task {
     const id = createId('task-');
     const now = new Date().toISOString();
     const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
+    const activeTasks = data.companyData[companyId].tasks;
+    const parentTaskId = resolveParentTaskId(task.parentTaskId ?? null, activeTasks, id);
+    const linkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, id);
     const newTask: Task = {
         title: '', description: '', status: defaultStatus,
         priority: 'medium',
         ...task,
+        parentTaskId,
+        linkedTaskIds,
         id, createdAt: now, updatedAt: now
     } as Task;
-    data.companyData[companyId].tasks.unshift(newTask);
+    activeTasks.unshift(newTask);
+    const syncedLinkedTaskIds = syncLinkedTaskRelationships(activeTasks, id, [], linkedTaskIds);
     setAppData(data);
     invalidateCurrentTaskReadCache(newTask.id);
+    syncedLinkedTaskIds.forEach(relatedTaskId => invalidateCurrentTaskReadCache(relatedTaskId));
     
     let logMsg = `Created task "**${newTask.title}**"`;
     if (newTask.attachments && newTask.attachments.length > 0) {
@@ -2610,6 +2766,12 @@ export function addTask(task: Partial<Task>): Task {
 
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, newTask, 'create');
+        syncedLinkedTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
     return newTask;
 }
@@ -2637,20 +2799,37 @@ const formatLogVal = (val: any, key: string, uiConfig: UiConfig, peopleMap: Map<
 export function updateTask(id: string, updates: Partial<Task>, silent = false): Task | null {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    const activeTasks = data.companyData[companyId].tasks;
+    const taskIndex = activeTasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return null;
 
-    const oldTask = data.companyData[companyId].tasks[taskIndex];
-    const newTask = { ...oldTask, ...updates, updatedAt: new Date().toISOString() };
-    data.companyData[companyId].tasks[taskIndex] = newTask;
+    const oldTask = activeTasks[taskIndex];
+    const nextParentTaskId = Object.prototype.hasOwnProperty.call(updates, 'parentTaskId')
+        ? resolveParentTaskId(updates.parentTaskId ?? null, activeTasks, id)
+        : oldTask.parentTaskId ?? null;
+    const nextLinkedTaskIds = Object.prototype.hasOwnProperty.call(updates, 'linkedTaskIds')
+        ? normalizeTaskRelationshipIds(updates.linkedTaskIds, activeTasks, id)
+        : normalizeTaskRelationshipIds(oldTask.linkedTaskIds, activeTasks, id);
+    const oldLinkedTaskIds = normalizeTaskRelationshipIds(oldTask.linkedTaskIds, activeTasks, id);
+    const newTask = {
+        ...oldTask,
+        ...updates,
+        parentTaskId: nextParentTaskId,
+        linkedTaskIds: nextLinkedTaskIds,
+        updatedAt: new Date().toISOString()
+    };
+    activeTasks[taskIndex] = newTask;
+    const syncedLinkedTaskIds = syncLinkedTaskRelationships(activeTasks, id, oldLinkedTaskIds, nextLinkedTaskIds);
     setAppData(data);
     invalidateCurrentTaskReadCache(id);
+    syncedLinkedTaskIds.forEach(relatedTaskId => invalidateCurrentTaskReadCache(relatedTaskId));
 
     if (!silent) {
         const config = getUiConfig();
         const fieldLabels = new Map(config.fields.map(f => [f.key, f.label]));
         const allPeople = [...data.companyData[companyId].developers, ...data.companyData[companyId].testers];
         const peopleMap = new Map(allPeople.map(p => [p.id, p.name]));
+        const taskTitleMap = new Map(activeTasks.map(taskItem => [taskItem.id, taskItem.title]));
         
         const changes: string[] = [];
         for (const key in updates) {
@@ -2748,6 +2927,27 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
                 } else {
                     changes.push(`updated attachment details`);
                 }
+            } else if (key === 'parentTaskId') {
+                changes.push(
+                    newTask.parentTaskId
+                        ? `set **Parent Task** to *${taskTitleMap.get(newTask.parentTaskId) || 'Unknown task'}*`
+                        : 'cleared **Parent Task**'
+                );
+            } else if (key === 'linkedTaskIds') {
+                const previousLinkedSet = new Set(oldLinkedTaskIds);
+                const nextLinkedSet = new Set(nextLinkedTaskIds);
+                const addedLinks = nextLinkedTaskIds.filter(linkedTaskId => !previousLinkedSet.has(linkedTaskId));
+                const removedLinks = oldLinkedTaskIds.filter(linkedTaskId => !nextLinkedSet.has(linkedTaskId));
+
+                if (addedLinks.length > 0) {
+                    changes.push(`linked **${addedLinks.length}** task(s) (${addedLinks.map(linkedTaskId => `*${taskTitleMap.get(linkedTaskId) || linkedTaskId}*`).join(', ')})`);
+                }
+                if (removedLinks.length > 0) {
+                    changes.push(`unlinked **${removedLinks.length}** task(s) (${removedLinks.map(linkedTaskId => `*${taskTitleMap.get(linkedTaskId) || linkedTaskId}*`).join(', ')})`);
+                }
+                if (addedLinks.length === 0 && removedLinks.length === 0) {
+                    changes.push('updated **Linked Tasks**');
+                }
             } else if (key === 'customFields') {
                 const cfs = newVal as Record<string, any>;
                 const oldCfs = oldVal as Record<string, any> || {};
@@ -2772,6 +2972,12 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, newTask, 'update');
+        syncedLinkedTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
     return newTask;
 }
@@ -3591,10 +3797,34 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             dueReminderBackupPreset: t.dueReminderBackupPreset || null,
             reminder: t.reminder || null,
             reminderExpiresAt: t.reminderExpiresAt || null,
+            parentTaskId: typeof t.parentTaskId === 'string' && t.parentTaskId.trim().length > 0 ? t.parentTaskId : null,
+            linkedTaskIds: Array.isArray(t.linkedTaskIds)
+                ? [...new Set(t.linkedTaskIds.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0))]
+                : [],
         });
         
         if (processedTasks.length % 100 === 0) await new Promise(r => setTimeout(r, 0));
     }
+
+    const processedTaskIdSet = new Set(processedTasks.map(task => task.id));
+    processedTasks.forEach(task => {
+        const remappedParentTaskId =
+            typeof task.parentTaskId === 'string' && task.parentTaskId.trim().length > 0
+                ? (taskIdMap.get(task.parentTaskId) || null)
+                : null;
+
+        task.parentTaskId = remappedParentTaskId && processedTaskIdSet.has(remappedParentTaskId) && remappedParentTaskId !== task.id
+            ? remappedParentTaskId
+            : null;
+
+        const remappedLinkedTaskIds = Array.isArray(task.linkedTaskIds)
+            ? task.linkedTaskIds
+                .map((linkedTaskId: string) => taskIdMap.get(linkedTaskId) || null)
+                .filter((linkedTaskId: string | null): linkedTaskId is string => !!linkedTaskId && linkedTaskId !== task.id && processedTaskIdSet.has(linkedTaskId))
+            : [];
+
+        task.linkedTaskIds = [...new Set(remappedLinkedTaskIds)];
+    });
 
     const processedNotes = jsonNotes.map((n: any) => ({
         ...n,

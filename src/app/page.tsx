@@ -1547,7 +1547,7 @@ export default function Home() {
     try {
         await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save', filename, (p) => {
             triggerTransfer({ id: transferId, filename, status: 'generating', progress: p });
-        });
+        }, tasks);
         triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'PDF Exported', description: `Download for ${selectedTasks.length} task(s) is ready.` });
     } catch (e) {

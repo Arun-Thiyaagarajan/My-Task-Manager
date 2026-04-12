@@ -274,6 +274,13 @@ function buildImportTaskPayload(
     relevantEnvironments,
     attachments: Array.isArray(normalizedTask.attachments) ? normalizedTask.attachments : [],
     comments: Array.isArray(normalizedTask.comments) ? normalizedTask.comments : [],
+    parentTaskId:
+      typeof normalizedTask.parentTaskId === 'string' && normalizedTask.parentTaskId.trim().length > 0
+        ? normalizedTask.parentTaskId
+        : null,
+    linkedTaskIds: Array.isArray(normalizedTask.linkedTaskIds)
+      ? [...new Set(normalizedTask.linkedTaskIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))]
+      : [],
     customFields:
       normalizedTask.customFields && typeof normalizedTask.customFields === 'object'
         ? normalizedTask.customFields

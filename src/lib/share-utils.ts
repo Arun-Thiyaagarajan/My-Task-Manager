@@ -188,12 +188,19 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
+const resolveRelationshipTitle = (taskId: string, allTasks?: Task[]) => {
+    if (!taskId) return '';
+    const matchedTask = allTasks?.find(task => task.id === taskId);
+    return matchedTask?.title || taskId;
+};
+
 const _drawTaskOnPage = async (
     doc: jsPDF,
     task: Task,
     uiConfig: UiConfig,
     developers: Person[],
-    testers: Person[]
+    testers: Person[],
+    allTasks?: Task[]
 ) => {
     let y = 0;
     const statusAssets = await prepareStatusPdfAssets(task, uiConfig);
@@ -424,6 +431,21 @@ const _drawTaskOnPage = async (
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
     drawKeyValue(fieldLabels.get('priority') || 'Priority', getTaskPriorityLabel(task.priority));
     drawKeyValue(fieldLabels.get('dueAt') || 'Due Date', getTaskDueLabel(task));
+    if (task.parentTaskId) {
+        drawKeyValue('Parent Task', resolveRelationshipTitle(task.parentTaskId, allTasks));
+    }
+    const subtaskTitles = allTasks
+        ? allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.title)
+        : [];
+    if (subtaskTitles.length > 0) {
+        drawKeyValue('Subtasks', subtaskTitles.join(', '));
+    }
+    if (task.linkedTaskIds && task.linkedTaskIds.length > 0) {
+        const linkedTaskTitles = task.linkedTaskIds.map(linkedTaskId => resolveRelationshipTitle(linkedTaskId, allTasks)).filter(Boolean);
+        if (linkedTaskTitles.length > 0) {
+            drawKeyValue('Linked Tasks', linkedTaskTitles.join(', '));
+        }
+    }
     if (isRepositoryFieldActive(uiConfig) && visibleRepositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', visibleRepositories.join(', '));
     }
@@ -577,7 +599,8 @@ export const generateTaskPdf = async (
     testers: Person[], 
     outputType: 'save' | 'blob' = 'save',
     filename?: string,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    allTasks?: Task[]
 ): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const tasksArray = Array.isArray(tasks) ? tasks : [tasks];
@@ -587,7 +610,7 @@ export const generateTaskPdf = async (
         if (i > 0) {
             doc.addPage();
         }
-        await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+        await _drawTaskOnPage(doc, task, uiConfig, developers, testers, allTasks);
         if (onProgress) {
             onProgress(Math.round(((i + 1) / tasksArray.length) * 100));
         }

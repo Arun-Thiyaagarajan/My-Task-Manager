@@ -92,6 +92,9 @@ export const createTaskSchema = (
     repositories: z.array(z.string()).optional(),
     developers: z.array(z.string()).optional(),
     testers: z.array(z.string()).optional(),
+    parentTaskId: z.string().optional().nullable(),
+    subtaskTaskIds: z.array(z.string()).optional(),
+    linkedTaskIds: z.array(z.string()).optional(),
     tags: z.array(z.string()).optional(),
     azureWorkItemId: z.string().regex(/^\d*$/, { message: "Please enter a valid work item ID." }).optional().or(z.literal('')),
     

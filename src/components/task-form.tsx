@@ -60,9 +60,11 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TASK_PRIORITY_OPTIONS } from '@/lib/task-planning';
 import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
+type TaskSubmitData = Partial<Task> & { subtaskTaskIds?: string[] };
 
 interface TaskFormProps {
   task?: Partial<Task>;
@@ -108,7 +110,27 @@ const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | 
     return Object.keys(normalized).length > 0 ? normalized : undefined;
 };
 
-const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
+const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> => {
+    const descendants = new Set<string>();
+    const queue = tasks
+        .filter(candidate => candidate.parentTaskId === taskId)
+        .map(candidate => candidate.id);
+
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        if (!currentId || descendants.has(currentId)) continue;
+        descendants.add(currentId);
+        tasks.forEach(candidate => {
+            if (candidate.parentTaskId === currentId && !descendants.has(candidate.id)) {
+                queue.push(candidate.id);
+            }
+        });
+    }
+
+    return descendants;
+};
+
+const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null, allTasks: Task[] = []) => {
     const defaults: any = {
         title: '',
         description: '',
@@ -122,6 +144,9 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         repositories: [],
         developers: [],
         testers: [],
+        parentTaskId: null,
+        subtaskTaskIds: [],
+        linkedTaskIds: [],
         tags: [],
         prLinks: {},
         deploymentStatus: {},
@@ -188,6 +213,9 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : defaults.relevantEnvironments,
         developers: task.developers || defaults.developers,
         testers: task.testers || defaults.testers,
+        parentTaskId: task.parentTaskId ?? defaults.parentTaskId,
+        subtaskTaskIds: task.id ? allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.id) : defaults.subtaskTaskIds,
+        linkedTaskIds: task.linkedTaskIds || defaults.linkedTaskIds,
         tags: task.tags || defaults.tags,
         azureWorkItemId: task.azureWorkItemId || defaults.azureWorkItemId,
         summary: task.summary ?? defaults.summary,
@@ -299,7 +327,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(dynamicTaskSchema),
-    defaultValues: getInitialTaskData(task, getUiConfig()),
+    defaultValues: getInitialTaskData(task, getUiConfig(), allTasks || []),
   });
 
   const { formState: { isDirty, errors } } = form;
@@ -313,7 +341,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   useEffect(() => {
     const currentUiConfig = getUiConfig();
-    const initialData = getInitialTaskData(task, currentUiConfig);
+    const initialData = getInitialTaskData(task, currentUiConfig, allTasks || []);
     initialData.status = getStatusDisplayName(initialData.status || currentUiConfig?.taskStatuses?.[0] || 'To Do', currentUiConfig);
     form.reset(initialData);
     form.clearErrors();
@@ -333,7 +361,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             console.error("Failed to load draft:", e);
         }
     }
-  }, [task, form.reset, uiConfig, draftKey]);
+  }, [task, form.reset, uiConfig, draftKey, allTasks]);
 
   // Auto-save draft logic
   const watchedValues = form.watch();
@@ -555,6 +583,26 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const watchedRepositories = form.watch('repositories', []);
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
+  const relationshipTasks = useMemo(() => {
+    return (allTasks || [])
+      .filter(candidate => !candidate.deletedAt && candidate.id !== task?.id)
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [allTasks, task?.id]);
+  const descendantTaskIds = useMemo(() => {
+    if (!task?.id) return new Set<string>();
+    return collectDescendantTaskIds(allTasks || [], task.id);
+  }, [allTasks, task?.id]);
+  const parentTaskOptions = useMemo(() => {
+    return relationshipTasks
+      .filter(candidate => !descendantTaskIds.has(candidate.id))
+      .map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [descendantTaskIds, relationshipTasks]);
+  const subtaskTaskOptions = useMemo(() => {
+    return relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [relationshipTasks]);
+  const linkedTaskOptions = useMemo(() => {
+    return relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [relationshipTasks]);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
   const isRepositoryFieldVisible = isRepositoryFieldActive(uiConfig);
@@ -631,9 +679,12 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       }
   };
 
-  const normalizeTaskFormData = (data: TaskFormData): Partial<Task> => ({
+  const normalizeTaskFormData = (data: TaskFormData): TaskSubmitData => ({
     ...data,
     priority: data.priority || 'medium',
+    parentTaskId: data.parentTaskId || null,
+    subtaskTaskIds: [...new Set((data.subtaskTaskIds || []).filter(Boolean))],
+    linkedTaskIds: [...new Set((data.linkedTaskIds || []).filter(Boolean))],
     dueAt: data.dueAt ? data.dueAt.toISOString() : null,
     dueCompletedAt: data.dueCompletedAt ? data.dueCompletedAt.toISOString() : null,
     dueReminderAt: data.dueReminderAt ? data.dueReminderAt.toISOString() : null,
@@ -690,7 +741,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const handleClearForm = useCallback(() => {
     if (!uiConfig) return;
 
-    form.reset(getInitialTaskData(undefined, uiConfig));
+    form.reset(getInitialTaskData(undefined, uiConfig, allTasks || []));
     form.clearErrors();
     skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
@@ -707,7 +758,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     window.setTimeout(() => {
       skipDraftAutosaveRef.current = false;
     }, 0);
-  }, [uiConfig, form, draftKey, toast]);
+  }, [uiConfig, form, draftKey, toast, allTasks]);
 
   const canUseTemplates = showTemplateTools && !task?.id;
   const canManageTemplates = canUseTemplates && !!onSaveTaskTemplate && !isMobile;
@@ -739,7 +790,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!templateToApply) return;
 
     resetDraftForTemplateAction();
-    form.reset(getInitialTaskData(templateToApply.taskData, uiConfig));
+    form.reset(getInitialTaskData(templateToApply.taskData, uiConfig, allTasks || []));
     form.clearErrors();
     setSelectedTemplateId(templateId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -747,7 +798,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       title: 'Template applied',
       description: `"${templateToApply.name}" filled the form.`,
     });
-  }, [form, handleClearForm, resetDraftForTemplateAction, taskTemplates, toast, uiConfig]);
+  }, [form, handleClearForm, resetDraftForTemplateAction, taskTemplates, toast, uiConfig, allTasks]);
 
   const handleOpenTemplateDialog = useCallback(() => {
     if (isMobile) return;
@@ -1101,6 +1152,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         }
     });
 
+    sections.push({
+        id: 'relationships',
+        label: 'Relationships',
+        icon: Link2,
+        fields: [
+            { id: 'field-container-parentTaskId', label: 'Parent Task' },
+            { id: 'field-container-subtaskTaskIds', label: 'Subtasks' },
+            { id: 'field-container-linkedTaskIds', label: 'Linked Tasks' },
+        ]
+    });
     if ((uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive)) {
         sections.push({ 
             id: 'attachments', 
@@ -1125,7 +1186,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             fields: []
         });
     }
-
     return sections;
   }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields, showPrLinksSection]);
 
@@ -1682,49 +1742,132 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
                                 {(groupedFields[groupName] || []).map(field => {
-                                  if (field.key === 'status') {
-                                    return (
-                                      <div key={`${field.id}-with-priority`} className="max-w-full overflow-hidden md:col-span-2">
-                                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                          <div>{renderField(field)}</div>
-                                          <FormField
-                                            control={form.control}
-                                            name="priority"
-                                            render={({ field: priorityField }) => (
-                                              <FormItem id="field-container-priority" className="scroll-mt-32">
-                                                <FormLabel className="font-medium">Priority</FormLabel>
-                                                <Select value={priorityField.value || 'medium'} onValueChange={priorityField.onChange}>
-                                                  <FormControl>
-                                                    <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
-                                                      <SelectValue placeholder="Select priority" />
-                                                    </SelectTrigger>
-                                                  </FormControl>
-                                                  <SelectContent>
-                                                    {TASK_PRIORITY_OPTIONS.map((option) => (
-                                                      <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                                <FormDescription className="text-xs">
-                                                  Due dates, due reminders, and reminder notes can be managed from the planning popup on the task detail page.
-                                                </FormDescription>
-                                                <FormMessage />
-                                              </FormItem>
-                                            )}
-                                          />
+                                    if (field.key === 'status') {
+                                        return (
+                                        <div key={`${field.id}-with-priority`} className="max-w-full overflow-hidden md:col-span-2">
+                                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                            <div>{renderField(field)}</div>
+                                            <FormField
+                                                control={form.control}
+                                                name="priority"
+                                                render={({ field: priorityField }) => (
+                                                <FormItem id="field-container-priority" className="scroll-mt-32">
+                                                    <FormLabel className="font-medium">Priority</FormLabel>
+                                                    <Select value={priorityField.value || 'medium'} onValueChange={priorityField.onChange}>
+                                                    <FormControl>
+                                                        <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
+                                                        <SelectValue placeholder="Select priority" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {TASK_PRIORITY_OPTIONS.map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                    </Select>
+                                                    <FormDescription className="text-xs">
+                                                    Due dates, due reminders, and reminder notes can be managed from the planning popup on the task detail page.
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            </div>
                                         </div>
-                                      </div>
-                                    );
-                                  }
+                                        );
+                                    }
 
-                                  return <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>;
+                                    return <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>;
                                 })}
                             </CardContent>
                         </Card>
                     )
                 })}
+
+                <Card id="relationships" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight uppercase tracking-wide">
+                            <Link2 className="h-5 w-5 text-primary" />
+                            Relationships
+                        </CardTitle>
+                        <CardDescription>
+                            Link this task to a parent task or connect it with other related tasks without changing the existing layout flow.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                        <FormField
+                            control={form.control}
+                            name="parentTaskId"
+                            render={({ field }) => (
+                                <FormItem id="field-container-parentTaskId" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Parent Task</FormLabel>
+                                    <FormControl>
+                                        <SearchableSingleSelect
+                                            options={parentTaskOptions}
+                                            value={field.value ?? null}
+                                            onChange={field.onChange}
+                                            placeholder="Select parent task..."
+                                            emptyLabel="No parent task"
+                                            className={premiumOutlineButtonClassName}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        Subtasks are full tasks. Choosing a parent makes this task appear under that parent&apos;s subtask list.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="subtaskTaskIds"
+                            render={({ field }) => (
+                                <FormItem id="field-container-subtaskTaskIds" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Subtasks</FormLabel>
+                                    <FormControl>
+                                        <MultiSelect
+                                            selected={field.value ?? []}
+                                            onChange={field.onChange}
+                                            options={task?.id ? subtaskTaskOptions : []}
+                                            placeholder={task?.id ? "Select subtasks..." : "Save this task first to add subtasks..."}
+                                            className={cn("font-normal", premiumSurfaceFocusClassName)}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        {task?.id
+                                            ? 'Selected tasks will become child tasks of the current task.'
+                                            : 'Create the task first, then you can assign existing tasks as subtasks.'}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="linkedTaskIds"
+                            render={({ field }) => (
+                                <FormItem id="field-container-linkedTaskIds" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Linked Tasks</FormLabel>
+                                    <FormControl>
+                                        <MultiSelect
+                                            selected={field.value ?? []}
+                                            onChange={field.onChange}
+                                            options={linkedTaskOptions}
+                                            placeholder="Link other tasks..."
+                                            className={cn("font-normal", premiumSurfaceFocusClassName)}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        Linked tasks stay as lightweight references and will appear in the task detail view.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
 
                 {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
                     <Card id="attachments" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">

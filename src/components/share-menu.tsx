@@ -56,6 +56,7 @@ interface ShareMenuProps {
   uiConfig: UiConfig;
   developers: Person[];
   testers: Person[];
+  allTasks?: Task[];
   attachment?: Attachment;
   children: React.ReactNode;
   asSubmenu?: boolean;
@@ -71,7 +72,7 @@ const expiryOptions = [
 const compactItemClassName =
   'min-h-0 rounded-lg px-2 py-1.5 text-[13px] font-medium text-foreground/92 hover:bg-white/[0.05] focus:bg-white/[0.05]';
 
-export function ShareMenu({ task, uiConfig, developers, testers, children, asSubmenu = false }: ShareMenuProps) {
+export function ShareMenu({ task, uiConfig, developers, testers, allTasks, children, asSubmenu = false }: ShareMenuProps) {
   const { toast } = useToast();
   const [hasCopiedShareUrl, setHasCopiedShareUrl] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
@@ -279,7 +280,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, children, asSub
     try {
       await generateTaskPdf([task], uiConfig, developers, testers, 'save', filename, (progress) => {
         triggerTransfer({ id: transferId, filename, status: 'generating', progress });
-      });
+      }, allTasks);
       triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
       addLog({ message: `Exported task "**${task.title}**" as PDF.`, taskId: task.id });
     } catch {

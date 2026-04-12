@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getDevelopers, updateTask, getTesters, getUiConfig, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
+import { getDevelopers, updateTask, getTesters, getUiConfig, getTaskById as getDirectTaskById, getTasks as getDirectTasks, syncTaskSubtasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter } from 'next/navigation';
 import { TaskForm } from '@/components/task-form';
@@ -96,7 +96,7 @@ export default function EditTaskPage() {
       return;
     }
     
-    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
+    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, subtaskTaskIds, ...otherData } = validationResult.data;
 
 	    const taskDataToUpdate: Partial<Task> = {
 	        ...otherData,
@@ -129,15 +129,24 @@ export default function EditTaskPage() {
         }, {} as { [key: string]: string | null });
     }
 
-    updateTask(task.id, taskDataToUpdate);
+    try {
+      updateTask(task.id, taskDataToUpdate);
+      syncTaskSubtasks(task.id, subtaskTaskIds || []);
 
-    toast({
-        variant: 'success',
-        title: `Task updated`,
-        description: "Your changes have been saved.",
-    });
+      toast({
+          variant: 'success',
+          title: `Task updated`,
+          description: "Your changes have been saved.",
+      });
 
-    router.push(`/tasks/${task.id}`);
+      router.push(`/tasks/${task.id}`);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not update task',
+        description: error instanceof Error ? error.message : 'Please review the task relationships and try again.',
+      });
+    }
   };
 
   if (isLoading) {

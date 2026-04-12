@@ -229,6 +229,8 @@ export interface Task {
   relevantEnvironments?: string[];
   developers?: string[]; // Storing Person IDs
   testers?: string[]; // Storing Person IDs
+  parentTaskId?: string | null;
+  linkedTaskIds?: string[];
   comments?: Comment[];
   attachments?: Attachment[];
   

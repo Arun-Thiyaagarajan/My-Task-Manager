@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport } from '@/lib/data';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport, syncTaskSubtasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -27,7 +27,6 @@ import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { attachmentSchema } from '@/lib/validators';
-import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -62,6 +61,8 @@ import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from 
 import { TaskPriorityBadge } from '@/components/task-priority-badge';
 import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasCompletedDue, hasDueReminder, hasParkedDueReminder, parseTaskDate } from '@/lib/task-planning';
 import { TaskPlanningEditor } from '@/components/task-planning-editor';
+import { TaskRelationshipsSection } from '@/components/task-relationships-section';
+import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -74,6 +75,26 @@ const isImageUrl = (url: string): boolean => {
 };
 
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
+
+const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> => {
+  const descendants = new Set<string>();
+  const queue = tasks
+    .filter(candidate => candidate.parentTaskId === taskId)
+    .map(candidate => candidate.id);
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || descendants.has(currentId)) continue;
+    descendants.add(currentId);
+    tasks.forEach(candidate => {
+      if (candidate.parentTaskId === currentId && !descendants.has(candidate.id)) {
+        queue.push(candidate.id);
+      }
+    });
+  }
+
+  return descendants;
+};
 
 
 export default function TaskPage() {
@@ -101,8 +122,6 @@ export default function TaskPage() {
   const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
   const [newLink, setNewLink] = useState({ name: '', url: '' });
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
-  const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -158,6 +177,28 @@ export default function TaskPage() {
     if (!dueDate || task?.dueCompletedAt) return false;
     return dueDate.getTime() < Date.now();
   }, [task?.dueAt, task?.dueCompletedAt]);
+  const relationshipTasks = useMemo(
+    () => allTasks.filter(candidate => !candidate.deletedAt && candidate.id !== task?.id).sort((a, b) => a.title.localeCompare(b.title)),
+    [allTasks, task?.id]
+  );
+  const descendantTaskIds = useMemo(
+    () => (task?.id ? collectDescendantTaskIds(allTasks, task.id) : new Set<string>()),
+    [allTasks, task?.id]
+  );
+  const parentTaskOptions = useMemo(
+    () => relationshipTasks
+      .filter(candidate => !descendantTaskIds.has(candidate.id))
+      .map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [descendantTaskIds, relationshipTasks]
+  );
+  const subtaskTaskOptions = useMemo(
+    () => relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [relationshipTasks]
+  );
+  const linkedTaskOptions = useMemo(
+    () => relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [relationshipTasks]
+  );
   
   const loadData = useCallback(() => {
     if (taskId) {
@@ -275,74 +316,6 @@ export default function TaskPage() {
   }, [ATTACHMENTS_ACCORDION_STORAGE_KEY]);
 
   useEffect(() => {
-    if (!task || task.deletedAt) {
-      setRelatedTasks([]);
-      setRelatedTasksTitle('');
-      return;
-    }
-    
-    const allDevs = getDevelopers();
-    const tasksForRelated = getTasks().filter(t => t.id !== task.id);
-    const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
-
-    if (task.developers && task.developers.length > 0) {
-        const primaryDevId = task.developers[0];
-        const primaryDev = allDevs.find(d => d.id === primaryDevId);
-        if (primaryDev) {
-            strategies.push(() => {
-              const related = tasksForRelated.filter(t => t.developers?.includes(primaryDevId));
-              return related.length > 0 ? {
-                title: `More from ${primaryDev.name}`,
-                tasks: related
-              } : null;
-            });
-        }
-    }
-
-    if (task.repositories && Array.isArray(task.repositories) && task.repositories.length > 0) {
-        const primaryRepo = task.repositories[0];
-        strategies.push(() => {
-          const related = tasksForRelated.filter(t => {
-              const repos = Array.isArray(t.repositories) ? t.repositories : [];
-              return repos.includes(primaryRepo);
-          });
-          return related.length > 0 ? {
-            title: `More in ${primaryRepo}`,
-            tasks: related
-          } : null;
-        });
-    }
-
-    if (task.devStartDate) {
-        const taskDate = new Date(task.devStartDate);
-        const taskMonth = taskDate.getMonth();
-        const taskYear = taskDate.getFullYear();
-        strategies.push(() => {
-          const related = tasksForRelated.filter(t => {
-              if (!t.devStartDate) return false;
-              const otherDate = new Date(t.devStartDate);
-              return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
-          });
-          return related.length > 0 ? {
-            title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
-            tasks: related
-          } : null;
-        });
-    }
-    
-    const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
-
-    if (validStrategies.length > 0) {
-        const randomIndex = Math.floor(Math.random() * validStrategies.length);
-        const selectedStrategy = validStrategies[randomIndex];
-        
-        const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-        setRelatedTasks(shuffled.slice(0, 4));
-        setRelatedTasksTitle(selectedStrategy.title);
-    }
-  }, [task]);
-  
-  useEffect(() => {
     if (editingSection === 'title' && titleInputRef.current) {
         titleInputRef.current.focus();
         titleInputRef.current.select();
@@ -361,6 +334,14 @@ export default function TaskPage() {
         testers: task.testers || [],
         repositories: task.repositories || [],
         azureWorkItemId: task.azureWorkItemId || '',
+      });
+      return;
+    }
+    if (section === 'relationships') {
+      setEditingValue({
+        parentTaskId: task.parentTaskId || null,
+        subtaskTaskIds: allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.id),
+        linkedTaskIds: task.linkedTaskIds || [],
       });
       return;
     }
@@ -451,6 +432,41 @@ export default function TaskPage() {
       });
     }
     handleCancelEditing();
+  };
+
+  const handleSaveRelationshipsEditing = async () => {
+    if (!task || !editingValue || typeof editingValue !== 'object') return;
+
+    const nextRelationships = editingValue as {
+      parentTaskId?: string | null;
+      subtaskTaskIds?: string[];
+      linkedTaskIds?: string[];
+    };
+
+    try {
+      const updatedTask = updateTask(task.id, {
+        parentTaskId: nextRelationships.parentTaskId || null,
+        linkedTaskIds: [...new Set((nextRelationships.linkedTaskIds || []).filter(Boolean))],
+      });
+      syncTaskSubtasks(task.id, nextRelationships.subtaskTaskIds || []);
+      if (updatedTask) {
+        setTask(updatedTask);
+        setAllTasks(getTasks());
+        setTaskLogs(getLogsForTask(task.id));
+        toast({
+          variant: 'success',
+          title: 'Relationships Updated',
+          description: 'Your changes have been saved.',
+        });
+      }
+      handleCancelEditing();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not update relationships',
+        description: error instanceof Error ? error.message : 'Please review the selected tasks and try again.',
+      });
+    }
   };
 
   const handleTogglePin = (taskIdToToggle: string) => {
@@ -1123,12 +1139,16 @@ const handleCopyDescription = () => {
   }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
-
   const prField = shouldShowPrLinks(uiConfig) ? (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) : undefined;
   const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned;
+  const shouldShowRelationshipsSection =
+    !isBinned ||
+    !!task.parentTaskId ||
+    (task.linkedTaskIds || []).length > 0 ||
+    allTasks.some(candidate => candidate.parentTaskId === task.id);
   const sectionCardClassName = "rounded-[1.35rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.005),rgba(255,255,255,0.001))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_40px_-32px_rgba(15,23,42,0.24)]";
   const sectionHeaderClassName = "space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6";
   const sectionTitleClassName = "text-[1.06rem] font-semibold tracking-tight text-foreground";
@@ -1179,7 +1199,7 @@ const handleCopyDescription = () => {
             </div>
           ) : (
             <div className="flex gap-1.5 sm:gap-2">
-                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
+                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers} allTasks={allTasks}>
                     <Button
                         variant="outline"
                         size={isMobile ? "icon" : "sm"}
@@ -1767,7 +1787,7 @@ const handleCopyDescription = () => {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/attachment:opacity-100">
-                                        <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers} attachment={att}>
+                                        <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers} allTasks={allTasks} attachment={att}>
                                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/60">
                                             <Share className="h-4 w-4 text-muted-foreground" />
                                           </Button>
@@ -2100,8 +2120,9 @@ const handleCopyDescription = () => {
                     <h4 className="mb-1.5 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Important Dates</h4>
                     <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} onDeploymentDateUpdate={handleDeploymentDateUpdate} isBinned={isBinned}/>
                   </div>
-                </CardContent>
+              </CardContent>
             </Card>
+
           </div>
         </div>
         
@@ -2114,18 +2135,83 @@ const handleCopyDescription = () => {
             )}
         </div>
 
-        {!isBinned && relatedTasks.length > 0 && (
-          <div className="mt-8 lg:col-span-3">
-            <RelatedTasksSection
-              title={relatedTasksTitle}
-              tasks={relatedTasks}
-              onTaskUpdate={loadData}
-              uiConfig={uiConfig}
-              developers={developers}
-              testers={testers}
-              pinnedTaskIds={pinnedTaskIds}
-              onPinToggle={handleTogglePin}
-            />
+        {shouldShowRelationshipsSection && (
+          <div className="mt-8 lg:mt-10">
+            <Card className={cn("h-fit w-full", sectionCardClassName)}>
+              <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+                {editingSection === 'relationships' ? (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-[1.06rem] font-semibold tracking-tight text-foreground">Relationships</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Update parent, subtasks context, and linked tasks directly from the detail view.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Parent Task</Label>
+                        <div className="mt-2">
+                          <SearchableSingleSelect
+                            options={parentTaskOptions}
+                            value={editingValue?.parentTaskId ?? null}
+                            onChange={(value) => setEditingValue((prev: any) => ({ ...(prev || {}), parentTaskId: value }))}
+                            placeholder="Select parent task..."
+                            emptyLabel="No parent task"
+                            searchPlaceholder="Search tasks..."
+                            dialogTitle="Choose parent task"
+                            dialogDescription="Search and select a single parent task."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Subtasks</Label>
+                        <div className="mt-2">
+                          <MultiSelect
+                            selected={editingValue?.subtaskTaskIds || []}
+                            onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), subtaskTaskIds: val }))}
+                            options={subtaskTaskOptions}
+                            placeholder="Select subtasks..."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Linked Tasks</Label>
+                        <div className="mt-2">
+                          <MultiSelect
+                            selected={editingValue?.linkedTaskIds || []}
+                            onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), linkedTaskIds: val }))}
+                            options={linkedTaskOptions}
+                            placeholder="Link other tasks..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-center items-center gap-2">
+                      <Button variant="ghost" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
+                      <Button onClick={handleSaveRelationshipsEditing} className="font-semibold">Save</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <TaskRelationshipsSection
+                    task={task}
+                    allTasks={allTasks}
+                    uiConfig={uiConfig}
+                    action={!isBinned ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStartEditing('relationships', {})}
+                        className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                      >
+                        <Pencil className="mr-1.5 h-3 w-3" /> Edit
+                      </Button>
+                    ) : null}
+                  />
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
