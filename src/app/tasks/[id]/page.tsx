@@ -63,7 +63,6 @@ import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLab
 import { TaskPlanningEditor } from '@/components/task-planning-editor';
 import { TaskRelationshipsSection } from '@/components/task-relationships-section';
 import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
-import { useTutorial } from '@/hooks/use-tutorial';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -101,7 +100,6 @@ const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> =>
 export default function TaskPage() {
   const { isUserLoading } = useFirebase();
   const isMobile = useIsMobile();
-  const { startTutorial } = useTutorial();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -2256,14 +2254,6 @@ const handleCopyDescription = () => {
                     returnToTaskId={previousReturnTaskId}
                     action={!isBinned ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={startTutorial}
-                          className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
-                        >
-                          <BookOpen className="mr-1.5 h-3 w-3" /> Tutorial
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
