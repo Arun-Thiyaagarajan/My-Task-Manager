@@ -151,7 +151,7 @@ export function PinnedSavedViewsStrip({
                         ))
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          This view keeps your current layout, sort, and date mode ready to reuse.
+                          This view keeps your current filters, search, sort, and date mode ready to reuse.
                         </p>
                       )}
                     </div>

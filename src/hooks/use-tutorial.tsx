@@ -212,6 +212,11 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         description: 'This page is the main operating view for a task, including status, description, reminders, and linked work.',
       },
       {
+        element: '#task-detail-relationships',
+        title: 'Task Relationships',
+        description: 'Parent task, subtasks, and linked tasks work together as one feature here. Use parent task for hierarchy, subtasks for breakdown, and linked tasks for related work that should stay separate.',
+      },
+      {
         element: '#task-detail-edit',
         title: 'Edit the Task',
         description: 'Open the full edit form when the task needs broader changes than quick inline updates.',

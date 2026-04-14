@@ -149,10 +149,15 @@ const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 const HOME_RETURN_SKELETON_MS = 220;
 
 function normalizeSavedTaskView(view: SavedTaskView, fallbackDateIso: string): SavedTaskView {
+  const normalizedState = normalizeSavedViewState(view.state, fallbackDateIso);
   return {
     ...view,
     pinned: Boolean(view.pinned),
-    state: normalizeSavedViewState(view.state, fallbackDateIso),
+    state: {
+      ...normalizedState,
+      viewMode: 'grid',
+      dateView: normalizedState.dateView === 'calendar' ? 'all' : normalizedState.dateView,
+    },
   };
 }
 
@@ -438,21 +443,24 @@ export default function Home() {
     reminderNoteFilter,
     dueReminderFilter,
   ]);
-  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => buildSavedViewState(), [buildSavedViewState]);
+  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => {
+    const snapshot = buildSavedViewState();
+    return {
+      ...snapshot,
+      viewMode: 'grid',
+      dateView: snapshot.dateView === 'calendar' ? 'all' : snapshot.dateView,
+    };
+  }, [buildSavedViewState]);
 
   const applySavedTaskView = useCallback((view: SavedTaskView) => {
     const fallbackDateIso = selectedDate?.toISOString() || new Date().toISOString();
     const state = normalizeSavedViewState(view.state, fallbackDateIso);
     const nextFilters = state.filters;
+    const nextDateView = state.dateView === 'calendar' ? 'all' : state.dateView;
 
     setIsSearching(true);
-    if (state.dateView === 'calendar') {
-      setIsSelectMode(false);
-      setSelectedTaskIds([]);
-    }
-    setViewMode(state.viewMode);
     setSortDescriptor(state.sortDescriptor);
-    setDateView(state.dateView);
+    setDateView(nextDateView);
     setFavoritesOnly(state.favoritesOnly);
     setOpenGroups(Array.isArray(state.openGroups) ? state.openGroups : []);
     setSearchQuery(state.searchQuery || '');
@@ -1810,11 +1818,12 @@ export default function Home() {
     const normalizedViewState = normalizeSavedViewState(view.state, candidateState.selectedDate);
     const viewFilters = normalizedViewState.filters;
     const currentFilters = candidateState.filters;
+    const normalizedSavedDateView = normalizedViewState.dateView === 'calendar' ? 'all' : normalizedViewState.dateView;
+    const normalizedCandidateDateView = candidateState.dateView === 'calendar' ? 'all' : candidateState.dateView;
 
     return (
-      normalizedViewState.viewMode === candidateState.viewMode &&
       normalizedViewState.sortDescriptor === candidateState.sortDescriptor &&
-      normalizedViewState.dateView === candidateState.dateView &&
+      normalizedSavedDateView === normalizedCandidateDateView &&
       normalizedViewState.favoritesOnly === candidateState.favoritesOnly &&
       normalizedViewState.searchQuery === candidateState.searchQuery &&
       (normalizedViewState.selectedDate || '') === (candidateState.selectedDate || '') &&
@@ -1895,6 +1904,7 @@ export default function Home() {
 
   const getSavedViewSummary = (view: SavedTaskView) => {
     const normalizedViewState = normalizeSavedViewState(view.state);
+    const normalizedSavedDateView = normalizedViewState.dateView === 'calendar' ? 'all' : normalizedViewState.dateView;
     const filters = normalizedViewState.filters;
     const filtersCount =
       filters.status.length +
@@ -1908,15 +1918,11 @@ export default function Home() {
       filters.dueReminder.length +
       (normalizedViewState.searchQuery ? 1 : 0);
 
-    if (normalizedViewState.dateView === 'calendar') {
-      return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Calendar`;
-    }
-
-    if (normalizedViewState.dateView === 'monthly') {
+    if (normalizedSavedDateView === 'monthly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Monthly`;
     }
 
-    if (normalizedViewState.dateView === 'yearly') {
+    if (normalizedSavedDateView === 'yearly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Yearly`;
     }
 

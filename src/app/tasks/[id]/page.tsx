@@ -8,7 +8,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookOpen, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, RotateCcw } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -63,6 +63,7 @@ import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLab
 import { TaskPlanningEditor } from '@/components/task-planning-editor';
 import { TaskRelationshipsSection } from '@/components/task-relationships-section';
 import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
+import { useTutorial } from '@/hooks/use-tutorial';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -100,6 +101,7 @@ const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> =>
 export default function TaskPage() {
   const { isUserLoading } = useFirebase();
   const isMobile = useIsMobile();
+  const { startTutorial } = useTutorial();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -2182,7 +2184,7 @@ const handleCopyDescription = () => {
         </div>
 
         {shouldShowRelationshipsSection && (
-          <div className="mt-8 lg:mt-10">
+          <div id="task-detail-relationships" className="mt-8 scroll-mt-28 lg:mt-10">
             <Card className={cn("h-fit w-full", sectionCardClassName)}>
               <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
                 {editingSection === 'relationships' ? (
@@ -2253,14 +2255,24 @@ const handleCopyDescription = () => {
                     fromTaskId={previousTaskId}
                     returnToTaskId={previousReturnTaskId}
                     action={!isBinned ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartEditing('relationships', {})}
-                        className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
-                      >
-                        <Pencil className="mr-1.5 h-3 w-3" /> Edit
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={startTutorial}
+                          className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                        >
+                          <BookOpen className="mr-1.5 h-3 w-3" /> Tutorial
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleStartEditing('relationships', {})}
+                          className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                        >
+                          <Pencil className="mr-1.5 h-3 w-3" /> Edit
+                        </Button>
+                      </div>
                     ) : null}
                   />
                 )}
