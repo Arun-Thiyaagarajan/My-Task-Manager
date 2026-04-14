@@ -2556,6 +2556,91 @@ function syncLinkedTaskRelationships(tasks: Task[], sourceTaskId: string, previo
     return [...changedTaskIds];
 }
 
+export interface TaskRelationshipReference {
+    task: Task;
+    relationLabels: string[];
+}
+
+function collectTaskRelationshipReferences(activeTasks: Task[], taskId: string): TaskRelationshipReference[] {
+    const targetTask = activeTasks.find(task => task.id === taskId);
+    if (!targetTask) return [];
+
+    const relationshipMap = new Map<string, { task: Task; relationLabels: Set<string> }>();
+    const addRelationship = (task: Task | undefined, label: string) => {
+        if (!task || task.id === taskId) return;
+        const existing = relationshipMap.get(task.id);
+        if (existing) {
+            existing.relationLabels.add(label);
+            return;
+        }
+
+        relationshipMap.set(task.id, {
+            task,
+            relationLabels: new Set([label]),
+        });
+    };
+
+    if (targetTask.parentTaskId) {
+        addRelationship(activeTasks.find(task => task.id === targetTask.parentTaskId), 'Parent');
+    }
+
+    activeTasks
+        .filter(task => task.parentTaskId === taskId)
+        .forEach(task => addRelationship(task, 'Subtask'));
+
+    const linkedTaskIdSet = new Set(normalizeTaskRelationshipIds(targetTask.linkedTaskIds, activeTasks, taskId));
+    activeTasks.forEach(task => {
+        if (task.id === taskId) return;
+        const normalizedLinkedIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+        if (normalizedLinkedIds.includes(taskId)) {
+            linkedTaskIdSet.add(task.id);
+        }
+    });
+    linkedTaskIdSet.forEach(linkedTaskId => {
+        addRelationship(activeTasks.find(task => task.id === linkedTaskId), 'Linked');
+    });
+
+    return [...relationshipMap.values()]
+        .map(entry => ({
+            task: entry.task,
+            relationLabels: [...entry.relationLabels],
+        }))
+        .sort((a, b) => a.task.title.localeCompare(b.task.title));
+}
+
+export function getTaskRelationshipReferences(taskId: string): TaskRelationshipReference[] {
+    return collectTaskRelationshipReferences(getTasks(), taskId);
+}
+
+function detachTaskRelationships(activeTasks: Task[], taskId: string): string[] {
+    const changedTaskIds = new Set<string>();
+    const now = new Date().toISOString();
+
+    activeTasks.forEach(task => {
+        if (task.id === taskId) return;
+
+        let didChange = false;
+
+        if (task.parentTaskId === taskId) {
+            task.parentTaskId = null;
+            didChange = true;
+        }
+
+        const normalizedLinkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+        if (normalizedLinkedTaskIds.includes(taskId)) {
+            task.linkedTaskIds = normalizedLinkedTaskIds.filter(linkedTaskId => linkedTaskId !== taskId);
+            didChange = true;
+        }
+
+        if (!didChange) return;
+
+        task.updatedAt = now;
+        changedTaskIds.add(task.id);
+    });
+
+    return [...changedTaskIds];
+}
+
 export function getChildTasks(parentTaskId: string): Task[] {
     if (!parentTaskId) return [];
     return getTasks().filter(task => task.parentTaskId === parentTaskId);
@@ -2985,17 +3070,29 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 export function moveTaskToBin(id: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    const activeTasks = data.companyData[companyId].tasks;
+    const taskIndex = activeTasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return;
 
-    const task = data.companyData[companyId].tasks.splice(taskIndex, 1)[0];
+    const changedRelationshipTaskIds = detachTaskRelationships(activeTasks, id);
+    const task = activeTasks.splice(taskIndex, 1)[0];
+    task.parentTaskId = null;
+    task.linkedTaskIds = [];
+    task.updatedAt = new Date().toISOString();
     task.deletedAt = new Date().toISOString();
     data.companyData[companyId].trash.unshift(task);
     setAppData(data);
     invalidateCurrentTaskReadCache(id);
+    changedRelationshipTaskIds.forEach(taskId => invalidateCurrentTaskReadCache(taskId));
     addLog({ message: `Moved task "**${task.title}**" to the bin`, taskId: id });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, task, 'update');
+        changedRelationshipTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
 }
 
