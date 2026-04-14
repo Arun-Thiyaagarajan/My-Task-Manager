@@ -583,6 +583,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const watchedRepositories = form.watch('repositories', []);
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
+  const watchedParentTaskId = form.watch('parentTaskId', null);
   const relationshipTasks = useMemo(() => {
     return (allTasks || [])
       .filter(candidate => !candidate.deletedAt && candidate.id !== task?.id)
@@ -598,11 +599,23 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       .map(candidate => ({ value: candidate.id, label: candidate.title }));
   }, [descendantTaskIds, relationshipTasks]);
   const subtaskTaskOptions = useMemo(() => {
-    return relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title }));
-  }, [relationshipTasks]);
+    return relationshipTasks
+      .filter(candidate => candidate.id !== watchedParentTaskId)
+      .map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [relationshipTasks, watchedParentTaskId]);
   const linkedTaskOptions = useMemo(() => {
     return relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title }));
   }, [relationshipTasks]);
+  useEffect(() => {
+    if (!watchedParentTaskId) return;
+    const currentSubtaskIds = form.getValues('subtaskTaskIds') || [];
+    if (!currentSubtaskIds.includes(watchedParentTaskId)) return;
+    form.setValue(
+      'subtaskTaskIds',
+      currentSubtaskIds.filter(taskId => taskId !== watchedParentTaskId),
+      { shouldDirty: true, shouldValidate: true }
+    );
+  }, [form, watchedParentTaskId]);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
   const isRepositoryFieldVisible = isRepositoryFieldActive(uiConfig);

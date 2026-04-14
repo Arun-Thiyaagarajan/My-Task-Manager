@@ -191,9 +191,19 @@ export default function TaskPage() {
       .map(candidate => ({ value: candidate.id, label: candidate.title })),
     [descendantTaskIds, relationshipTasks]
   );
+  const editingRelationshipParentTaskId = useMemo(
+    () =>
+      editingSection === 'relationships' && editingValue && typeof editingValue === 'object'
+        ? editingValue.parentTaskId || null
+        : null,
+    [editingSection, editingValue]
+  );
   const subtaskTaskOptions = useMemo(
-    () => relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title })),
-    [relationshipTasks]
+    () =>
+      relationshipTasks
+        .filter(candidate => candidate.id !== editingRelationshipParentTaskId)
+        .map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [editingRelationshipParentTaskId, relationshipTasks]
   );
   const linkedTaskOptions = useMemo(
     () => relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title })),
@@ -1074,6 +1084,10 @@ const handleCopyDescription = () => {
 
   const handleNavigateBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    if (previousTaskLink) {
+      router.push(previousTaskLink);
+      return;
+    }
     if (typeof window !== 'undefined' && !isBinned) {
       window.sessionStorage.setItem(HOME_RETURN_SKELETON_KEY, '1');
     }
@@ -1111,7 +1125,16 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = isBinned ? '/bin' : `/?${searchParams.toString()}`;
+  const previousTaskId = searchParams.get('fromTaskId');
+  const previousReturnTaskId = searchParams.get('returnToTaskId');
+  const homeSearchParams = new URLSearchParams(searchParams.toString());
+  homeSearchParams.delete('fromTaskId');
+  homeSearchParams.delete('returnToTaskId');
+  const previousTaskLink =
+    previousTaskId && previousTaskId !== task.id
+      ? `/tasks/${previousTaskId}${previousReturnTaskId ? `?fromTaskId=${previousReturnTaskId}` : ''}`
+      : null;
+  const backLink = isBinned ? '/bin' : `/?${homeSearchParams.toString()}`;
   
   const statusConfig = getStatusConfig(task.status, uiConfig);
   const { cardClassName } = statusConfig;
@@ -2156,7 +2179,13 @@ const handleCopyDescription = () => {
                           <SearchableSingleSelect
                             options={parentTaskOptions}
                             value={editingValue?.parentTaskId ?? null}
-                            onChange={(value) => setEditingValue((prev: any) => ({ ...(prev || {}), parentTaskId: value }))}
+                            onChange={(value) =>
+                              setEditingValue((prev: any) => ({
+                                ...(prev || {}),
+                                parentTaskId: value,
+                                subtaskTaskIds: ((prev?.subtaskTaskIds as string[] | undefined) || []).filter(taskId => taskId !== value),
+                              }))
+                            }
                             placeholder="Select parent task..."
                             emptyLabel="No parent task"
                             searchPlaceholder="Search tasks..."
@@ -2188,7 +2217,7 @@ const handleCopyDescription = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex justify-center items-center gap-2">
+                    <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
                       <Button variant="ghost" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
                       <Button onClick={handleSaveRelationshipsEditing} className="font-semibold">Save</Button>
                     </div>
@@ -2198,6 +2227,8 @@ const handleCopyDescription = () => {
                     task={task}
                     allTasks={allTasks}
                     uiConfig={uiConfig}
+                    fromTaskId={previousTaskId}
+                    returnToTaskId={previousReturnTaskId}
                     action={!isBinned ? (
                       <Button
                         variant="ghost"
