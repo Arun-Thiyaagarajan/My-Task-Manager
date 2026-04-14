@@ -273,7 +273,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
     triggerTransfer({
       id: transferId,
       filename,
-      status: 'generating',
+      status: 'preparing',
       progress: 0,
     });
 

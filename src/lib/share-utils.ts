@@ -3,6 +3,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
+import { getBinnedTasks, getTasks } from './data';
 import { pickDefaultIconName, resolveStatusConfig } from './status-config';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from './repository-config';
 import { getTaskDueLabel, getTaskPriorityLabel } from './task-planning';
@@ -188,9 +189,22 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
-const resolveRelationshipTitle = (taskId: string, allTasks?: Task[]) => {
+const buildRelationshipTaskPool = (task: Task, allTasks?: Task[]) => {
+    const fallbackTasks = [...getTasks(), ...getBinnedTasks()];
+    const combinedTasks = [...(allTasks || []), ...fallbackTasks, task];
+    const dedupedTasks = new Map<string, Task>();
+
+    combinedTasks.forEach(candidate => {
+        if (!candidate?.id || dedupedTasks.has(candidate.id)) return;
+        dedupedTasks.set(candidate.id, candidate);
+    });
+
+    return [...dedupedTasks.values()];
+};
+
+const resolveRelationshipTitle = (taskId: string, relationshipTasks: Task[]) => {
     if (!taskId) return '';
-    const matchedTask = allTasks?.find(task => task.id === taskId);
+    const matchedTask = relationshipTasks.find(task => task.id === taskId);
     return matchedTask?.title || taskId;
 };
 
@@ -400,6 +414,7 @@ const _drawTaskOnPage = async (
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
     const visibleRepositories = getTaskRepositories(task, uiConfig);
+    const relationshipTasks = buildRelationshipTaskPool(task, allTasks);
 
     // --- PDF DRAWING ---
     drawHeader();
@@ -432,16 +447,18 @@ const _drawTaskOnPage = async (
     drawKeyValue(fieldLabels.get('priority') || 'Priority', getTaskPriorityLabel(task.priority));
     drawKeyValue(fieldLabels.get('dueAt') || 'Due Date', getTaskDueLabel(task));
     if (task.parentTaskId) {
-        drawKeyValue('Parent Task', resolveRelationshipTitle(task.parentTaskId, allTasks));
+        drawKeyValue('Parent Task', resolveRelationshipTitle(task.parentTaskId, relationshipTasks));
     }
-    const subtaskTitles = allTasks
-        ? allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.title)
-        : [];
+    const subtaskTitles = relationshipTasks
+        .filter(candidate => candidate.parentTaskId === task.id)
+        .map(candidate => candidate.title);
     if (subtaskTitles.length > 0) {
         drawKeyValue('Subtasks', subtaskTitles.join(', '));
     }
     if (task.linkedTaskIds && task.linkedTaskIds.length > 0) {
-        const linkedTaskTitles = task.linkedTaskIds.map(linkedTaskId => resolveRelationshipTitle(linkedTaskId, allTasks)).filter(Boolean);
+        const linkedTaskTitles = task.linkedTaskIds
+            .map(linkedTaskId => resolveRelationshipTitle(linkedTaskId, relationshipTasks))
+            .filter(Boolean);
         if (linkedTaskTitles.length > 0) {
             drawKeyValue('Linked Tasks', linkedTaskTitles.join(', '));
         }
@@ -600,12 +617,18 @@ export const generateTaskPdf = async (
     outputType: 'save' | 'blob' = 'save',
     filename?: string,
     onProgress?: (progress: number) => void,
-    allTasks?: Task[]
+    allTasks?: Task[],
+    abortSignal?: AbortSignal
 ): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const tasksArray = Array.isArray(tasks) ? tasks : [tasks];
+    const tasksArray = Array.isArray(tasks)
+        ? [...tasks].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+        : [tasks];
     
     for (let i = 0; i < tasksArray.length; i++) {
+        if (abortSignal?.aborted) {
+            throw new DOMException('PDF generation cancelled.', 'AbortError');
+        }
         const task = tasksArray[i];
         if (i > 0) {
             doc.addPage();
@@ -616,6 +639,9 @@ export const generateTaskPdf = async (
         }
         // Yield to main thread to prevent blocking
         await new Promise(resolve => setTimeout(resolve, 0));
+        if (abortSignal?.aborted) {
+            throw new DOMException('PDF generation cancelled.', 'AbortError');
+        }
     }
     
     const sanitizeFilename = (name: string): string => {

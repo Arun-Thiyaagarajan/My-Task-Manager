@@ -654,27 +654,50 @@ export default function TaskPage() {
         filename: file.name,
         kind: 'upload',
         status: 'uploading',
-        progress: 0
+        progress: 10
     });
 
     const reader = new FileReader();
+    reader.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        const progress = Math.min(68, Math.round((event.loaded / event.total) * 68));
+        triggerTransfer({
+            id: transferId,
+            filename: file.name,
+            kind: 'upload',
+            status: 'uploading',
+            progress: Math.max(10, progress),
+        });
+    };
     reader.onload = async (e) => {
-        const rawDataUri = e.target?.result as string;
-        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 50 });
-        
-        const optimizedUri = await compressImage(rawDataUri);
-        const newAttachment: Attachment = { 
-            name: file.name, 
-            url: optimizedUri, 
-            type: 'image',
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-            mimeType: file.type
-        };
-        
-        setLocalAttachments(prev => [...prev, newAttachment]);
-        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
-        toast({ variant: 'success', title: 'Image optimized and added.'});
+        try {
+            const rawDataUri = e.target?.result as string;
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 82 });
+            
+            const optimizedUri = await compressImage(rawDataUri);
+            const newAttachment: Attachment = { 
+                name: file.name, 
+                url: optimizedUri, 
+                type: 'image',
+                size: file.size,
+                uploadedAt: new Date().toISOString(),
+                mimeType: file.type
+            };
+            
+            setLocalAttachments(prev => [...prev, newAttachment]);
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
+            toast({ variant: 'success', title: 'Image optimized and added.'});
+        } catch (error) {
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
+            toast({
+                variant: 'destructive',
+                title: 'Could not add image',
+                description: error instanceof Error ? error.message : 'Something went wrong while preparing this image.',
+            });
+        }
+    };
+    reader.onerror = () => {
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
     };
     reader.readAsDataURL(file);
   };

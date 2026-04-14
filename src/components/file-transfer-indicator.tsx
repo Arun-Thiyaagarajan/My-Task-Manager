@@ -14,7 +14,10 @@ export interface TransferEvent {
     progress: number;
     kind?: 'import' | 'export' | 'upload';
     error?: string;
+    cancellable?: boolean;
 }
+
+const transferCancellationHandlers = new Map<string, () => void>();
 
 export function FileTransferIndicator() {
     const [transfers, setTransfers] = useState<TransferEvent[]>([]);
@@ -49,6 +52,14 @@ export function FileTransferIndicator() {
 
     if (transfers.length === 0) return null;
 
+    const getTransferStageLabel = (transfer: TransferEvent) => {
+        if (transfer.status === 'generating') return 'Building document';
+        if (transfer.kind === 'import') return 'Syncing workspace';
+        if (transfer.kind === 'upload') return 'Uploading attachment';
+        if (transfer.kind === 'export') return 'Preparing export';
+        return 'Processing';
+    };
+
     const getTransferLabel = (transfer: TransferEvent) => {
         if (transfer.status === 'preparing') return 'Preparing...';
         if (transfer.status === 'uploading') {
@@ -63,6 +74,19 @@ export function FileTransferIndicator() {
             return 'Export Complete';
         }
         return transfer.error || 'Failed';
+    };
+
+    const handleCancelTransfer = (transferId: string) => {
+        const cancelHandler = transferCancellationHandlers.get(transferId);
+        cancelHandler?.();
+        transferCancellationHandlers.delete(transferId);
+        setTransfers(prev =>
+            prev.map(transfer =>
+                transfer.id === transferId
+                    ? { ...transfer, cancellable: false }
+                    : transfer
+            )
+        );
     };
 
     return (
@@ -98,12 +122,22 @@ export function FileTransferIndicator() {
                                     <p className="text-xs font-bold truncate leading-none pt-1" title={transfer.filename}>
                                         {transfer.filename}
                                     </p>
-                                    <button 
-                                        onClick={() => setTransfers(prev => prev.filter(t => t.id !== transfer.id))}
-                                        className="text-muted-foreground hover:text-foreground"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {transfer.cancellable && (transfer.status === 'preparing' || transfer.status === 'generating') ? (
+                                            <button
+                                                onClick={() => handleCancelTransfer(transfer.id)}
+                                                className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+                                            >
+                                                Cancel
+                                            </button>
+                                        ) : null}
+                                        <button 
+                                            onClick={() => setTransfers(prev => prev.filter(t => t.id !== transfer.id))}
+                                            className="text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
@@ -119,13 +153,11 @@ export function FileTransferIndicator() {
                                             )}
                                             style={{ width: `calc(${Math.max(transfer.progress, 8)}% - 1rem)` }}
                                         />
-                                        <div className="pointer-events-none absolute right-3 top-2 h-3 w-3 rounded-full bg-white/60 blur-[1px]" />
-                                        <div className="pointer-events-none absolute left-4 top-3 h-2.5 w-2.5 rounded-full bg-white/55 blur-[0.5px]" />
                                         <div className="relative flex h-full items-center justify-between gap-3">
                                             <div className="flex items-center gap-2 text-primary">
                                                 <Cloud className="h-5 w-5" />
                                                 <span className="text-[11px] font-semibold text-foreground/85">
-                                                    {transfer.status === 'generating' ? 'Preparing your file' : 'Filling cloud'}
+                                                    {getTransferStageLabel(transfer)}
                                                 </span>
                                             </div>
                                             <span className="text-[11px] font-bold tabular-nums text-foreground/80">
@@ -146,4 +178,14 @@ export function FileTransferIndicator() {
 // Global helper to trigger transfer events
 export const triggerTransfer = (event: TransferEvent) => {
     window.dispatchEvent(new CustomEvent('file-transfer', { detail: event }));
+};
+
+export const registerTransferCancellation = (transferId: string, handler: () => void) => {
+    transferCancellationHandlers.set(transferId, handler);
+    return () => {
+        const currentHandler = transferCancellationHandlers.get(transferId);
+        if (currentHandler === handler) {
+            transferCancellationHandlers.delete(transferId);
+        }
+    };
 };

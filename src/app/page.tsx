@@ -112,7 +112,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
-import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { registerTransferCancellation, triggerTransfer } from '@/components/file-transfer-indicator';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1536,23 +1536,36 @@ export default function Home() {
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     const transferId = `pdf-${Date.now()}`;
     const filename = selectedTasks.length === 1 ? `TF_${selectedTasks[0].title}.pdf` : `TF_Bulk_Export_${selectedTasks.length}_Tasks.pdf`;
+    const abortController = new AbortController();
+    const unregisterCancellation = selectedTasks.length > 1
+      ? registerTransferCancellation(transferId, () => {
+          abortController.abort();
+        })
+      : () => {};
     
     triggerTransfer({
         id: transferId,
         filename,
-        status: 'generating',
-        progress: 0
+        status: 'preparing',
+        progress: 0,
+        cancellable: selectedTasks.length > 1,
     });
 
     try {
         await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save', filename, (p) => {
-            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p });
-        }, tasks);
+            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p, cancellable: selectedTasks.length > 1 });
+        }, tasks, abortController.signal);
         triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'PDF Exported', description: `Download for ${selectedTasks.length} task(s) is ready.` });
     } catch (e) {
-        triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
-        toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
+        if (e instanceof DOMException && e.name === 'AbortError') {
+            triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export cancelled' });
+        } else {
+            triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
+        }
+    } finally {
+        unregisterCancellation();
     }
   }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
 
