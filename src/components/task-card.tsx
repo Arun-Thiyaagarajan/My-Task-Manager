@@ -35,7 +35,7 @@ import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
-import { ShareMenu } from './share-menu';
+import { AdvancedShareDialog, ShareMenu } from './share-menu';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories } from '@/lib/repository-config';
@@ -69,6 +69,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const [isStatusSaving, setIsStatusSaving] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isAdvancedShareDialogOpen, setIsAdvancedShareDialogOpen] = useState(false);
   const statusDebounceRef = useRef<number | null>(null);
   const statusRequestRef = useRef(0);
   
@@ -172,6 +174,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
 
   const handleOpenTask = (e: React.MouseEvent) => {
     if (isOpening) return;
+
+    const isAdvancedShareOpen = (window as Window & { __taskflowAdvancedShareOpen?: boolean }).__taskflowAdvancedShareOpen;
+    if (isAdvancedShareOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    const suppressUntil = (window as Window & { __taskflowSuppressTaskOpenUntil?: number }).__taskflowSuppressTaskOpenUntil || 0;
+    if (suppressUntil > Date.now()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
 
     // Selection mode logic
     if (isSelectMode) {
@@ -623,7 +639,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                 onUpdate={onTaskUpdate}
               />
               {showMoreOptions ? (
-                <DropdownMenu>
+                <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8 rounded-full bg-background/20 hover:bg-background/50">
                       <MoreVertical className="h-4 w-4" />
@@ -632,7 +648,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-48 rounded-xl border-border/60 p-1.5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.4)]"
+                    className="w-56 rounded-xl border-border/60 p-1.5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.4)]"
                     onClick={e => e.stopPropagation()}
                   >
                     <ShareMenu 
@@ -640,12 +656,14 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                       uiConfig={uiConfig!} 
                       developers={developers} 
                       testers={testers}
-                      asSubmenu
-                    >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      <span>Share</span>
-                    </ShareMenu>
-                    <DropdownMenuSeparator className="mx-1 my-1.5 bg-border/45" />
+                      hideAdvancedShareDialog
+                      onAdvancedShareSelect={() => {
+                        setIsMoreMenuOpen(false);
+                        window.setTimeout(() => {
+                          setIsAdvancedShareDialogOpen(true);
+                        }, 0);
+                      }}
+                    />
                     <DropdownMenuItem
                       onSelect={e => e.preventDefault()}
                       className="min-h-0 rounded-lg px-2 py-1.5 text-[13px] font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -704,6 +722,16 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           }}
           pinnedTaskIds={pinnedTaskIds || []}
           onPinToggle={onPinToggle}
+        />
+      )}
+      {uiConfig && (
+        <AdvancedShareDialog
+          open={isAdvancedShareDialogOpen}
+          onOpenChange={setIsAdvancedShareDialogOpen}
+          task={task}
+          uiConfig={uiConfig}
+          developers={developers}
+          testers={testers}
         />
       )}
     </>

@@ -58,8 +58,10 @@ interface ShareMenuProps {
   testers: Person[];
   allTasks?: Task[];
   attachment?: Attachment;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   asSubmenu?: boolean;
+  onAdvancedShareSelect?: () => void;
+  hideAdvancedShareDialog?: boolean;
 }
 
 const expiryOptions = [
@@ -72,7 +74,491 @@ const expiryOptions = [
 const compactItemClassName =
   'min-h-0 rounded-lg px-2 py-1.5 text-[13px] font-medium text-foreground/92 hover:bg-white/[0.05] focus:bg-white/[0.05]';
 
-export function ShareMenu({ task, uiConfig, developers, testers, allTasks, children, asSubmenu = false }: ShareMenuProps) {
+function suppressNextTaskNavigation() {
+  if (typeof window === 'undefined') return;
+  (window as Window & { __taskflowSuppressTaskOpenUntil?: number }).__taskflowSuppressTaskOpenUntil = Date.now() + 400;
+}
+
+function setAdvancedShareModalBlocker(isOpen: boolean) {
+  if (typeof window === 'undefined') return;
+  (window as Window & { __taskflowAdvancedShareOpen?: boolean }).__taskflowAdvancedShareOpen = isOpen;
+}
+
+interface AdvancedShareDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task: Task;
+  uiConfig: UiConfig;
+  developers: Person[];
+  testers: Person[];
+}
+
+export function AdvancedShareDialog({
+  open,
+  onOpenChange,
+  task,
+  uiConfig,
+  developers,
+  testers,
+}: AdvancedShareDialogProps) {
+  const { toast } = useToast();
+  const [isGeneratingShareLink, setIsGeneratingShareLink] = React.useState(false);
+  const [expiryPreset, setExpiryPreset] = React.useState<(typeof expiryOptions)[number]['value']>('never');
+  const [sharePassword, setSharePassword] = React.useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = React.useState(false);
+  const [accessMode, setAccessMode] = React.useState<'public' | 'restricted'>('public');
+  const [generatedShareUrl, setGeneratedShareUrl] = React.useState('');
+  const [generatedShareToken, setGeneratedShareToken] = React.useState('');
+  const [generatedShareMode, setGeneratedShareMode] = React.useState<'public' | 'restricted' | null>(null);
+  const [isRevokingShareLink, setIsRevokingShareLink] = React.useState(false);
+  const [isSavingAdvancedShare, setIsSavingAdvancedShare] = React.useState(false);
+  const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const getShareUrl = React.useCallback(
+    async (options?: { expiresAt?: string | null; password?: string | null }) => {
+      if (typeof window === 'undefined') return '';
+
+      const snapshot = buildTaskShareSnapshot(task, uiConfig, developers, testers);
+
+      if (getAuthMode() === 'authenticate') {
+        const token = await createTaskShareLink(task, uiConfig, developers, testers, options);
+        return `${window.location.origin}/s/${token}`;
+      }
+
+      return buildFallbackTaskShareUrl(window.location.origin, task.id, snapshot);
+    },
+    [developers, task, testers, uiConfig]
+  );
+
+  const withShareUrl = React.useCallback(
+    async (
+      handler: (url: string) => void | Promise<void>,
+      options?: { expiresAt?: string | null; password?: string | null }
+    ) => {
+      setIsGeneratingShareLink(true);
+      try {
+        const url = await getShareUrl(options);
+        await handler(url);
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Share link unavailable',
+          description: error instanceof Error ? error.message : 'Please try again.',
+        });
+      } finally {
+        setIsGeneratingShareLink(false);
+      }
+    },
+    [getShareUrl, toast]
+  );
+
+  const getExpiryDate = React.useCallback(() => {
+    if (expiryPreset === 'never') return null;
+    const now = Date.now();
+    const days = expiryPreset === '1_day' ? 1 : expiryPreset === '7_days' ? 7 : 30;
+    return new Date(now + days * 24 * 60 * 60 * 1000).toISOString();
+  }, [expiryPreset]);
+
+  const handleCreateAdvancedShareLink = React.useCallback(
+    async ({ copyToClipboard = true, showToast = copyToClipboard }: { copyToClipboard?: boolean; showToast?: boolean } = {}) => {
+      const expiresAt = getExpiryDate();
+      const password = accessMode === 'restricted' ? sharePassword.trim() || null : null;
+
+      await withShareUrl(
+        async (url) => {
+          const token = url.split('/s/')[1] || '';
+          setGeneratedShareUrl(url);
+          setGeneratedShareToken(token);
+          setGeneratedShareMode(accessMode);
+          if (copyToClipboard) {
+            await navigator.clipboard.writeText(url);
+          }
+          if (showToast) {
+            toast({
+              variant: 'success',
+              title: password ? 'Protected share link created' : 'Public share link ready',
+              description: copyToClipboard
+                ? password
+                  ? 'Password protection is enabled.'
+                  : 'Link copied to clipboard.'
+                : 'Preview link is ready to copy or open.',
+            });
+          }
+        },
+        { expiresAt, password }
+      );
+    },
+    [accessMode, getExpiryDate, sharePassword, toast, withShareUrl]
+  );
+
+  const handleRegenerateLink = React.useCallback(async () => {
+    if (generatedShareToken) {
+      try {
+        await revokeTaskShareLink(generatedShareToken);
+      } catch {
+        // Best effort; if revoke fails we still try creating a fresh link.
+      }
+    }
+
+    await handleCreateAdvancedShareLink();
+  }, [generatedShareToken, handleCreateAdvancedShareLink]);
+
+  const handleRevokeGeneratedLink = React.useCallback(async () => {
+    if (!generatedShareToken) return;
+    setIsRevokingShareLink(true);
+    try {
+      await revokeTaskShareLink(generatedShareToken);
+      setGeneratedShareUrl('');
+      setGeneratedShareToken('');
+      setGeneratedShareMode(null);
+      toast({
+        variant: 'success',
+        title: 'Share link revoked',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Unable to revoke link',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsRevokingShareLink(false);
+    }
+  }, [generatedShareToken, toast]);
+
+  const handleCommitAdvancedShare = React.useCallback(async () => {
+    setIsSavingAdvancedShare(true);
+    try {
+      if (accessMode === 'restricted') {
+        if (!sharePassword.trim()) return;
+        if (generatedShareToken) {
+          await handleRegenerateLink();
+        } else {
+          await handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
+        }
+      } else if (!generatedShareUrl) {
+        await handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
+      }
+
+      toast({
+        variant: 'success',
+        title: 'Advanced share updated',
+        description:
+          accessMode === 'restricted'
+            ? 'Protected access settings were saved successfully.'
+            : 'Public sharing settings were updated successfully.',
+      });
+      window.setTimeout(() => onOpenChange(false), 140);
+    } finally {
+      window.setTimeout(() => setIsSavingAdvancedShare(false), 160);
+    }
+  }, [
+    accessMode,
+    generatedShareToken,
+    generatedShareUrl,
+    handleCreateAdvancedShareLink,
+    handleRegenerateLink,
+    onOpenChange,
+    sharePassword,
+    toast,
+  ]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      if (accessMode === 'restricted') {
+        passwordInputRef.current?.focus();
+      }
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [accessMode, open]);
+
+  React.useEffect(() => {
+    if (accessMode === 'public') {
+      setSharePassword('');
+      setIsPasswordVisible(false);
+    }
+  }, [accessMode]);
+
+  React.useEffect(() => {
+    setAdvancedShareModalBlocker(open);
+    return () => {
+      setAdvancedShareModalBlocker(false);
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (accessMode !== 'public') return;
+    if (isGeneratingShareLink) return;
+    if (generatedShareMode === 'public' && generatedShareUrl) return;
+
+    void handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
+  }, [accessMode, generatedShareMode, generatedShareUrl, handleCreateAdvancedShareLink, open, isGeneratingShareLink]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange} modal>
+      <DialogContent
+        className="flex h-[min(85vh,44rem)] w-[min(92vw,38rem)] flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-0 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.38)] duration-150"
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerDownOutside={() => {
+          suppressNextTaskNavigation();
+        }}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+          suppressNextTaskNavigation();
+          onOpenChange(false);
+        }}
+      >
+        <DialogHeader className="shrink-0 border-b border-border/60 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <DialogTitle className="text-lg font-semibold text-foreground">Advanced Share</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Manage access & security
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close advanced share</span>
+            </Button>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Share Link</h3>
+              <span className="rounded-md border border-border/60 bg-muted/[0.2] px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                {accessMode === 'restricted' ? 'Protected Access' : 'Public Access'}
+              </span>
+            </div>
+            <div className="space-y-2 rounded-xl border border-border/60 bg-card p-3">
+              <div title={generatedShareUrl || undefined}>
+                <Input
+                  value={generatedShareUrl || (isGeneratingShareLink && accessMode === 'public' ? 'Preparing public link...' : 'Public link will appear here')}
+                  readOnly
+                  className="h-9 w-full truncate border-border/50 bg-muted/[0.35] text-sm shadow-none focus-visible:ring-0"
+                />
+              </div>
+              <TooltipProvider delayDuration={0}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!generatedShareUrl}
+                    className="h-8 rounded-lg px-3 text-xs"
+                    onClick={async () => {
+                      if (!generatedShareUrl) return;
+                      await navigator.clipboard.writeText(generatedShareUrl);
+                      toast({ variant: 'success', title: 'Share link copied!' });
+                    }}
+                  >
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copy
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!generatedShareUrl}
+                    className="h-8 rounded-lg px-3 text-xs"
+                    onClick={() => {
+                      if (!generatedShareUrl) return;
+                      window.open(generatedShareUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                    Open
+                  </Button>
+                  {accessMode === 'restricted' ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg px-3 text-xs"
+                          disabled={isGeneratingShareLink}
+                          onClick={() => void handleRegenerateLink()}
+                        >
+                          {isGeneratingShareLink ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />}
+                          Regenerate
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This will create a new link and invalidate the previous one.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                  {generatedShareToken ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-lg px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={isRevokingShareLink}
+                          onClick={() => void handleRevokeGeneratedLink()}
+                        >
+                          {isRevokingShareLink ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                          Disable Link
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This will permanently disable the current share link.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : null}
+                </div>
+              </TooltipProvider>
+              <p className="text-[11px] text-muted-foreground">
+                {accessMode === 'restricted'
+                  ? 'Creating a new link will disable the previous one.'
+                  : 'Public preview link is read-only and ready to copy.'}
+              </p>
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold text-foreground">Access Controls</h3>
+            <div className="rounded-xl border border-border/60 bg-card p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAccessMode('public')}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                    accessMode === 'public'
+                      ? 'border-primary/50 bg-primary/8 text-primary'
+                      : 'border-border/60 bg-background text-foreground/85 hover:bg-muted/50'
+                  )}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  Public
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessMode('restricted')}
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                    accessMode === 'restricted'
+                      ? 'border-primary/50 bg-primary/8 text-primary'
+                      : 'border-border/60 bg-background text-foreground/85 hover:bg-muted/50'
+                  )}
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Restricted
+                </button>
+                <div className="ml-auto inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/[0.25] px-3 py-2 text-sm text-muted-foreground">
+                  <CircleOff className="h-3.5 w-3.5" />
+                  View only
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {accessMode === 'restricted'
+                  ? 'Protected access uses a password-protected share link. Viewers always get read-only access.'
+                  : 'Public access keeps the link simple and read-only for anyone with the URL.'}
+              </p>
+            </div>
+          </section>
+
+          {accessMode === 'restricted' ? (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground">Security</h3>
+              <div className="rounded-xl border border-border/60 bg-card p-3">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                  <div className="space-y-1.5">
+                    <label htmlFor="advanced-share-password-hoisted" className="text-[11px] font-medium text-muted-foreground">
+                      Password
+                    </label>
+                    <div className="flex h-9 items-center gap-2 rounded-lg border border-border/60 bg-background px-3">
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <Input
+                        id="advanced-share-password-hoisted"
+                        ref={passwordInputRef}
+                        type={isPasswordVisible ? 'text' : 'password'}
+                        value={sharePassword}
+                        onChange={(event) => setSharePassword(event.target.value)}
+                        placeholder="Required for protected access"
+                        className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsPasswordVisible((current) => !current)}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted"
+                        aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+                      >
+                        {isPasswordVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-muted-foreground">Expiry</label>
+                    <Select value={expiryPreset} onValueChange={(value) => setExpiryPreset(value as (typeof expiryOptions)[number]['value'])}>
+                      <SelectTrigger className="h-9 rounded-lg border-border/60 bg-background text-sm">
+                        <SelectValue placeholder="Select expiry" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="rounded-xl border-border/60">
+                        {expiryOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <DialogFooter className="shrink-0 border-t border-border/60 bg-background px-5 py-4 sm:justify-end">
+          <Button type="button" variant="ghost" className="h-9 px-4" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="h-9 px-4"
+            disabled={(accessMode === 'restricted' && !sharePassword.trim()) || isSavingAdvancedShare}
+            onClick={() => void handleCommitAdvancedShare()}
+          >
+            {isSavingAdvancedShare ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {isSavingAdvancedShare ? 'Updating...' : generatedShareUrl ? 'Update' : 'Save'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ShareMenu({
+  task,
+  uiConfig,
+  developers,
+  testers,
+  allTasks,
+  children,
+  asSubmenu = false,
+  onAdvancedShareSelect,
+  hideAdvancedShareDialog = false,
+}: ShareMenuProps) {
   const { toast } = useToast();
   const [hasCopiedShareUrl, setHasCopiedShareUrl] = React.useState(false);
   const [isExporting, setIsExporting] = React.useState(false);
@@ -86,6 +572,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
   const [generatedShareToken, setGeneratedShareToken] = React.useState('');
   const [generatedShareMode, setGeneratedShareMode] = React.useState<'public' | 'restricted' | null>(null);
   const [isRevokingShareLink, setIsRevokingShareLink] = React.useState(false);
+  const [isSavingAdvancedShare, setIsSavingAdvancedShare] = React.useState(false);
   const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const getShareUrl = React.useCallback(
@@ -148,7 +635,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
     });
   };
 
-  const handleCreateAdvancedShareLink = async ({ copyToClipboard = true }: { copyToClipboard?: boolean } = {}) => {
+  const handleCreateAdvancedShareLink = async ({ copyToClipboard = true, showToast = copyToClipboard }: { copyToClipboard?: boolean; showToast?: boolean } = {}) => {
     const expiresAt = getExpiryDate();
     const password = accessMode === 'restricted' ? sharePassword.trim() || null : null;
 
@@ -161,15 +648,17 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
         if (copyToClipboard) {
           await navigator.clipboard.writeText(url);
         }
-        toast({
-          variant: 'success',
-          title: password ? 'Protected share link created' : 'Public share link ready',
-          description: copyToClipboard
-            ? password
-              ? 'Password protection is enabled.'
-              : 'Link copied to clipboard.'
-            : 'Preview link is ready to copy or open.',
-        });
+        if (showToast) {
+          toast({
+            variant: 'success',
+            title: password ? 'Protected share link created' : 'Public share link ready',
+            description: copyToClipboard
+              ? password
+                ? 'Password protection is enabled.'
+                : 'Link copied to clipboard.'
+              : 'Preview link is ready to copy or open.',
+          });
+        }
       },
       { expiresAt, password }
     );
@@ -186,6 +675,42 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
 
     await handleCreateAdvancedShareLink();
   };
+
+  const handleCommitAdvancedShare = React.useCallback(async () => {
+    setIsSavingAdvancedShare(true);
+    try {
+      if (accessMode === 'restricted') {
+        if (!sharePassword.trim()) return;
+        if (generatedShareToken) {
+          await handleRegenerateLink();
+        } else {
+          await handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
+        }
+      } else if (!generatedShareUrl) {
+        await handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
+      }
+
+      toast({
+        variant: 'success',
+        title: 'Advanced share updated',
+        description:
+          accessMode === 'restricted'
+            ? 'Protected access settings were saved successfully.'
+            : 'Public sharing settings were updated successfully.',
+      });
+      window.setTimeout(() => setIsAdvancedShareOpen(false), 140);
+    } finally {
+      window.setTimeout(() => setIsSavingAdvancedShare(false), 160);
+    }
+  }, [
+    accessMode,
+    generatedShareToken,
+    generatedShareUrl,
+    handleCreateAdvancedShareLink,
+    handleRegenerateLink,
+    sharePassword,
+    toast,
+  ]);
 
   React.useEffect(() => {
     if (!isAdvancedShareOpen) return;
@@ -205,12 +730,19 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
   }, [accessMode]);
 
   React.useEffect(() => {
+    setAdvancedShareModalBlocker(isAdvancedShareOpen);
+    return () => {
+      setAdvancedShareModalBlocker(false);
+    };
+  }, [isAdvancedShareOpen]);
+
+  React.useEffect(() => {
     if (!isAdvancedShareOpen) return;
     if (accessMode !== 'public') return;
     if (isGeneratingShareLink) return;
     if (generatedShareMode === 'public' && generatedShareUrl) return;
 
-    void handleCreateAdvancedShareLink({ copyToClipboard: false });
+    void handleCreateAdvancedShareLink({ copyToClipboard: false, showToast: false });
   }, [accessMode, generatedShareMode, generatedShareUrl, handleCreateAdvancedShareLink, isAdvancedShareOpen, isGeneratingShareLink]);
 
   const handleRevokeGeneratedLink = async () => {
@@ -316,23 +848,12 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
 
       {getAuthMode() === 'authenticate' ? (
         <DropdownMenuItem
-          onSelect={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
+          onSelect={() => {
+            if (onAdvancedShareSelect) {
+              onAdvancedShareSelect();
+              return;
+            }
             openAdvancedShareDialog();
-          }}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            openAdvancedShareDialog();
-          }}
-          onMouseDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
           }}
           className={compactItemClassName}
         >
@@ -356,12 +877,20 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
   );
 
   const advancedShareDialog = (
-    <Dialog open={isAdvancedShareOpen} onOpenChange={setIsAdvancedShareOpen}>
+    <Dialog open={isAdvancedShareOpen} onOpenChange={setIsAdvancedShareOpen} modal>
       <DialogContent
         className="flex h-[min(85vh,44rem)] w-[min(92vw,38rem)] flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-0 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.38)] duration-150"
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
+        onPointerDownOutside={() => {
+          suppressNextTaskNavigation();
+        }}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+          suppressNextTaskNavigation();
+          setIsAdvancedShareOpen(false);
+        }}
       >
           <DialogHeader className="shrink-0 border-b border-border/60 px-5 py-4">
             <div className="flex items-start justify-between gap-4">
@@ -583,11 +1112,15 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
             <Button
               type="button"
               className="h-9 px-4"
-              disabled={accessMode === 'restricted' && !sharePassword.trim()}
-              onClick={() => setIsAdvancedShareOpen(false)}
+              disabled={(accessMode === 'restricted' && !sharePassword.trim()) || isSavingAdvancedShare}
+              onClick={() => void handleCommitAdvancedShare()}
             >
-              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-              {generatedShareUrl ? 'Update' : 'Save'}
+              {isSavingAdvancedShare ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isSavingAdvancedShare ? 'Updating...' : generatedShareUrl ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>
       </DialogContent>
@@ -615,6 +1148,15 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
     );
   }
 
+  if (!children) {
+    return (
+      <>
+        {menuItems}
+        {!hideAdvancedShareDialog ? advancedShareDialog : null}
+      </>
+    );
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -628,7 +1170,7 @@ export function ShareMenu({ task, uiConfig, developers, testers, allTasks, child
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {advancedShareDialog}
+      {!hideAdvancedShareDialog ? advancedShareDialog : null}
     </>
   );
 }
