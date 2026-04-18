@@ -299,6 +299,7 @@ export function AdvancedShareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal>
       <DialogContent
+        hideClose
         className="flex h-[min(85vh,44rem)] w-[min(92vw,38rem)] flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-0 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.38)] duration-150"
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
@@ -460,7 +461,7 @@ export function AdvancedShareDialog({
                   <Lock className="h-3.5 w-3.5" />
                   Restricted
                 </button>
-                <div className="ml-auto inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/[0.25] px-3 py-2 text-sm text-muted-foreground">
+                <div className="hidden sm:inline-flex ml-auto items-center gap-2 rounded-lg border border-border/60 bg-muted/[0.25] px-3 py-2 text-sm text-muted-foreground">
                   <CircleOff className="h-3.5 w-3.5" />
                   View only
                 </div>
@@ -879,6 +880,7 @@ export function ShareMenu({
   const advancedShareDialog = (
     <Dialog open={isAdvancedShareOpen} onOpenChange={setIsAdvancedShareOpen} modal>
       <DialogContent
+        hideClose
         className="flex h-[min(85vh,44rem)] w-[min(92vw,38rem)] flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-0 shadow-[0_28px_70px_-38px_rgba(15,23,42,0.38)] duration-150"
         onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
@@ -1040,7 +1042,7 @@ export function ShareMenu({
                     <Lock className="h-3.5 w-3.5" />
                     Restricted
                   </button>
-                  <div className="ml-auto inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/[0.25] px-3 py-2 text-sm text-muted-foreground">
+                  <div className="ml-auto hidden sm:inline-flex items-center gap-2 rounded-lg border border-border/60 bg-muted/[0.25] px-3 py-2 text-sm text-muted-foreground">
                     <CircleOff className="h-3.5 w-3.5" />
                     View only
                   </div>
