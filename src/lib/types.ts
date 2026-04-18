@@ -162,6 +162,7 @@ export interface UserPreferences {
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
   lastHomeViewState?: SavedTaskViewState;
+  activeSavedViewId?: string | null;
   taskOpenGroups?: string[];
   savedTaskViews?: SavedTaskView[];
   taskFilters?: {

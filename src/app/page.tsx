@@ -253,6 +253,7 @@ export default function Home() {
   const [isSaveViewDialogOpen, setIsSaveViewDialogOpen] = useState(false);
   const [isManageViewsDialogOpen, setIsManageViewsDialogOpen] = useState(false);
   const [newSavedViewName, setNewSavedViewName] = useState('');
+  const [selectedActiveSavedViewId, setSelectedActiveSavedViewId] = useState<string | null>(null);
   const [dismissedActiveSavedViewId, setDismissedActiveSavedViewId] = useState<string | null>(null);
   const [starterContentAvailable, setStarterContentAvailable] = useState(false);
   const [pendingSavedViewState, setPendingSavedViewState] = useState<SavedTaskViewState | null>(null);
@@ -299,6 +300,7 @@ export default function Home() {
         ? prefs.savedTaskViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso))
         : []
     );
+    setSelectedActiveSavedViewId(typeof prefs.activeSavedViewId === 'string' ? prefs.activeSavedViewId : null);
 
     const shouldShowStarterCallout =
       Boolean(prefs.starterContentAvailable) &&
@@ -380,6 +382,7 @@ export default function Home() {
         dateView,
         favoritesOnly,
         lastHomeViewState: currentHomeViewState,
+        activeSavedViewId: selectedActiveSavedViewId,
         taskOpenGroups: openGroups,
         taskFilters: {
             status: statusFilter,
@@ -393,17 +396,18 @@ export default function Home() {
             dueReminder: dueReminderFilter,
         },
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, priorityFilter, dueStateFilter, reminderNoteFilter, dueReminderFilter, router, pathname, searchParams, mounted]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, selectedActiveSavedViewId, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, priorityFilter, dueStateFilter, reminderNoteFilter, dueReminderFilter, router, pathname, searchParams, mounted]);
 
-  const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[]) => {
+  const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[], nextActiveSavedViewId: string | null = selectedActiveSavedViewId) => {
     const fallbackDateIso = new Date().toISOString();
     const normalizedViews = nextViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso));
 
     setSavedTaskViews(normalizedViews);
     updateUserPreferences({
       savedTaskViews: normalizedViews,
+      activeSavedViewId: nextActiveSavedViewId,
     });
-  }, []);
+  }, [selectedActiveSavedViewId]);
 
   const buildSavedViewState = useCallback((overrides?: Partial<SavedTaskViewState>): SavedTaskViewState => buildHomeViewStateSnapshot({
     viewMode,
@@ -477,6 +481,7 @@ export default function Home() {
 
     const nextDate = state.selectedDate ? new Date(state.selectedDate) : new Date();
     setSelectedDate(isValid(nextDate) ? nextDate : new Date());
+    setSelectedActiveSavedViewId(view.id);
     setDismissedActiveSavedViewId(null);
     setIsManageViewsDialogOpen(false);
 
@@ -574,12 +579,14 @@ export default function Home() {
 
   const handleDeleteSavedView = useCallback((viewId: string) => {
     const nextViews = savedTaskViews.filter(view => view.id !== viewId);
-    persistSavedTaskViews(nextViews);
+    const nextActiveSavedViewId = selectedActiveSavedViewId === viewId ? null : selectedActiveSavedViewId;
+    setSelectedActiveSavedViewId(nextActiveSavedViewId);
+    persistSavedTaskViews(nextViews, nextActiveSavedViewId);
     toast({
       title: 'Saved view removed',
       duration: 1800,
     });
-  }, [persistSavedTaskViews, savedTaskViews, toast]);
+  }, [persistSavedTaskViews, savedTaskViews, selectedActiveSavedViewId, toast]);
 
   const handleClearAllTaskFilters = useCallback(() => {
     setIsSearching(true);
@@ -597,9 +604,12 @@ export default function Home() {
   }, []);
 
   const handleClearActiveSavedView = useCallback((viewId: string) => {
+    const nextActiveSavedViewId = selectedActiveSavedViewId === viewId ? null : selectedActiveSavedViewId;
+    setSelectedActiveSavedViewId(nextActiveSavedViewId);
+    updateUserPreferences({ activeSavedViewId: nextActiveSavedViewId });
     setDismissedActiveSavedViewId(viewId);
     handleClearAllTaskFilters();
-  }, [handleClearAllTaskFilters]);
+  }, [handleClearAllTaskFilters, selectedActiveSavedViewId]);
 
   useEffect(() => {
     setDesktopStatusFilterDraft(statusFilter);
@@ -1946,7 +1956,11 @@ export default function Home() {
             : 'All Tasks';
 
   const matchingSavedView = savedTaskViews.find((view) => isSavedViewActive(view)) || null;
-  const activeSavedView = matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView;
+  const selectedActiveSavedView =
+    selectedActiveSavedViewId && selectedActiveSavedViewId !== dismissedActiveSavedViewId
+      ? savedTaskViews.find((view) => view.id === selectedActiveSavedViewId) || null
+      : null;
+  const activeSavedView = selectedActiveSavedView || (matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView);
 
   useEffect(() => {
     if (!dismissedActiveSavedViewId) return;
@@ -1954,6 +1968,13 @@ export default function Home() {
       setDismissedActiveSavedViewId(null);
     }
   }, [dismissedActiveSavedViewId, matchingSavedView]);
+
+  useEffect(() => {
+    if (!selectedActiveSavedViewId) return;
+    if (!savedTaskViews.some((view) => view.id === selectedActiveSavedViewId)) {
+      setSelectedActiveSavedViewId(null);
+    }
+  }, [savedTaskViews, selectedActiveSavedViewId]);
 
   const handleStartSaveCurrentView = useCallback(() => {
     if (activeSavedView) {
@@ -3072,7 +3093,7 @@ export default function Home() {
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
                                   "inline-flex min-w-0 flex-1 items-center justify-center h-8 px-2.5 rounded-lg text-[11px] font-medium transition-all",
-                                  dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                                  (dateView === 'monthly' || dateView === 'calendar') ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
@@ -3284,6 +3305,7 @@ export default function Home() {
                     activeSavedViewIsPinned={Boolean(activeSavedView?.pinned)}
                     onApplySavedTaskView={applySavedTaskView}
                     onClearActiveSavedView={handleClearActiveSavedView}
+                    onToggleSavedViewPin={handleToggleSavedViewPin}
                     getSavedViewSummary={getSavedViewSummary}
                     getSavedViewPreviewGroups={getSavedViewPreviewGroups}
                     isLoading={shouldShowListSkeleton}
@@ -3465,7 +3487,7 @@ export default function Home() {
                                     onClick={() => handleDateViewChange('monthly')}
                                     className={cn(
                                         "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
-                                        dateView === 'monthly' 
+                                        (dateView === 'monthly' || dateView === 'calendar')
                                             ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
                                             : "text-muted-foreground hover:bg-background/50"
                                     )}
