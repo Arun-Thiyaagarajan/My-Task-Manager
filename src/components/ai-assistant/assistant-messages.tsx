@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import type { AssistantMessage, AssistantPlan } from '@/lib/ai-assistant';
 import { cn } from '@/lib/utils';
 import type { AssistantAccessPolicyResult, PromptSuggestion } from './assistant-types';
@@ -101,23 +101,20 @@ export function AssistantMessages(props: Props) {
                 {message.role === 'assistant' ? sanitizeAssistantVisibleMessage(message.content) : message.content}
               </div>
               <div className="pt-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
-                      onClick={() => {
-                        void handleCopyMessage(message);
-                      }}
-                    >
-                      {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-                      <span className="sr-only">Copy message</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{copiedMessageId === message.id ? 'Copied' : 'Copy message'}</TooltipContent>
-                </Tooltip>
+                <AppTooltip content={copiedMessageId === message.id ? 'Copied' : 'Copy message'}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border border-border/60 bg-background/90 text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground"
+                    onClick={() => {
+                      void handleCopyMessage(message);
+                    }}
+                  >
+                    {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span className="sr-only">Copy message</span>
+                  </Button>
+                </AppTooltip>
               </div>
             </div>
           </div>

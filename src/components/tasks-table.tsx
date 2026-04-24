@@ -27,11 +27,7 @@ import type { Task, UiConfig, Person, TaskStatus, Environment } from '@/lib/type
 import { Badge } from './ui/badge';
 import { DeleteTaskButton } from './delete-task-button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -325,58 +321,48 @@ const TasksTableRow = memo(function TasksTableRow({
       <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedDevelopers.map((dev) => (
-            <Tooltip key={dev.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                >
-                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                    <AvatarFallback
-                      className="text-xs font-semibold text-white"
-                      style={{
-                        backgroundColor: `#${getAvatarColor(dev.name)}`,
-                      }}
-                    >
-                      {getInitials(dev.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-normal">{dev.name}</p>
-              </TooltipContent>
-            </Tooltip>
+            <AppTooltip key={dev.id} content={dev.name}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
+                disabled={isOpening}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+              >
+                <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                  <AvatarFallback
+                    className="text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: `#${getAvatarColor(dev.name)}`,
+                    }}
+                  >
+                    {getInitials(dev.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </AppTooltip>
           ))}
         </div>
       </TableCell>
       <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedTesters.map((tester) => (
-            <Tooltip key={tester.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                >
-                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                    <AvatarFallback
-                      className="text-xs font-semibold text-white"
-                      style={{
-                        backgroundColor: `#${getAvatarColor(tester.name)}`,
-                      }}
-                    >
-                      {getInitials(tester.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-normal">{tester.name}</p>
-              </TooltipContent>
-            </Tooltip>
+            <AppTooltip key={tester.id} content={tester.name}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
+                disabled={isOpening}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+              >
+                <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                  <AvatarFallback
+                    className="text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: `#${getAvatarColor(tester.name)}`,
+                    }}
+                  >
+                    {getInitials(tester.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </AppTooltip>
           ))}
         </div>
       </TableCell>
@@ -394,16 +380,11 @@ const TasksTableRow = memo(function TasksTableRow({
               </Badge>
             ))}
             {hiddenRepositories.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="cursor-default rounded-full border-border/50 bg-muted/[0.35] text-xs font-medium text-muted-foreground"
-                  >
-                    +{hiddenRepositories.length} more
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="start" className="max-w-[20rem]">
+              <AppTooltip
+                side="top"
+                align="start"
+                className="max-w-[20rem]"
+                content={(
                   <div className="flex flex-wrap gap-1.5 p-0.5">
                     {hiddenRepositories.map((repo) => (
                       <Badge
@@ -416,8 +397,15 @@ const TasksTableRow = memo(function TasksTableRow({
                       </Badge>
                     ))}
                   </div>
-                </TooltipContent>
-              </Tooltip>
+                )}
+              >
+                <Badge
+                  variant="outline"
+                  className="cursor-default rounded-full border-border/50 bg-muted/[0.35] text-xs font-medium text-muted-foreground"
+                >
+                  +{hiddenRepositories.length} more
+                </Badge>
+              </AppTooltip>
             )}
           </div>
         </TableCell>

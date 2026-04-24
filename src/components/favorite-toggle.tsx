@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { AppTooltip } from './ui/tooltip';
 
 interface FavoriteToggleButtonProps {
   taskId: string;
@@ -63,33 +63,28 @@ export function FavoriteToggleButton({ taskId, isFavorite, onUpdate, className }
   };
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          onClick={handleToggleFavorite}
-          variant="ghost"
-          size="icon"
-          disabled={isSaving}
-          className={cn('h-8 w-8 rounded-full transition-all duration-200', className)}
-        >
-          {isSaving ? (
-            <Loader2 className="h-4.5 w-4.5 animate-spin text-red-500" />
-          ) : (
-            <Heart
-              className={cn(
-                'h-5 w-5 transition-all duration-200',
-                isFavorited ? 'text-red-500 fill-red-500' : 'text-muted-foreground',
-                isAnimating && 'animate-heart-pulse'
-              )}
-              onAnimationEnd={handleAnimationEnd}
-            />
-          )}
-          <span className="sr-only">{isFavorited ? 'Remove from favorites' : 'Add to favorites'}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>{isFavorited ? 'Remove from favorites' : 'Add to favorites'}</p>
-      </TooltipContent>
-    </Tooltip>
+    <AppTooltip content={isFavorited ? 'Remove from favorites' : 'Add to favorites'}>
+      <Button
+        onClick={handleToggleFavorite}
+        variant="ghost"
+        size="icon"
+        disabled={isSaving}
+        className={cn('h-8 w-8 rounded-full transition-all duration-200', className)}
+      >
+        {isSaving ? (
+          <Loader2 className="h-4.5 w-4.5 animate-spin text-red-500" />
+        ) : (
+          <Heart
+            className={cn(
+              'h-5 w-5 transition-all duration-200',
+              isFavorited ? 'text-red-500 fill-red-500' : 'text-muted-foreground',
+              isAnimating && 'animate-heart-pulse'
+            )}
+            onAnimationEnd={handleAnimationEnd}
+          />
+        )}
+        <span className="sr-only">{isFavorited ? 'Remove from favorites' : 'Add to favorites'}</span>
+      </Button>
+    </AppTooltip>
   );
 }

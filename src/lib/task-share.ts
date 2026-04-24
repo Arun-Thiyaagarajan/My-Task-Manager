@@ -333,15 +333,20 @@ export function isSharedTaskLinkRevoked(link: Pick<SharedTaskLinkDocument, 'revo
   return Boolean(link?.revokedAt);
 }
 
-function encodeBytes(bytes: Uint8Array): string {
+function encodeBytes(bytes: Uint8Array<ArrayBuffer>): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function decodeBytes(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+function decodeBytes(value: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(value);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }
 
-async function derivePasswordKey(password: string, salt: Uint8Array) {
+async function derivePasswordKey(password: string, salt: Uint8Array<ArrayBuffer>) {
   const baseKey = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
@@ -368,8 +373,8 @@ async function derivePasswordKey(password: string, salt: Uint8Array) {
 }
 
 export async function encryptTaskShareSnapshot(snapshot: TaskShareSnapshot, password: string) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16)));
+  const iv = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(12)));
   const key = await derivePasswordKey(password, salt);
   const payload = new TextEncoder().encode(JSON.stringify(snapshot));
   const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, payload);

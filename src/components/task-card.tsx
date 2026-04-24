@@ -17,7 +17,7 @@ import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing,
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getSmartTextPreview, stripRichText, formatTimestamp } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
 import { getDevelopers, getTesters, updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -317,25 +317,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                         
                         {uiConfig?.remindersEnabled && (
                             <div className="flex-shrink-0" id={`task-card-reminder-btn-${task.id}`}>
-                              <Tooltip>
-                                  <TooltipTrigger asChild>
-                                      <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          disabled={isOpening}
-                                          className="h-7 w-7 rounded-full bg-background/20 transition-colors hover:bg-background/50"
-                                          onClick={(e) => {
-                                              e.stopPropagation();
-                                              setIsReminderOpen(true);
-                                          }}
-                                      >
-                                          <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                      <p className="font-normal">{task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}</p>
-                                  </TooltipContent>
-                              </Tooltip>
+                              <AppTooltip content={task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}>
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      disabled={isOpening}
+                                      className="h-7 w-7 rounded-full bg-background/20 transition-colors hover:bg-background/50"
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          setIsReminderOpen(true);
+                                      }}
+                                  >
+                                      <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                  </Button>
+                              </AppTooltip>
                             </div>
                         )}
                     </div>
@@ -408,27 +403,29 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
               <div className="flex-grow space-y-3">
                 <div className="flex flex-wrap items-center gap-2 overflow-hidden">
                   <TaskPriorityBadge priority={task.priority} compact />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'max-w-full rounded-full border px-2.5 py-1 text-[10px] font-medium whitespace-normal break-words leading-[1.25]',
-                          getTaskDueToneClassName(task)
-                        )}
-                      >
-                        <CalendarClock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                        <span>{dueBadgeLabel}</span>
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="start" className="max-w-[16rem]">
+                  <AppTooltip
+                    side="top"
+                    align="start"
+                    className="max-w-[16rem]"
+                    content={(
                       <div className="space-y-1 text-xs font-normal">
                         <p>{dueLabel}</p>
                         {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
                         {hasTaskDueCompleted && task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig?.timeFormat || '12h')}</p> : null}
                       </div>
-                    </TooltipContent>
-                  </Tooltip>
+                    )}
+                  >
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'max-w-full rounded-full border px-2.5 py-1 text-[10px] font-medium whitespace-normal break-words leading-[1.25]',
+                        getTaskDueToneClassName(task)
+                      )}
+                    >
+                      <CalendarClock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{dueBadgeLabel}</span>
+                    </Badge>
+                  </AppTooltip>
                 </div>
 
                 {visibleRepositories.length > 0 && (
@@ -446,16 +443,11 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                         </Badge>
                       ))}
                       {hiddenRepositories.length > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="cursor-default rounded-full border-border/50 bg-muted/[0.35] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
-                            >
-                              +{hiddenRepositories.length} more
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                        <AppTooltip
+                          side="top"
+                          align="start"
+                          className="max-w-[18rem]"
+                          content={(
                             <div className="flex flex-wrap gap-1.5 p-0.5">
                               {hiddenRepositories.map((repo) => (
                                 <Badge
@@ -468,8 +460,15 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                 </Badge>
                               ))}
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
+                          )}
+                        >
+                          <Badge
+                            variant="outline"
+                            className="cursor-default rounded-full border-border/50 bg-muted/[0.35] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                          >
+                            +{hiddenRepositories.length} more
+                          </Badge>
+                        </AppTooltip>
                       )}
                     </div>
                   </div>
@@ -523,54 +522,49 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   {hasDevelopers && (
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        <Tooltip>
-                            <TooltipTrigger asChild><Code2 className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{developersLabel}</p></TooltipContent>
-                        </Tooltip>
+                        <AppTooltip content={developersLabel}>
+                            <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </AppTooltip>
                       </div>
                       <div className="flex items-center -space-x-2">
                           {visibleDevelopers.map((dev) => (
-                            <Tooltip key={dev.id}>
-                              <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        const latestDeveloper = getDevelopers().find((entry) => entry.id === dev.id) || dev;
-                                        setPersonInView({ person: latestDeveloper, isDeveloper: true });
-                                    }}
-                                    disabled={isOpening}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                                >
-                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
-                                    <AvatarFallback 
-                                      className="text-[10px] font-medium text-white"
-                                      style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
-                                    >
-                                      {getInitials(dev.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent><p className="font-normal">{dev.name}</p></TooltipContent>
-                            </Tooltip>
+                            <AppTooltip key={dev.id} content={dev.name}>
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const latestDeveloper = getDevelopers().find((entry) => entry.id === dev.id) || dev;
+                                      setPersonInView({ person: latestDeveloper, isDeveloper: true });
+                                  }}
+                                  disabled={isOpening}
+                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                              >
+                                <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
+                                  <AvatarFallback 
+                                    className="text-[10px] font-medium text-white"
+                                    style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
+                                  >
+                                    {getInitials(dev.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </button>
+                            </AppTooltip>
                           ))}
                           {hiddenDevelopersCount > 0 && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
-                                </Avatar>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <AppTooltip
+                              content={(
                                 <div className="text-sm p-1 space-y-1 font-normal">
                                     <p className="font-medium">More {developersLabel}:</p>
                                     <ul className="list-disc list-inside space-y-0.5">
                                         {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
                                     </ul>
                                 </div>
-                              </TooltipContent>
-                            </Tooltip>
+                              )}
+                            >
+                              <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
+                                <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
+                              </Avatar>
+                            </AppTooltip>
                           )}
                       </div>
                     </div>
@@ -579,54 +573,49 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   {hasTesters && (
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        <Tooltip>
-                            <TooltipTrigger asChild><ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{testersLabel}</p></TooltipContent>
-                        </Tooltip>
+                        <AppTooltip content={testersLabel}>
+                            <ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                        </AppTooltip>
                       </div>
                       <div className="flex -space-x-2">
                           {visibleTesters.map((tester) => (
-                            <Tooltip key={tester.id}>
-                              <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        const latestTester = getTesters().find((entry) => entry.id === tester.id) || tester;
-                                        setPersonInView({ person: latestTester, isDeveloper: false });
-                                    }}
-                                    disabled={isOpening}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                                >
-                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
-                                    <AvatarFallback
-                                      className="text-[10px] font-medium text-white"
-                                      style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
-                                    >
-                                      {getInitials(tester.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent><p className="font-normal">{tester.name}</p></TooltipContent>
-                            </Tooltip>
+                            <AppTooltip key={tester.id} content={tester.name}>
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const latestTester = getTesters().find((entry) => entry.id === tester.id) || tester;
+                                      setPersonInView({ person: latestTester, isDeveloper: false });
+                                  }}
+                                  disabled={isOpening}
+                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                              >
+                                <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
+                                  <AvatarFallback
+                                    className="text-[10px] font-medium text-white"
+                                    style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
+                                  >
+                                    {getInitials(tester.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </button>
+                            </AppTooltip>
                           ))}
                           {hiddenTestersCount > 0 && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
-                                </Avatar>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <AppTooltip
+                              content={(
                                 <div className="text-sm p-1 space-y-1 font-normal">
                                     <p className="font-medium">More {testersLabel}:</p>
                                     <ul className="list-disc list-inside space-y-0.5">
                                         {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
                                     </ul>
                                 </div>
-                              </TooltipContent>
-                            </Tooltip>
+                              )}
+                            >
+                              <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
+                                <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
+                              </Avatar>
+                            </AppTooltip>
                           )}
                       </div>
                     </div>

@@ -29,4 +29,31 @@ const TooltipContent = React.forwardRef<
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+type AppTooltipProps = Omit<React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>, "children" | "content"> & {
+  children: React.ReactElement
+  content: React.ReactNode
+  delayDuration?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>["delayDuration"]
+  disabled?: boolean
+}
+
+function AppTooltip({
+  children,
+  content,
+  delayDuration,
+  disabled = false,
+  className,
+  ...contentProps
+}: AppTooltipProps) {
+  if (disabled || !content) return children
+
+  return (
+    <Tooltip delayDuration={delayDuration}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className={className} {...contentProps}>
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, AppTooltip }

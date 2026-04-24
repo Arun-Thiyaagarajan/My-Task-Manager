@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,37 +74,34 @@ function CopyFieldButton({
   const isCopied = copiedId === copyId;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'h-8 w-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-200',
-            isCopied ? 'text-emerald-600 hover:text-emerald-700' : 'hover:bg-muted/60 hover:text-foreground'
-          )}
-          onClick={() => onCopy(copyId, value)}
-        >
-          <span className="relative flex h-4 w-4 items-center justify-center">
-            <Copy
-              className={cn(
-                'absolute h-4 w-4 transition-all duration-200',
-                isCopied ? 'scale-75 opacity-0' : 'scale-100 opacity-100'
-              )}
-            />
-            <Check
-              className={cn(
-                'absolute h-4 w-4 transition-all duration-200',
-                isCopied ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
-              )}
-            />
-          </span>
-          <span className="sr-only">{isCopied ? 'Copied' : 'Copy value'}</span>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top">{isCopied ? 'Copied' : 'Copy'}</TooltipContent>
-    </Tooltip>
+    <AppTooltip content={isCopied ? 'Copied' : 'Copy'} side="top">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          'h-8 w-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-200',
+          isCopied ? 'text-emerald-600 hover:text-emerald-700' : 'hover:bg-muted/60 hover:text-foreground'
+        )}
+        onClick={() => onCopy(copyId, value)}
+      >
+        <span className="relative flex h-4 w-4 items-center justify-center">
+          <Copy
+            className={cn(
+              'absolute h-4 w-4 transition-all duration-200',
+              isCopied ? 'scale-75 opacity-0' : 'scale-100 opacity-100'
+            )}
+          />
+          <Check
+            className={cn(
+              'absolute h-4 w-4 transition-all duration-200',
+              isCopied ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+            )}
+          />
+        </span>
+        <span className="sr-only">{isCopied ? 'Copied' : 'Copy value'}</span>
+      </Button>
+    </AppTooltip>
   );
 }
 

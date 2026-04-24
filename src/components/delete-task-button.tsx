@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -173,18 +173,11 @@ function RelatedTasksPreview({ relatedTasks }: { relatedTasks: TaskRelationshipR
               className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/90 px-3 py-2.5"
             >
               <div className="min-w-0 flex-1">
-                <TooltipProvider delayDuration={180}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {task.title}
-                      </p>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs break-words text-sm">
-                      {task.title}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <AppTooltip content={task.title} delayDuration={180} side="top" className="max-w-xs break-words text-sm">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {task.title}
+                  </p>
+                </AppTooltip>
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                 {relationLabels.map(label => (

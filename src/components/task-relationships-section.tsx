@@ -5,7 +5,7 @@ import { ExternalLink, GitBranch, Link2, ListTree, Network, Shapes } from 'lucid
 
 import { TaskStatusBadge } from '@/components/task-status-badge';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Task, UiConfig } from '@/lib/types';
 
@@ -68,18 +68,11 @@ function RelationshipTaskCard({
         {tone === 'linked' ? <Link2 className="h-3.5 w-3.5" /> : <ListTree className="h-3.5 w-3.5" />}
       </div>
       <div className="min-w-0 flex flex-1 items-center gap-2.5 overflow-hidden sm:gap-3">
-        <TooltipProvider delayDuration={180}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-foreground sm:text-[0.95rem]">
-                {task.title}
-              </p>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs break-words text-sm">
-              {task.title}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <AppTooltip content={task.title} delayDuration={180} side="top" className="max-w-xs break-words text-sm">
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-foreground sm:text-[0.95rem]">
+            {task.title}
+          </p>
+        </AppTooltip>
         <div className="flex shrink-0 items-center gap-1.5">
           <TaskStatusBadge
             status={task.status}
