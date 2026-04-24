@@ -91,6 +91,40 @@ const safeParseDate = (d: any): Date | undefined => {
     return isNaN(date.getTime()) ? undefined : date;
 };
 
+const normalizeCustomFieldsForForm = (customFields: Record<string, any> | undefined, uiConfig?: UiConfig | null): Record<string, any> => {
+    const normalized = { ...(customFields || {}) };
+    const dateFieldKeys = new Set((uiConfig?.fields || []).filter(field => field.isCustom && field.type === 'date').map(field => field.key));
+
+    dateFieldKeys.forEach(key => {
+        if (normalized[key] !== undefined && normalized[key] !== null && normalized[key] !== '') {
+            normalized[key] = safeParseDate(normalized[key]);
+        }
+    });
+
+    return normalized;
+};
+
+const normalizeCustomFieldsForSubmit = (customFields: Record<string, any> | undefined, uiConfig?: UiConfig | null): Record<string, any> | undefined => {
+    if (!customFields) return customFields;
+
+    const normalized = { ...customFields };
+    const dateFieldKeys = new Set((uiConfig?.fields || []).filter(field => field.isCustom && field.type === 'date').map(field => field.key));
+
+    dateFieldKeys.forEach(key => {
+        const value = normalized[key];
+        if (value === undefined) return;
+        if (value === null || value === '') {
+            normalized[key] = null;
+            return;
+        }
+
+        const date = safeParseDate(value);
+        normalized[key] = date ? date.toISOString() : null;
+    });
+
+    return normalized;
+};
+
 const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | undefined => {
     if (!prLinks) return undefined;
 
@@ -207,7 +241,7 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null, al
         qaEndDate: safeParseDate(task.qaEndDate),
         deploymentDates: deploymentDatesAsDates,
         attachments: task.attachments || [],
-        customFields: { ...defaults.customFields, ...(task.customFields || {}) },
+        customFields: normalizeCustomFieldsForForm({ ...defaults.customFields, ...(task.customFields || {}) }, uiConfig),
         prLinks: task.prLinks || {},
         deploymentStatus: task.deploymentStatus || {},
         relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : defaults.relevantEnvironments,
@@ -400,6 +434,8 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
         }
         restored.deploymentDates = dates;
     }
+
+    restored.customFields = normalizeCustomFieldsForForm(restored.customFields, uiConfig);
     
     form.reset(restored);
     setShowDraftPrompt(false);
@@ -715,6 +751,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             Object.entries(data.deploymentDates).map(([key, value]) => [key, value ? value.toISOString() : null])
           )
         : {},
+    customFields: normalizeCustomFieldsForSubmit(data.customFields, uiConfig),
   });
 
   const handleFormSubmit = (data: TaskFormData) => {
