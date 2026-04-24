@@ -3,7 +3,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Search, SearchX, ChevronRight as ChevronRightIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,7 +39,7 @@ export function TaskSearchInput({
           }}
           onKeyDown={onSearchKeyDown}
           className={cn(
-            'h-11 w-full rounded-2xl border-border/60 bg-background/85 pl-10 pr-16 font-normal shadow-[0_14px_30px_-24px_rgba(15,23,42,0.18)] transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40',
+            'h-11 w-full rounded-2xl border-border/60 bg-background/85 pl-10 pr-10 font-normal shadow-[0_14px_30px_-24px_rgba(15,23,42,0.18)] transition-all duration-300 focus-visible:ring-[3px] focus-visible:ring-primary/10 focus-visible:border-primary/40',
             executedSearchQuery && 'border-primary/40 bg-primary/5 shadow-sm'
           )}
         />
@@ -55,18 +54,6 @@ export function TaskSearchInput({
               <X className="h-4 w-4" />
             </Button>
           )}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="pointer-events-none hidden h-5 select-none items-center rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground sm:inline-flex">
-                  Enter
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <span>Press Enter to search tasks</span>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </div>
 
