@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ChevronDown, ChevronUp, Clock3, MessageSquare, Plus, RefreshCcw, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { AssistantChatSession } from './assistant-types';
 
@@ -58,22 +58,19 @@ export function AssistantChatHeader(props: Props) {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                onClick={() => setIsChatManagerCollapsed((current) => !current)}
-                disabled={isBusy}
-              >
-                {isChatManagerCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                <span className="sr-only">{isChatManagerCollapsed ? 'Show chats' : 'Hide chats'}</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{isChatManagerCollapsed ? 'Show chats' : 'Hide chats'}</TooltipContent>
-          </Tooltip>
+          <AppTooltip content={isChatManagerCollapsed ? 'Show chats' : 'Hide chats'}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={() => setIsChatManagerCollapsed((current) => !current)}
+              disabled={isBusy}
+            >
+              {isChatManagerCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              <span className="sr-only">{isChatManagerCollapsed ? 'Show chats' : 'Hide chats'}</span>
+            </Button>
+          </AppTooltip>
           <Button
             type="button"
             variant="outline"
@@ -84,40 +81,34 @@ export function AssistantChatHeader(props: Props) {
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             New chat
           </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                onClick={onRefreshCurrentSession}
-                disabled={isBusy || isRefreshingSession}
-              >
-                <RefreshCcw className={cn('h-4 w-4', isRefreshingSession && 'animate-spin')} />
-                <span className="sr-only">Refresh current chat</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh current chat</TooltipContent>
-          </Tooltip>
+          <AppTooltip content="Refresh current chat">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={onRefreshCurrentSession}
+              disabled={isBusy || isRefreshingSession}
+            >
+              <RefreshCcw className={cn('h-4 w-4', isRefreshingSession && 'animate-spin')} />
+              <span className="sr-only">Refresh current chat</span>
+            </Button>
+          </AppTooltip>
           <Popover open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                    disabled={isBusy}
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Clear current chat</span>
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Clear current chat</TooltipContent>
-            </Tooltip>
+            <AppTooltip content="Clear current chat">
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                  disabled={isBusy}
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Clear current chat</span>
+                </Button>
+              </PopoverTrigger>
+            </AppTooltip>
             <PopoverContent
               align="end"
               side="bottom"

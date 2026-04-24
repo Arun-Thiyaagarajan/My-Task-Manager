@@ -181,7 +181,7 @@ export function SavedViewDialogs({
             <FolderKanban className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
             <p className="text-base font-semibold">No saved views yet.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Save your current filters and layout to reuse them later.
+              Save your current filters, search, sort, and date mode to reuse them later.
             </p>
           </div>
         )}
@@ -202,7 +202,7 @@ export function SavedViewDialogs({
                 <div>
                   <DialogTitle>Save Current View</DialogTitle>
                   <DialogDescription>
-                    Save the current search, filters, layout, and date mode as a reusable view.
+                    Save the current search, filters, sort, and date mode as a reusable view.
                   </DialogDescription>
                 </div>
               </div>

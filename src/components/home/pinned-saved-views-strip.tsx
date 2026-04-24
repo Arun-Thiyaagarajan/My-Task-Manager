@@ -1,6 +1,6 @@
 'use client';
 
-import { BookmarkPlus, CalendarIcon, Search, Sparkles, X } from 'lucide-react';
+import { BookmarkPlus, CalendarIcon, Pin, Search, Sparkles, X } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -15,6 +15,7 @@ export function PinnedSavedViewsStrip({
   activeSavedViewIsPinned = false,
   onApplySavedTaskView,
   onClearActiveSavedView,
+  onToggleSavedViewPin,
   getSavedViewSummary,
   getSavedViewPreviewGroups,
   isLoading = false,
@@ -52,6 +53,7 @@ export function PinnedSavedViewsStrip({
           {visiblePinnedSavedTaskViews.map((view) => {
             const isActive = activeSavedViewId === view.id;
             const isActivePreviewOnly = isActive && !activeSavedViewIsPinned;
+            const showPinToggleAction = isActivePreviewOnly || view.pinned;
             const previewGroups = getSavedViewPreviewGroups(view);
 
             return (
@@ -128,6 +130,16 @@ export function PinnedSavedViewsStrip({
                             </span>
                           </div>
                         </div>
+                        {showPinToggleAction ? (
+                          <button
+                            type="button"
+                            onClick={() => onToggleSavedViewPin(view.id)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/20 bg-primary/8 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/14"
+                          >
+                            <Pin className="h-3 w-3" />
+                            {view.pinned ? 'Unpin view' : 'Pin view'}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                     <div className="space-y-3 px-4 py-3">
@@ -151,7 +163,7 @@ export function PinnedSavedViewsStrip({
                         ))
                       ) : (
                         <p className="text-xs text-muted-foreground">
-                          This view keeps your current layout, sort, and date mode ready to reuse.
+                          This view keeps your current filters, search, sort, and date mode ready to reuse.
                         </p>
                       )}
                     </div>

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 
 interface RichTextViewerProps {
   text: string;
+  className?: string;
+  tone?: 'default' | 'muted';
 }
 
 const CodeBlock = ({ content }: { content: string }) => {
@@ -134,7 +136,7 @@ function renderInlineMarkdown(line: string) {
 }
 
 
-export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
+export const RichTextViewer = memo(({ text, className, tone = 'default' }: RichTextViewerProps) => {
   const parts = useMemo(() => {
     if (!text) return [];
 
@@ -182,12 +184,19 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                 <ListTag
                   key={`list-${sectionIndex}-${lineIndex}`}
                   className={cn(
-                    "my-3 space-y-1.5 pl-6 text-foreground/95",
+                    "my-3 space-y-1.5 pl-6",
+                    tone === 'muted' ? "text-muted-foreground" : "text-foreground/95",
                     isOrdered ? "list-decimal" : "list-disc"
                   )}
                 >
                   {listItems.map((item, itemIndex) => (
-                    <li key={`list-item-${sectionIndex}-${lineIndex}-${itemIndex}`} className="pl-1 marker:text-primary/80">
+                    <li
+                      key={`list-item-${sectionIndex}-${lineIndex}-${itemIndex}`}
+                      className={cn(
+                        "pl-1",
+                        tone === 'muted' ? "marker:text-muted-foreground/75" : "marker:text-primary/80"
+                      )}
+                    >
                       {renderInlineMarkdown(item)}
                     </li>
                   ))}
@@ -203,7 +212,12 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
                   isBlockQuote ? (
                     <blockquote
                       key={`line-${sectionIndex}-${lineIndex}`}
-                      className="my-2 rounded-r-2xl border-l-4 border-primary/50 bg-primary/5 px-4 py-2 text-foreground/90 italic shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                      className={cn(
+                        "my-2 rounded-r-2xl border-l-4 px-4 py-2 italic shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+                        tone === 'muted'
+                          ? "border-border/70 bg-muted/25 text-muted-foreground"
+                          : "border-primary/50 bg-primary/5 text-foreground/90"
+                      )}
                     >
                       {inlineResult}
                     </blockquote>
@@ -225,7 +239,13 @@ export const RichTextViewer = memo(({ text }: RichTextViewerProps) => {
   }, [text]);
 
   return (
-    <div className="whitespace-pre-wrap break-words">
+    <div
+      className={cn(
+        "whitespace-pre-wrap break-words",
+        tone === 'muted' && "[&_a]:text-muted-foreground [&_a]:underline-offset-2 [&_a]:hover:text-foreground [&_code]:bg-muted/70 [&_code]:text-inherit [&_strong]:text-foreground/85",
+        className
+      )}
+    >
       {parts.map((part, index) => (
         <React.Fragment key={index}>{part}</React.Fragment>
       ))}

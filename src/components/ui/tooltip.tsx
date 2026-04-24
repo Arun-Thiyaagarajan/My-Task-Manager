@@ -20,7 +20,7 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-[200] overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "z-[430] overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         className
       )}
       {...props}
@@ -29,4 +29,31 @@ const TooltipContent = React.forwardRef<
 ))
 TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+type AppTooltipProps = Omit<React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>, "children" | "content"> & {
+  children: React.ReactElement
+  content: React.ReactNode
+  delayDuration?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>["delayDuration"]
+  disabled?: boolean
+}
+
+function AppTooltip({
+  children,
+  content,
+  delayDuration,
+  disabled = false,
+  className,
+  ...contentProps
+}: AppTooltipProps) {
+  if (disabled || !content) return children
+
+  return (
+    <Tooltip delayDuration={delayDuration}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className={className} {...contentProps}>
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, AppTooltip }

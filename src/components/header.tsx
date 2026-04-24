@@ -660,9 +660,11 @@ export function Header() {
                     </Popover>
                 </div>
             )}
-            
-            <div className="shrink-0"><ThemeToggle /></div>
 
+            <div className="hidden sm:block shrink-0">
+              <ThemeToggle />
+            </div>
+            
             {/* Sign In Button - Only for Mobile, hidden on Auth page */}
             {mounted && authMode === 'localStorage' && !pathname.startsWith('/auth') && (
                 <Button 

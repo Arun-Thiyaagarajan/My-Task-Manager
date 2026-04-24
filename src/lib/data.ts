@@ -1,16 +1,19 @@
 'use client';
 
 import { INITIAL_RELEASES, INITIAL_UI_CONFIG, ENVIRONMENTS, INITIAL_REPOSITORY_CONFIGS, TASK_STATUSES, DEFAULT_STATUS_CONFIGS, DEFAULT_STATUS_GROUPS } from './constants';
-import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, TaskTemplate, RepositoryConfig, SavedTaskView, StarterContentMeta } from './types'; 
+import type { Task, Person, Company, Attachment, UiConfig, FieldConfig, MyTaskManagerData, CompanyData, Log, Comment, GeneralReminder, BackupFrequency, Note, NoteLayout, Environment, ReleaseUpdate, ReleaseItem, AuthMode, UserPreferences, LocalProfile, Feedback, FeedbackMessage, FeedbackStatus, UserProfile, AppNotification, StatusConfigItem, StatusGroupConfig, TaskTemplate, RepositoryConfig, SavedTaskView, StarterContentMeta } from './types'; 
 import cloneDeep from 'lodash/cloneDeep';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc, deleteDoc, updateDoc, collection, writeBatch, getDocs, query, orderBy, limit, getDoc, where, addDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { toast } from '@/hooks/use-toast';
-import { syncTaskStatuses } from './status-config';
+import { getStatusConfigs, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, syncTaskStatuses } from './status-config';
 import { createId } from './id';
 import { buildReadCacheScope, clearAllReadCache, invalidateNoteReadCache, invalidateTaskReadCache } from './read-cache';
+import { formatTimestamp } from './utils';
+import { getDueReminderPresetLabel, getTaskPriorityLabel } from './task-planning';
+import { buildSharedTaskViewConfig, buildTaskShareSnapshot, encryptTaskShareSnapshot, isSharedTaskLinkExpired, isSharedTaskLinkRevoked, type SharedTaskLinkDocument } from './task-share';
 
 export const DATA_KEY = 'my_task_manager_data';
 const AUTH_MODE_KEY = 'taskflow_auth_mode';
@@ -18,6 +21,19 @@ const PREFERENCES_KEY = 'taskflow_user_preferences';
 const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
 const SHARED_RELEASE_UPDATES_COLLECTION = 'shared';
 const SHARED_RELEASE_UPDATES_DOC = 'release-updates';
+export const SHARED_TASK_LINKS_COLLECTION = 'sharedTaskLinks';
+
+export interface CreateTaskShareLinkOptions {
+    expiresAt?: string | null;
+    password?: string | null;
+}
+
+export interface MissingImportedStatusGroupIssue {
+    groupKey: string;
+    suggestedName: string;
+    statusNames: string[];
+    taskTitles: string[];
+}
 
 function isQuotaExceededError(error: unknown): boolean {
     if (!error || typeof error !== 'object') return false;
@@ -97,6 +113,19 @@ function sanitizeForFirestore<T>(value: T): T {
     return value;
 }
 
+function generateShareToken(length = 9): string {
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const cryptoApi = globalThis.crypto;
+
+    if (cryptoApi?.getRandomValues) {
+        const bytes = new Uint8Array(length);
+        cryptoApi.getRandomValues(bytes);
+        return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+    }
+
+    return Math.random().toString(36).slice(2, 2 + length);
+}
+
 export function setCloudCache(data: MyTaskManagerData | null) {
     _cloudCache = data;
 }
@@ -147,6 +176,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -170,6 +203,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -192,6 +229,10 @@ function buildStarterSavedTaskViews(now: string): SavedTaskView[] {
                     repo: [],
                     deployment: [],
                     tags: [],
+                    priority: [],
+                    dueState: [],
+                    reminderNote: [],
+                    dueReminder: [],
                 },
             },
         },
@@ -829,6 +870,114 @@ function dispatchMutation(
     }
 }
 
+export async function createTaskShareLink(
+    task: Task,
+    uiConfig: UiConfig,
+    developers: Person[],
+    testers: Person[],
+    options: CreateTaskShareLinkOptions = {}
+): Promise<string> {
+    if (getAuthMode() !== 'authenticate') {
+        throw new Error('Short share links are only available in cloud mode.');
+    }
+
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    const companyId = getActiveCompanyId();
+
+    if (!userId || !companyId) {
+        throw new Error('Please sign in before creating a short share link.');
+    }
+
+    const snapshot = buildTaskShareSnapshot(task, uiConfig, developers, testers, {
+        includeInlineAttachments: true,
+    });
+    const viewConfig = buildSharedTaskViewConfig(uiConfig);
+    const now = new Date().toISOString();
+    const password = options.password?.trim() || '';
+    const expiresAt = options.expiresAt || null;
+    const encryptedPayload = password ? await encryptTaskShareSnapshot(snapshot, password) : undefined;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        const token = generateShareToken();
+        const docRef = doc(db, SHARED_TASK_LINKS_COLLECTION, token);
+        const existing = await getDoc(docRef);
+
+        if (existing.exists()) {
+            continue;
+        }
+
+        const shareRecord: SharedTaskLinkDocument = {
+            token,
+            taskId: task.id,
+            ownerUserId: userId,
+            companyId,
+            createdAt: now,
+            expiresAt,
+            revokedAt: null,
+            passwordProtected: Boolean(password),
+            version: 1,
+            viewConfig,
+            snapshot: password ? undefined : snapshot,
+            encryptedPayload,
+        };
+
+        await setDoc(docRef, sanitizeForFirestore(shareRecord));
+        return token;
+    }
+
+    throw new Error('Unable to create a unique share link. Please try again.');
+}
+
+export async function getSharedTaskLinkByToken(token: string): Promise<SharedTaskLinkDocument | null> {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) return null;
+
+    const db = getFirestore();
+    const docRef = doc(db, SHARED_TASK_LINKS_COLLECTION, trimmedToken);
+    const snapshot = await getDoc(docRef);
+
+    if (!snapshot.exists()) {
+        return null;
+    }
+
+    const data = snapshot.data() as SharedTaskLinkDocument;
+
+    if (!data?.taskId || !data?.token || !data?.viewConfig) {
+        return null;
+    }
+
+    const hasReadablePayload = Boolean(data.snapshot) || Boolean(data.encryptedPayload);
+    if (!hasReadablePayload) {
+        return null;
+    }
+
+    if (data.token !== trimmedToken || isSharedTaskLinkExpired(data) || isSharedTaskLinkRevoked(data)) {
+        return null;
+    }
+
+    return data;
+}
+
+export async function revokeTaskShareLink(token: string): Promise<void> {
+    if (getAuthMode() !== 'authenticate') {
+        throw new Error('Cloud share links can only be revoked in cloud mode.');
+    }
+
+    const auth = getAuth();
+    const db = getFirestore();
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+        throw new Error('Please sign in before revoking a share link.');
+    }
+
+    const docRef = doc(db, SHARED_TASK_LINKS_COLLECTION, token);
+    await updateDoc(docRef, {
+        revokedAt: new Date().toISOString(),
+    });
+}
+
 // Non-blocking notification creation
 export function createNotification(notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
     const auth = getAuth();
@@ -1057,6 +1206,97 @@ function normalizePersonFieldDefaultValueForExport(
     };
 }
 
+function normalizeDropdownValueForExport(value: unknown, field?: FieldConfig): unknown {
+    if (!field || !['select', 'multiselect'].includes(field.type) || !Array.isArray(field.options) || field.options.length === 0) {
+        return value;
+    }
+
+    const optionByAnyKey = new Map<string, string>();
+    field.options.forEach(option => {
+        const label = option.label?.trim();
+        const normalizedLabel = label?.toLowerCase();
+        const normalizedValue = option.value?.trim().toLowerCase();
+        const normalizedId = option.id?.trim().toLowerCase();
+
+        if (normalizedLabel && label) optionByAnyKey.set(normalizedLabel, label);
+        if (normalizedValue && label) optionByAnyKey.set(normalizedValue, label);
+        if (normalizedId && label) optionByAnyKey.set(normalizedId, label);
+    });
+
+    const normalizeSingleValue = (item: unknown) => {
+        if (typeof item !== 'string') return item;
+        const normalizedItem = item.trim().toLowerCase();
+        return optionByAnyKey.get(normalizedItem) || item;
+    };
+
+    if (Array.isArray(value)) {
+        return value.map(normalizeSingleValue);
+    }
+
+    return normalizeSingleValue(value);
+}
+
+function normalizeTaskCustomFieldsForExport(task: Task, uiConfig: UiConfig): Record<string, any> | undefined {
+    if (!task.customFields || Object.keys(task.customFields).length === 0) {
+        return task.customFields;
+    }
+
+    const fieldByKey = new Map(uiConfig.fields.map(field => [field.key, field]));
+    const nextCustomFields = Object.fromEntries(
+        Object.entries(task.customFields).map(([key, value]) => [key, normalizeDropdownValueForExport(value, fieldByKey.get(key))])
+    );
+
+    return nextCustomFields;
+}
+
+export function prepareTaskForExport(
+    task: Task,
+    uiConfig: UiConfig,
+    developers: Person[],
+    testers: Person[]
+): Task {
+    const devIdToName = new Map(developers.map(person => [person.id, person.name]));
+    const testerIdToName = new Map(testers.map(person => [person.id, person.name]));
+
+    return {
+        ...task,
+        status: getStatusDisplayName(task.status, uiConfig),
+        developers: (task.developers || []).map(id => devIdToName.get(id) || id),
+        testers: (task.testers || []).map(id => testerIdToName.get(id) || id),
+        parentTaskId: task.parentTaskId ?? null,
+        linkedTaskIds: Array.isArray(task.linkedTaskIds) ? [...new Set(task.linkedTaskIds.filter(Boolean))] : [],
+        customFields: normalizeTaskCustomFieldsForExport(task, uiConfig),
+    };
+}
+
+function prepareStatusGroupsForExport(uiConfig: UiConfig): StatusGroupConfig[] {
+    return getStatusGroupConfigs(uiConfig).map((group, index) => ({
+        ...group,
+        id: group.name,
+        name: group.name,
+        order: typeof group.order === 'number' ? group.order : index,
+    }));
+}
+
+function prepareStatusConfigsForExport(uiConfig: UiConfig): StatusConfigItem[] {
+    const normalizedGroups = getStatusGroupConfigs(uiConfig);
+    const originalGroupNameById = new Map(normalizedGroups.map(group => [group.id, group.name]));
+    const normalizedGroupNameByName = new Map(normalizedGroups.map(group => [group.name.trim().toLowerCase(), group.name]));
+
+    return getStatusConfigs({ ...uiConfig, statusGroups: normalizedGroups }).map((status, index) => ({
+        ...status,
+        id: status.name,
+        group: status.group
+            ? (
+                originalGroupNameById.get(status.group) ||
+                normalizedGroupNameByName.get(status.group.trim().toLowerCase()) ||
+                status.group
+            )
+            : status.group,
+        order: typeof status.order === 'number' ? status.order : index,
+    }));
+}
+
 export function prepareUiFieldsForExport(
     fields: FieldConfig[],
     developers: Person[],
@@ -1071,7 +1311,10 @@ export function prepareUiFieldsForExport(
             return normalizePersonFieldDefaultValueForExport(field, testers);
         }
 
-        return field;
+        return {
+            ...field,
+            defaultValue: normalizeDropdownValueForExport(field.defaultValue, field),
+        };
     });
 }
 
@@ -1081,13 +1324,18 @@ export function prepareUiConfigForExport(
     testers: Person[]
 ): UiConfig {
     const normalized = syncTaskStatuses(uiConfig);
+    const statusGroups = prepareStatusGroupsForExport(normalized);
+    const statusConfigs = prepareStatusConfigsForExport({
+        ...normalized,
+        statusGroups,
+    });
 
     return {
         ...normalized,
         fields: prepareUiFieldsForExport(normalized.fields, developers, testers),
-        statusGroups: normalized.statusGroups || [],
-        statusConfigs: normalized.statusConfigs || [],
-        taskStatuses: normalized.taskStatuses || [],
+        statusGroups,
+        statusConfigs,
+        taskStatuses: statusConfigs.map(status => status.name),
     };
 }
 
@@ -1096,6 +1344,7 @@ export function prepareUiFieldsForImport(
     developers: Person[],
     testers: Person[]
 ): FieldConfig[] {
+    const warnings: string[] = [];
     return fields.map(field => {
         if (field.key === 'developers') {
             return normalizeImportedPersonFieldDefaultValue(field, developers);
@@ -1105,7 +1354,10 @@ export function prepareUiFieldsForImport(
             return normalizeImportedPersonFieldDefaultValue(field, testers);
         }
 
-        return field;
+        return {
+            ...field,
+            defaultValue: resolveDropdownValueForImport(field.defaultValue, field, warnings, field.label),
+        };
     });
 }
 
@@ -1145,12 +1397,101 @@ function normalizeImportedPersonFieldDefaultValue(
     };
 }
 
+function resolveDropdownValueForImport(
+    value: unknown,
+    field: FieldConfig | undefined,
+    warnings: string[],
+    labelOverride?: string
+): unknown {
+    if (!field || !['select', 'multiselect'].includes(field.type) || !Array.isArray(field.options) || field.options.length === 0) {
+        return value;
+    }
+
+    const label = labelOverride || field.label;
+    const optionByLabel = new Map(field.options.map(option => [option.label.trim().toLowerCase(), option.value]));
+    const optionByValue = new Map(field.options.map(option => [option.value.trim().toLowerCase(), option.value]));
+    const optionById = new Map(field.options.map(option => [option.id.trim().toLowerCase(), option.value]));
+
+    const resolveSingle = (item: unknown) => {
+        if (typeof item !== 'string') return item;
+        const trimmedItem = item.trim();
+        const normalizedItem = trimmedItem.toLowerCase();
+        const resolved =
+            optionByValue.get(normalizedItem) ||
+            optionByLabel.get(normalizedItem) ||
+            optionById.get(normalizedItem);
+
+        if (!resolved) {
+            warnings.push(`Unknown ${label}: ${trimmedItem}`);
+            return undefined;
+        }
+
+        return resolved;
+    };
+
+    if (Array.isArray(value)) {
+        return value.map(resolveSingle).filter((item): item is string => typeof item === 'string');
+    }
+
+    return resolveSingle(value);
+}
+
+function resolveImportedStatusValue(
+    value: unknown,
+    uiConfig: UiConfig,
+    warnings: string[]
+): string {
+    const fallback = getStatusConfigs(uiConfig)[0]?.name || 'To Do';
+    if (typeof value !== 'string' || value.trim() === '') return fallback;
+
+    const rawValue = value.trim();
+    const statuses = getStatusConfigs(uiConfig);
+    const exactMatch = statuses.find(status => status.name === rawValue || status.id === rawValue);
+    if (exactMatch) return exactMatch.name;
+
+    const normalizedValue = rawValue.toLowerCase();
+    const normalizedMatch = statuses.find(status =>
+        status.name.trim().toLowerCase() === normalizedValue ||
+        status.id.trim().toLowerCase() === normalizedValue ||
+        (status.aliases || []).some(alias => alias.trim().toLowerCase() === normalizedValue)
+    );
+    if (normalizedMatch) return normalizedMatch.name;
+
+    warnings.push(`Unknown status: ${rawValue}`);
+    return fallback;
+}
+
+function resolveImportedCustomFields(
+    taskLike: Pick<Task, 'customFields'>,
+    uiConfig: UiConfig,
+    warnings: string[]
+): Record<string, any> | undefined {
+    if (!taskLike.customFields || Object.keys(taskLike.customFields).length === 0) {
+        return taskLike.customFields;
+    }
+
+    const fieldByKey = new Map(uiConfig.fields.map(field => [field.key, field]));
+    return Object.fromEntries(
+        Object.entries(taskLike.customFields).map(([key, value]) => [
+            key,
+            key.endsWith('_alias') ? value : resolveDropdownValueForImport(value, fieldByKey.get(key), warnings),
+        ])
+    );
+}
+
 function mergeImportedUiConfig(
     currentUi: UiConfig,
     parsedJson: any,
     currentDevelopers: Person[] = [],
-    currentTesters: Person[] = []
+    currentTesters: Person[] = [],
+    warnings: string[] = []
 ): UiConfig {
+    const isLikelyInternalReferenceId = (value: string) =>
+        /^status_group_/i.test(value) ||
+        /^grp[_-]/i.test(value) ||
+        /^status_/i.test(value) ||
+        /^[a-z]+_[0-9a-f]{6,}$/i.test(value);
+
     const mergedRepositoryConfigs = [...currentUi.repositoryConfigs];
     const importedRepositoryConfigs = Array.isArray(parsedJson.repositoryConfigs) ? parsedJson.repositoryConfigs : [];
     importedRepositoryConfigs.forEach((repo: any) => {
@@ -1165,14 +1506,169 @@ function mergeImportedUiConfig(
         mergedEnvironments.push({ ...environment, id: environment.id || createId('env_') });
     });
 
+    const currentStatusGroups = getStatusGroupConfigs(currentUi);
+    const currentGroupNameById = new Map(currentStatusGroups.map(group => [group.id.trim().toLowerCase(), group.name]));
+    const currentGroupNameByName = new Map(currentStatusGroups.map(group => [group.name.trim().toLowerCase(), group.name]));
+    const importedRawStatusConfigs = Array.isArray(parsedJson.statusConfigs) ? parsedJson.statusConfigs : [];
+    const parsedStatusGroups = Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : [];
+    const inferGroupNameFromImportedStatuses = (rawGroupKey: string) => {
+        const normalizedGroupKey = rawGroupKey.trim().toLowerCase();
+        if (!normalizedGroupKey) return '';
+
+        const matchingStatuses = importedRawStatusConfigs.filter((status: any) => {
+            const group = typeof status?.group === 'string' ? status.group.trim().toLowerCase() : '';
+            return group === normalizedGroupKey;
+        });
+
+        if (matchingStatuses.length === 0) return '';
+
+        const inferredGroupCounts = new Map<string, number>();
+        matchingStatuses.forEach((status: any) => {
+            const statusName = typeof status?.name === 'string' ? status.name.trim() : '';
+            if (!statusName) return;
+
+            const inferredGroupId = getStatusGroupId(undefined, currentUi, { id: statusName, name: statusName });
+            const inferredGroupName =
+                currentGroupNameById.get(inferredGroupId.trim().toLowerCase()) ||
+                currentGroupNameByName.get(inferredGroupId.trim().toLowerCase()) ||
+                '';
+
+            if (!inferredGroupName) return;
+            inferredGroupCounts.set(inferredGroupName, (inferredGroupCounts.get(inferredGroupName) || 0) + 1);
+        });
+
+        const sortedCandidates = Array.from(inferredGroupCounts.entries()).sort((a, b) => b[1] - a[1]);
+        return sortedCandidates[0]?.[0] || '';
+    };
+    const importedStatusGroups = parsedStatusGroups.length > 0
+        ? parsedStatusGroups
+            .map((group: any, index: number): StatusGroupConfig | null => {
+                const rawName = typeof group?.name === 'string' ? group.name.trim() : '';
+                const rawId = typeof group?.id === 'string' ? group.id.trim() : '';
+                const resolvedName =
+                    rawName ||
+                    currentGroupNameById.get(rawId.toLowerCase()) ||
+                    currentGroupNameByName.get(rawId.toLowerCase()) ||
+                    inferGroupNameFromImportedStatuses(rawId) ||
+                    (!isLikelyInternalReferenceId(rawId) ? rawId : '');
+
+                if (!resolvedName) {
+                    if (rawId) warnings.push(`Unknown status group: ${rawId}`);
+                    return null;
+                }
+
+                return {
+                    id: resolvedName,
+                    name: resolvedName,
+                    order: typeof group.order === 'number' ? group.order : index,
+                    isDefault: Boolean(group.isDefault),
+                };
+            })
+            .filter((group: StatusGroupConfig | null): group is StatusGroupConfig => !!group)
+        : getStatusGroupConfigs({
+            ...currentUi,
+            statusGroups: currentUi.statusGroups,
+            statusConfigs: Array.isArray(parsedJson.statusConfigs) ? parsedJson.statusConfigs : currentUi.statusConfigs,
+        });
+    const synthesizedStatusGroups: StatusGroupConfig[] = [];
+    const importedStatusGroupNameByAnyKey = new Map<string, string>();
+    parsedStatusGroups.forEach((group: any) => {
+        const name = typeof group?.name === 'string' && group.name.trim()
+            ? group.name.trim()
+            : typeof group?.id === 'string'
+                ? currentGroupNameById.get(group.id.trim().toLowerCase()) || group.id.trim()
+                : '';
+        if (!name) return;
+        if (typeof group?.id === 'string' && group.id.trim()) {
+            importedStatusGroupNameByAnyKey.set(group.id.trim().toLowerCase(), name);
+        }
+        importedStatusGroupNameByAnyKey.set(name.toLowerCase(), name);
+    });
+    importedStatusGroups.forEach((group: StatusGroupConfig) => {
+        importedStatusGroupNameByAnyKey.set(group.id.trim().toLowerCase(), group.name);
+        importedStatusGroupNameByAnyKey.set(group.name.trim().toLowerCase(), group.name);
+    });
+    currentStatusGroups.forEach((group: StatusGroupConfig) => {
+        importedStatusGroupNameByAnyKey.set(group.id.trim().toLowerCase(), group.name);
+        importedStatusGroupNameByAnyKey.set(group.name.trim().toLowerCase(), group.name);
+    });
+    const ensureImportedGroup = (rawGroup: string, index: number) => {
+        const trimmedGroup = rawGroup.trim();
+        if (!trimmedGroup) return '';
+
+        const normalizedGroup = trimmedGroup.toLowerCase();
+        const existingName =
+            importedStatusGroupNameByAnyKey.get(normalizedGroup) ||
+            currentGroupNameById.get(normalizedGroup) ||
+            currentGroupNameByName.get(normalizedGroup);
+
+        if (existingName) return existingName;
+
+        let resolvedName = '';
+        if (isLikelyInternalReferenceId(trimmedGroup)) {
+            const matchingParsedGroup = parsedStatusGroups.find((group: any) =>
+                typeof group?.id === 'string' && group.id.trim().toLowerCase() === normalizedGroup
+            );
+            resolvedName =
+                (typeof matchingParsedGroup?.name === 'string' ? matchingParsedGroup.name.trim() : '') ||
+                inferGroupNameFromImportedStatuses(trimmedGroup);
+        } else {
+            resolvedName = trimmedGroup;
+        }
+
+        if (!resolvedName) return '';
+
+        const nextGroup: StatusGroupConfig = {
+            id: resolvedName,
+            name: resolvedName,
+            order: importedStatusGroups.length + synthesizedStatusGroups.length + index,
+            isDefault: false,
+        };
+        synthesizedStatusGroups.push(nextGroup);
+        importedStatusGroupNameByAnyKey.set(trimmedGroup.toLowerCase(), resolvedName);
+        importedStatusGroupNameByAnyKey.set(resolvedName.toLowerCase(), resolvedName);
+        return resolvedName;
+    };
     const importedStatusConfigs = Array.isArray(parsedJson.statusConfigs)
-        ? parsedJson.statusConfigs.filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+        ? parsedJson.statusConfigs
+            .filter((status: any): status is StatusConfigItem => Boolean(status?.name))
+            .map((status: any, index: number) => {
+                const rawGroup = typeof status.group === 'string' ? status.group.trim() : '';
+                let resolvedGroup = rawGroup
+                    ? importedStatusGroupNameByAnyKey.get(rawGroup.toLowerCase()) || ''
+                    : '';
+
+                if (!resolvedGroup && rawGroup) {
+                    if (isLikelyInternalReferenceId(rawGroup)) {
+                        const inferredGroupId = getStatusGroupId(undefined, currentUi, { id: String(status.name).trim(), name: String(status.name).trim() });
+                        resolvedGroup =
+                            importedStatusGroupNameByAnyKey.get(inferredGroupId.toLowerCase()) ||
+                            currentGroupNameById.get(inferredGroupId.toLowerCase()) ||
+                            currentGroupNameByName.get(inferredGroupId.toLowerCase()) ||
+                            ensureImportedGroup(rawGroup, index) ||
+                            '';
+                        if (!resolvedGroup) {
+                            warnings.push(`Unknown status group: ${rawGroup}`);
+                        }
+                    } else {
+                        resolvedGroup = ensureImportedGroup(rawGroup, index) || rawGroup;
+                    }
+                }
+
+                return {
+                    ...status,
+                    id: String(status.name).trim(),
+                    group: resolvedGroup || undefined,
+                    order: typeof status.order === 'number' ? status.order : index,
+                };
+            })
         : [];
+    const allImportedStatusGroups = [...importedStatusGroups, ...synthesizedStatusGroups];
     const importedTaskStatuses = Array.isArray(parsedJson.taskStatuses)
         ? parsedJson.taskStatuses.filter((status: any): status is string => typeof status === 'string' && status.trim().length > 0)
         : [];
 
-    const mergedFields = mergeImportedFields(
+    const mergedFields = prepareUiFieldsForImport(mergeImportedFields(
         currentUi.fields,
         parsedJson.fields,
         parsedJson.customFieldDefinitions
@@ -1200,7 +1696,28 @@ function mergeImportedUiConfig(
         }
 
         return field;
+    }), currentDevelopers, currentTesters);
+
+    const normalizedImportedStatusGroups = getStatusGroupConfigs({
+        ...currentUi,
+        statusGroups: allImportedStatusGroups,
+        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
     });
+
+    const baseStatusConfigs: StatusConfigItem[] = importedStatusConfigs.length > 0
+        ? importedStatusConfigs
+        : (currentUi.statusConfigs || []);
+
+    const normalizedImportedStatusConfigs = baseStatusConfigs.map((status: StatusConfigItem, index: number) => ({
+        ...status,
+        group: status.group
+            ? (
+                normalizedImportedStatusGroups.find(group => group.id === status.group || group.name.trim().toLowerCase() === status.group?.trim().toLowerCase())?.name
+                || status.group
+            )
+            : status.group,
+        order: typeof status.order === 'number' ? status.order : index,
+    }));
 
     return syncTaskStatuses({
         ...currentUi,
@@ -1210,10 +1727,88 @@ function mergeImportedUiConfig(
         fields: mergedFields,
         repositoryConfigs: mergedRepositoryConfigs,
         environments: mergedEnvironments,
-        statusGroups: Array.isArray(parsedJson.statusGroups) ? parsedJson.statusGroups : currentUi.statusGroups,
-        statusConfigs: importedStatusConfigs.length > 0 ? importedStatusConfigs : currentUi.statusConfigs,
-        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : currentUi.taskStatuses,
+        statusGroups: normalizedImportedStatusGroups,
+        statusConfigs: normalizedImportedStatusConfigs,
+        taskStatuses: importedTaskStatuses.length > 0 ? importedTaskStatuses : normalizedImportedStatusConfigs.map((status: StatusConfigItem) => status.name),
     });
+}
+
+export function prepareUiConfigForImport(
+    currentUi: UiConfig,
+    parsedJson: any,
+    currentDevelopers: Person[] = [],
+    currentTesters: Person[] = []
+) {
+    const warnings: string[] = [];
+    const config = mergeImportedUiConfig(currentUi, parsedJson, currentDevelopers, currentTesters, warnings);
+    return {
+        config,
+        warnings: Array.from(new Set(warnings)),
+    };
+}
+
+function collectMissingImportedStatusGroupIssues(
+    currentUi: UiConfig,
+    parsedJson: any,
+    rawTasks: any[]
+): MissingImportedStatusGroupIssue[] {
+    const currentGroups = getStatusGroupConfigs(currentUi);
+    const currentGroupKeys = new Set(
+        currentGroups.flatMap(group => [group.id.trim().toLowerCase(), group.name.trim().toLowerCase()])
+    );
+    const parsedStatusGroups = Array.isArray(parsedJson?.statusGroups) ? parsedJson.statusGroups : [];
+    const parsedGroupNameByAnyKey = new Map<string, string>();
+    parsedStatusGroups.forEach((group: any) => {
+        const groupName = typeof group?.name === 'string' ? group.name.trim() : '';
+        const groupId = typeof group?.id === 'string' ? group.id.trim() : '';
+        if (groupName) parsedGroupNameByAnyKey.set(groupName.toLowerCase(), groupName);
+        if (groupId && groupName) parsedGroupNameByAnyKey.set(groupId.toLowerCase(), groupName);
+    });
+
+    const importedStatusConfigs = Array.isArray(parsedJson?.statusConfigs) ? parsedJson.statusConfigs : [];
+    const issuesByGroupKey = new Map<string, MissingImportedStatusGroupIssue>();
+    importedStatusConfigs.forEach((status: any) => {
+        if (!status?.name || typeof status.name !== 'string') return;
+        const rawGroup = typeof status.group === 'string' ? status.group.trim() : '';
+        if (!rawGroup) return;
+
+        const normalizedRawGroup = rawGroup.toLowerCase();
+        if (currentGroupKeys.has(normalizedRawGroup) || parsedGroupNameByAnyKey.has(normalizedRawGroup)) {
+            return;
+        }
+
+        const existingIssue = issuesByGroupKey.get(rawGroup);
+        if (existingIssue) {
+            if (!existingIssue.statusNames.includes(status.name.trim())) {
+                existingIssue.statusNames.push(status.name.trim());
+            }
+            return;
+        }
+
+        const suggestedName = parsedGroupNameByAnyKey.get(normalizedRawGroup)
+            || (!/^status_group_/i.test(rawGroup) ? rawGroup : '');
+
+        issuesByGroupKey.set(rawGroup, {
+            groupKey: rawGroup,
+            suggestedName: suggestedName || status.name.trim(),
+            statusNames: [status.name.trim()],
+            taskTitles: [],
+        });
+    });
+
+    rawTasks.forEach((task: any) => {
+        const taskStatus = typeof task?.status === 'string' ? task.status.trim() : '';
+        const taskTitle = typeof task?.title === 'string' ? task.title.trim() : 'Untitled task';
+        if (!taskStatus) return;
+
+        issuesByGroupKey.forEach((issue) => {
+            if (issue.statusNames.includes(taskStatus) && !issue.taskTitles.includes(taskTitle)) {
+                issue.taskTitles.push(taskTitle);
+            }
+        });
+    });
+
+    return Array.from(issuesByGroupKey.values());
 }
 
 export function setUiConfig(config: UiConfig) {
@@ -1382,6 +1977,15 @@ function sanitizeTaskTemplateData(taskData: Partial<Task>): Partial<Task> {
 
     return cloneDeep({
         ...rest,
+        priority: rest.priority || 'medium',
+        dueAt: rest.dueAt || null,
+        dueCompletedAt: rest.dueCompletedAt || null,
+        dueReminderAt: rest.dueReminderAt || null,
+        dueReminderPreset: rest.dueReminderPreset || null,
+        dueReminderBackupAt: rest.dueReminderBackupAt || null,
+        dueReminderBackupPreset: rest.dueReminderBackupPreset || null,
+        reminder: rest.reminder || null,
+        reminderExpiresAt: rest.reminderExpiresAt || null,
         customFields: rest.customFields || {},
         attachments: rest.attachments || [],
         repositories: rest.repositories || [],
@@ -1394,6 +1998,10 @@ function sanitizeTaskTemplateData(taskData: Partial<Task>): Partial<Task> {
         relevantEnvironments: rest.relevantEnvironments || ['dev', 'stage', 'production'],
         summary: rest.summary ?? null,
         azureWorkItemId: rest.azureWorkItemId || '',
+        parentTaskId: typeof rest.parentTaskId === 'string' && rest.parentTaskId.trim().length > 0 ? rest.parentTaskId : null,
+        linkedTaskIds: Array.isArray(rest.linkedTaskIds)
+            ? [...new Set(rest.linkedTaskIds.filter((item): item is string => typeof item === 'string' && item.trim().length > 0))]
+            : [],
     });
 }
 
@@ -1877,6 +2485,234 @@ export function getTaskById(id: string): Task | undefined {
            appData.companyData[companyId].trash.find(t => t.id === id);
 }
 
+function normalizeTaskRelationshipIds(ids: string[] | undefined, activeTasks: Task[], selfTaskId: string): string[] {
+    const activeTaskIds = new Set(activeTasks.map(task => task.id));
+    const normalized = Array.isArray(ids) ? ids : [];
+    return [...new Set(normalized.filter((value): value is string => typeof value === 'string' && value.length > 0))]
+        .filter(taskId => taskId !== selfTaskId && activeTaskIds.has(taskId));
+}
+
+function collectDescendantTaskIds(tasks: Task[], taskId: string): Set<string> {
+    const descendants = new Set<string>();
+    const queue = tasks
+        .filter(task => task.parentTaskId === taskId)
+        .map(task => task.id);
+
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        if (!currentId || descendants.has(currentId)) continue;
+        descendants.add(currentId);
+        tasks.forEach(task => {
+            if (task.parentTaskId === currentId && !descendants.has(task.id)) {
+                queue.push(task.id);
+            }
+        });
+    }
+
+    return descendants;
+}
+
+function resolveParentTaskId(parentTaskId: string | null | undefined, activeTasks: Task[], selfTaskId: string): string | null {
+    if (!parentTaskId) return null;
+    if (parentTaskId === selfTaskId) {
+        throw new Error('A task cannot be its own parent.');
+    }
+
+    const parentTask = activeTasks.find(task => task.id === parentTaskId);
+    if (!parentTask) {
+        return null;
+    }
+
+    const descendantIds = collectDescendantTaskIds(activeTasks, selfTaskId);
+    if (descendantIds.has(parentTaskId)) {
+        throw new Error('A task cannot be assigned to one of its subtasks as the parent.');
+    }
+
+    return parentTaskId;
+}
+
+function syncLinkedTaskRelationships(tasks: Task[], sourceTaskId: string, previousLinkedTaskIds: string[], nextLinkedTaskIds: string[]): string[] {
+    const changedTaskIds = new Set<string>();
+    const previousSet = new Set(previousLinkedTaskIds);
+    const nextSet = new Set(nextLinkedTaskIds);
+
+    tasks.forEach(task => {
+        if (task.id === sourceTaskId) return;
+
+        const hadLink = previousSet.has(task.id);
+        const shouldHaveLink = nextSet.has(task.id);
+        if (hadLink === shouldHaveLink) return;
+
+        const currentLinkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, tasks, task.id);
+        const updatedLinkedTaskIds = shouldHaveLink
+            ? [...new Set([...currentLinkedTaskIds, sourceTaskId])]
+            : currentLinkedTaskIds.filter(linkedTaskId => linkedTaskId !== sourceTaskId);
+
+        task.linkedTaskIds = updatedLinkedTaskIds;
+        task.updatedAt = new Date().toISOString();
+        changedTaskIds.add(task.id);
+    });
+
+    return [...changedTaskIds];
+}
+
+export interface TaskRelationshipReference {
+    task: Task;
+    relationLabels: string[];
+}
+
+function collectTaskRelationshipReferences(activeTasks: Task[], taskId: string): TaskRelationshipReference[] {
+    const targetTask = activeTasks.find(task => task.id === taskId);
+    if (!targetTask) return [];
+
+    const relationshipMap = new Map<string, { task: Task; relationLabels: Set<string> }>();
+    const addRelationship = (task: Task | undefined, label: string) => {
+        if (!task || task.id === taskId) return;
+        const existing = relationshipMap.get(task.id);
+        if (existing) {
+            existing.relationLabels.add(label);
+            return;
+        }
+
+        relationshipMap.set(task.id, {
+            task,
+            relationLabels: new Set([label]),
+        });
+    };
+
+    if (targetTask.parentTaskId) {
+        addRelationship(activeTasks.find(task => task.id === targetTask.parentTaskId), 'Parent');
+    }
+
+    activeTasks
+        .filter(task => task.parentTaskId === taskId)
+        .forEach(task => addRelationship(task, 'Subtask'));
+
+    const linkedTaskIdSet = new Set(normalizeTaskRelationshipIds(targetTask.linkedTaskIds, activeTasks, taskId));
+    activeTasks.forEach(task => {
+        if (task.id === taskId) return;
+        const normalizedLinkedIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+        if (normalizedLinkedIds.includes(taskId)) {
+            linkedTaskIdSet.add(task.id);
+        }
+    });
+    linkedTaskIdSet.forEach(linkedTaskId => {
+        addRelationship(activeTasks.find(task => task.id === linkedTaskId), 'Linked');
+    });
+
+    return [...relationshipMap.values()]
+        .map(entry => ({
+            task: entry.task,
+            relationLabels: [...entry.relationLabels],
+        }))
+        .sort((a, b) => a.task.title.localeCompare(b.task.title));
+}
+
+export function getTaskRelationshipReferences(taskId: string): TaskRelationshipReference[] {
+    return collectTaskRelationshipReferences(getTasks(), taskId);
+}
+
+function detachTaskRelationships(activeTasks: Task[], taskId: string): string[] {
+    const changedTaskIds = new Set<string>();
+    const now = new Date().toISOString();
+
+    activeTasks.forEach(task => {
+        if (task.id === taskId) return;
+
+        let didChange = false;
+
+        if (task.parentTaskId === taskId) {
+            task.parentTaskId = null;
+            didChange = true;
+        }
+
+        const normalizedLinkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+        if (normalizedLinkedTaskIds.includes(taskId)) {
+            task.linkedTaskIds = normalizedLinkedTaskIds.filter(linkedTaskId => linkedTaskId !== taskId);
+            didChange = true;
+        }
+
+        if (!didChange) return;
+
+        task.updatedAt = now;
+        changedTaskIds.add(task.id);
+    });
+
+    return [...changedTaskIds];
+}
+
+export function getChildTasks(parentTaskId: string): Task[] {
+    if (!parentTaskId) return [];
+    return getTasks().filter(task => task.parentTaskId === parentTaskId);
+}
+
+export function getLinkedTasks(taskId: string): Task[] {
+    const task = getTaskById(taskId);
+    if (!task) return [];
+
+    const activeTasks = getTasks();
+    const linkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, task.id);
+    return linkedTaskIds
+        .map(linkedTaskId => activeTasks.find(activeTask => activeTask.id === linkedTaskId))
+        .filter((linkedTask): linkedTask is Task => !!linkedTask);
+}
+
+export function syncTaskSubtasks(parentTaskId: string, nextSubtaskIds: string[]): string[] {
+    const data = getAppData();
+    const companyId = getActiveCompanyId();
+    const activeTasks = data.companyData[companyId].tasks;
+    const parentTask = activeTasks.find(task => task.id === parentTaskId);
+
+    if (!parentTask) return [];
+
+    const normalizedSubtaskIds = normalizeTaskRelationshipIds(nextSubtaskIds, activeTasks, parentTaskId);
+    const currentSubtaskIds = activeTasks
+        .filter(task => task.parentTaskId === parentTaskId)
+        .map(task => task.id);
+    const nextSubtaskIdSet = new Set(normalizedSubtaskIds);
+    const changedTaskIds = new Set<string>();
+
+    currentSubtaskIds.forEach(subtaskId => {
+        if (nextSubtaskIdSet.has(subtaskId)) return;
+        const childTask = activeTasks.find(task => task.id === subtaskId);
+        if (!childTask) return;
+        childTask.parentTaskId = null;
+        childTask.updatedAt = new Date().toISOString();
+        changedTaskIds.add(subtaskId);
+    });
+
+    normalizedSubtaskIds.forEach(subtaskId => {
+        const childTask = activeTasks.find(task => task.id === subtaskId);
+        if (!childTask) return;
+
+        const resolvedParentTaskId = resolveParentTaskId(parentTaskId, activeTasks, childTask.id);
+        if (childTask.parentTaskId !== resolvedParentTaskId) {
+            childTask.parentTaskId = resolvedParentTaskId;
+            childTask.updatedAt = new Date().toISOString();
+            changedTaskIds.add(subtaskId);
+        }
+    });
+
+    if (changedTaskIds.size === 0) {
+        return [];
+    }
+
+    setAppData(data);
+    invalidateCurrentTaskReadCache(parentTaskId);
+    changedTaskIds.forEach(taskId => invalidateCurrentTaskReadCache(taskId));
+
+    if (getAuthMode() === 'authenticate') {
+        changedTaskIds.forEach(taskId => {
+            const changedTask = activeTasks.find(task => task.id === taskId);
+            if (changedTask) {
+                dispatchMutation('tasks', taskId, changedTask, 'update');
+            }
+        });
+    }
+
+    return [...changedTaskIds];
+}
+
 export function getRecentTasks(limitCount = 5): Task[] {
     const tasks = getTasks();
     const sevenDaysAgo = new Date();
@@ -1990,14 +2826,22 @@ export function addTask(task: Partial<Task>): Task {
     const id = createId('task-');
     const now = new Date().toISOString();
     const defaultStatus = getUiConfig().taskStatuses[0] || 'To Do';
+    const activeTasks = data.companyData[companyId].tasks;
+    const parentTaskId = resolveParentTaskId(task.parentTaskId ?? null, activeTasks, id);
+    const linkedTaskIds = normalizeTaskRelationshipIds(task.linkedTaskIds, activeTasks, id);
     const newTask: Task = {
         title: '', description: '', status: defaultStatus,
+        priority: 'medium',
         ...task,
+        parentTaskId,
+        linkedTaskIds,
         id, createdAt: now, updatedAt: now
     } as Task;
-    data.companyData[companyId].tasks.unshift(newTask);
+    activeTasks.unshift(newTask);
+    const syncedLinkedTaskIds = syncLinkedTaskRelationships(activeTasks, id, [], linkedTaskIds);
     setAppData(data);
     invalidateCurrentTaskReadCache(newTask.id);
+    syncedLinkedTaskIds.forEach(relatedTaskId => invalidateCurrentTaskReadCache(relatedTaskId));
     
     let logMsg = `Created task "**${newTask.title}**"`;
     if (newTask.attachments && newTask.attachments.length > 0) {
@@ -2007,8 +2851,19 @@ export function addTask(task: Partial<Task>): Task {
 
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, newTask, 'create');
+        syncedLinkedTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
     return newTask;
+}
+
+function formatPlanningTimestamp(value: unknown): string {
+    if (!value || typeof value !== 'string') return 'None';
+    return formatTimestamp(value, getUiConfig().timeFormat);
 }
 
 const formatLogVal = (val: any, key: string, uiConfig: UiConfig, peopleMap: Map<string, string>): string => {
@@ -2029,20 +2884,37 @@ const formatLogVal = (val: any, key: string, uiConfig: UiConfig, peopleMap: Map<
 export function updateTask(id: string, updates: Partial<Task>, silent = false): Task | null {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    const activeTasks = data.companyData[companyId].tasks;
+    const taskIndex = activeTasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return null;
 
-    const oldTask = data.companyData[companyId].tasks[taskIndex];
-    const newTask = { ...oldTask, ...updates, updatedAt: new Date().toISOString() };
-    data.companyData[companyId].tasks[taskIndex] = newTask;
+    const oldTask = activeTasks[taskIndex];
+    const nextParentTaskId = Object.prototype.hasOwnProperty.call(updates, 'parentTaskId')
+        ? resolveParentTaskId(updates.parentTaskId ?? null, activeTasks, id)
+        : oldTask.parentTaskId ?? null;
+    const nextLinkedTaskIds = Object.prototype.hasOwnProperty.call(updates, 'linkedTaskIds')
+        ? normalizeTaskRelationshipIds(updates.linkedTaskIds, activeTasks, id)
+        : normalizeTaskRelationshipIds(oldTask.linkedTaskIds, activeTasks, id);
+    const oldLinkedTaskIds = normalizeTaskRelationshipIds(oldTask.linkedTaskIds, activeTasks, id);
+    const newTask = {
+        ...oldTask,
+        ...updates,
+        parentTaskId: nextParentTaskId,
+        linkedTaskIds: nextLinkedTaskIds,
+        updatedAt: new Date().toISOString()
+    };
+    activeTasks[taskIndex] = newTask;
+    const syncedLinkedTaskIds = syncLinkedTaskRelationships(activeTasks, id, oldLinkedTaskIds, nextLinkedTaskIds);
     setAppData(data);
     invalidateCurrentTaskReadCache(id);
+    syncedLinkedTaskIds.forEach(relatedTaskId => invalidateCurrentTaskReadCache(relatedTaskId));
 
     if (!silent) {
         const config = getUiConfig();
         const fieldLabels = new Map(config.fields.map(f => [f.key, f.label]));
         const allPeople = [...data.companyData[companyId].developers, ...data.companyData[companyId].testers];
         const peopleMap = new Map(allPeople.map(p => [p.id, p.name]));
+        const taskTitleMap = new Map(activeTasks.map(taskItem => [taskItem.id, taskItem.title]));
         
         const changes: string[] = [];
         for (const key in updates) {
@@ -2056,6 +2928,51 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 
             if (key === 'description') {
                 changes.push(`updated the **Description**`);
+            } else if (key === 'priority') {
+                changes.push(`set **Priority** to *${getTaskPriorityLabel(typeof newVal === 'string' ? newVal : null)}*`);
+            } else if (key === 'dueAt') {
+                changes.push(
+                    newVal
+                        ? `set **Due Date** to *${formatPlanningTimestamp(newVal)}*`
+                        : 'cleared **Due Date**'
+                );
+            } else if (key === 'dueCompletedAt') {
+                changes.push(
+                    newVal
+                        ? `marked **Due Completion** at *${formatPlanningTimestamp(newVal)}*`
+                        : 'reset **Due Completion**'
+                );
+            } else if (key === 'dueReminderAt') {
+                const nextPresetLabel = updates.dueReminderPreset
+                    ? getDueReminderPresetLabel(String(updates.dueReminderPreset))
+                    : oldTask.dueReminderPreset
+                        ? getDueReminderPresetLabel(oldTask.dueReminderPreset)
+                        : 'Custom time';
+                changes.push(
+                    newVal
+                        ? `scheduled **Due Reminder** for *${formatPlanningTimestamp(newVal)}* (${nextPresetLabel})`
+                        : oldVal
+                            ? 'cleared **Due Reminder**'
+                            : 'updated **Due Reminder**'
+                );
+            } else if (key === 'dueReminderPreset' || key === 'dueReminderBackupAt' || key === 'dueReminderBackupPreset') {
+                continue;
+            } else if (key === 'reminder') {
+                changes.push(
+                    newVal
+                        ? oldVal
+                            ? 'updated **Reminder Note**'
+                            : 'added a **Reminder Note**'
+                        : 'cleared **Reminder Note**'
+                );
+            } else if (key === 'reminderExpiresAt') {
+                changes.push(
+                    newVal
+                        ? `set **Reminder Note Auto-Clear** to *${formatPlanningTimestamp(newVal)}*`
+                        : oldVal
+                            ? 'cleared **Reminder Note Auto-Clear**'
+                            : 'updated **Reminder Note Auto-Clear**'
+                );
             } else if (key === 'isFavorite') {
                 changes.push(newVal ? `marked as **Favourite**` : `removed from **Favourites**`);
             } else if (key === 'deploymentStatus') {
@@ -2095,6 +3012,27 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
                 } else {
                     changes.push(`updated attachment details`);
                 }
+            } else if (key === 'parentTaskId') {
+                changes.push(
+                    newTask.parentTaskId
+                        ? `set **Parent Task** to *${taskTitleMap.get(newTask.parentTaskId) || 'Unknown task'}*`
+                        : 'cleared **Parent Task**'
+                );
+            } else if (key === 'linkedTaskIds') {
+                const previousLinkedSet = new Set(oldLinkedTaskIds);
+                const nextLinkedSet = new Set(nextLinkedTaskIds);
+                const addedLinks = nextLinkedTaskIds.filter(linkedTaskId => !previousLinkedSet.has(linkedTaskId));
+                const removedLinks = oldLinkedTaskIds.filter(linkedTaskId => !nextLinkedSet.has(linkedTaskId));
+
+                if (addedLinks.length > 0) {
+                    changes.push(`linked **${addedLinks.length}** task(s) (${addedLinks.map(linkedTaskId => `*${taskTitleMap.get(linkedTaskId) || linkedTaskId}*`).join(', ')})`);
+                }
+                if (removedLinks.length > 0) {
+                    changes.push(`unlinked **${removedLinks.length}** task(s) (${removedLinks.map(linkedTaskId => `*${taskTitleMap.get(linkedTaskId) || linkedTaskId}*`).join(', ')})`);
+                }
+                if (addedLinks.length === 0 && removedLinks.length === 0) {
+                    changes.push('updated **Linked Tasks**');
+                }
             } else if (key === 'customFields') {
                 const cfs = newVal as Record<string, any>;
                 const oldCfs = oldVal as Record<string, any> || {};
@@ -2119,6 +3057,12 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, newTask, 'update');
+        syncedLinkedTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
     return newTask;
 }
@@ -2126,17 +3070,29 @@ export function updateTask(id: string, updates: Partial<Task>, silent = false): 
 export function moveTaskToBin(id: string) {
     const data = getAppData();
     const companyId = getActiveCompanyId();
-    const taskIndex = data.companyData[companyId].tasks.findIndex(t => t.id === id);
+    const activeTasks = data.companyData[companyId].tasks;
+    const taskIndex = activeTasks.findIndex(t => t.id === id);
     if (taskIndex === -1) return;
 
-    const task = data.companyData[companyId].tasks.splice(taskIndex, 1)[0];
+    const changedRelationshipTaskIds = detachTaskRelationships(activeTasks, id);
+    const task = activeTasks.splice(taskIndex, 1)[0];
+    task.parentTaskId = null;
+    task.linkedTaskIds = [];
+    task.updatedAt = new Date().toISOString();
     task.deletedAt = new Date().toISOString();
     data.companyData[companyId].trash.unshift(task);
     setAppData(data);
     invalidateCurrentTaskReadCache(id);
+    changedRelationshipTaskIds.forEach(taskId => invalidateCurrentTaskReadCache(taskId));
     addLog({ message: `Moved task "**${task.title}**" to the bin`, taskId: id });
     if (getAuthMode() === 'authenticate') {
         dispatchMutation('tasks', id, task, 'update');
+        changedRelationshipTaskIds.forEach(relatedTaskId => {
+            const relatedTask = activeTasks.find(taskItem => taskItem.id === relatedTaskId);
+            if (relatedTask) {
+                dispatchMutation('tasks', relatedTaskId, relatedTask, 'update');
+            }
+        });
     }
 }
 
@@ -2801,6 +3757,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const uiConfig = getUiConfig();
     const activeTasks = getTasks();
     const uniqueFields = uiConfig.fields.filter(f => f.isActive && f.isUnique);
+    const importWarnings: string[] = [];
     
     const skippedTasks: { taskTitle: string; field: string; value: string }[] = [];
     const usedValuesByField = new Map<string, Set<string>>();
@@ -2843,8 +3800,31 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     const devMap = new Map<string, string>(currentDevs.map(d => [d.name.toLowerCase(), d.id]));
     const testerMap = new Map<string, string>(currentTesters.map(t => [t.name.toLowerCase(), t.id]));
 
+    const mergeImportedPersonDetails = (person: Person, details?: any): Person => {
+        if (!details || typeof details !== 'object') return person;
+
+        const nextEmail = typeof details.email === 'string' ? details.email : person.email;
+        const nextPhone = typeof details.phone === 'string' ? details.phone : person.phone;
+        const nextAdditionalFields = Array.isArray(details.additionalFields)
+            ? details.additionalFields
+            : (person.additionalFields || []);
+
+        return {
+            ...person,
+            email: nextEmail || '',
+            phone: nextPhone || '',
+            additionalFields: nextAdditionalFields,
+        };
+    };
+
     const ensureDev = (name: string, details?: any) => {
-        if (!name || devMap.has(name.toLowerCase())) return devMap.get(name.toLowerCase())!;
+        if (!name) return '';
+        const normalizedName = name.toLowerCase();
+        const existingId = devMap.get(normalizedName);
+        if (existingId) {
+            currentDevs = currentDevs.map(dev => dev.id === existingId ? mergeImportedPersonDetails(dev, details) : dev);
+            return existingId;
+        }
         const id = createId('dev-');
         currentDevs.push({ 
             id, name, 
@@ -2852,12 +3832,18 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
         });
-        devMap.set(name.toLowerCase(), id);
+        devMap.set(normalizedName, id);
         return id;
     };
 
     const ensureTester = (name: string, details?: any) => {
-        if (!name || testerMap.has(name.toLowerCase())) return testerMap.get(name.toLowerCase())!;
+        if (!name) return '';
+        const normalizedName = name.toLowerCase();
+        const existingId = testerMap.get(normalizedName);
+        if (existingId) {
+            currentTesters = currentTesters.map(tester => tester.id === existingId ? mergeImportedPersonDetails(tester, details) : tester);
+            return existingId;
+        }
         const id = createId('tester-');
         currentTesters.push({ 
             id, name, 
@@ -2865,7 +3851,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             phone: details?.phone || '', 
             additionalFields: details?.additionalFields || [] 
         });
-        testerMap.set(name.toLowerCase(), id);
+        testerMap.set(normalizedName, id);
         return id;
     };
 
@@ -2887,6 +3873,9 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         });
     });
 
+    const missingStatusGroupIssues = collectMissingImportedStatusGroupIssues(uiConfig, parsedJson, tasksToImport);
+    const importedUiConfig = mergeImportedUiConfig(uiConfig, parsedJson, currentDevs, currentTesters, importWarnings);
+
     const taskIdMap = new Map<string, string>();
     const processedTasks = [];
     for (const t of tasksToImport) {
@@ -2906,15 +3895,48 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
         processedTasks.push({
             ...t,
             id: newId,
+            status: resolveImportedStatusValue(t.status, importedUiConfig, importWarnings),
             developers: devIds,
             testers: testerIds,
+            customFields: resolveImportedCustomFields(t, importedUiConfig, importWarnings),
             createdAt: t.createdAt || new Date().toISOString(),
             updatedAt: t.updatedAt || new Date().toISOString(),
-            deletedAt: t.deletedAt || null 
+            deletedAt: t.deletedAt || null,
+            dueCompletedAt: t.dueCompletedAt || null,
+            dueReminderAt: t.dueReminderAt || null,
+            dueReminderPreset: t.dueReminderPreset || null,
+            dueReminderBackupAt: t.dueReminderBackupAt || null,
+            dueReminderBackupPreset: t.dueReminderBackupPreset || null,
+            reminder: t.reminder || null,
+            reminderExpiresAt: t.reminderExpiresAt || null,
+            parentTaskId: typeof t.parentTaskId === 'string' && t.parentTaskId.trim().length > 0 ? t.parentTaskId : null,
+            linkedTaskIds: Array.isArray(t.linkedTaskIds)
+                ? [...new Set(t.linkedTaskIds.filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0))]
+                : [],
         });
         
         if (processedTasks.length % 100 === 0) await new Promise(r => setTimeout(r, 0));
     }
+
+    const processedTaskIdSet = new Set(processedTasks.map(task => task.id));
+    processedTasks.forEach(task => {
+        const remappedParentTaskId =
+            typeof task.parentTaskId === 'string' && task.parentTaskId.trim().length > 0
+                ? (taskIdMap.get(task.parentTaskId) || null)
+                : null;
+
+        task.parentTaskId = remappedParentTaskId && processedTaskIdSet.has(remappedParentTaskId) && remappedParentTaskId !== task.id
+            ? remappedParentTaskId
+            : null;
+
+        const remappedLinkedTaskIds = Array.isArray(task.linkedTaskIds)
+            ? task.linkedTaskIds
+                .map((linkedTaskId: string) => taskIdMap.get(linkedTaskId) || null)
+                .filter((linkedTaskId: string | null): linkedTaskId is string => !!linkedTaskId && linkedTaskId !== task.id && processedTaskIdSet.has(linkedTaskId))
+            : [];
+
+        task.linkedTaskIds = [...new Set(remappedLinkedTaskIds)];
+    });
 
     const processedNotes = jsonNotes.map((n: any) => ({
         ...n,
@@ -2947,8 +3969,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             await setDoc(doc(db, companyBase, 'people', 'testers'), { list: currentTesters });
             bumpProgress();
 
-            const currentUi = mergeImportedUiConfig(getUiConfig(), parsedJson, currentDevs, currentTesters);
-            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), sanitizeForFirestore(currentUi));
+            await setDoc(doc(db, companyBase, 'settings', 'uiConfig'), sanitizeForFirestore(importedUiConfig));
             bumpProgress();
 
             const importInBatches = async (items: any[], collectionName: 'tasks' | 'notes' | 'logs') => {
@@ -2992,7 +4013,7 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
             comp.testers = currentTesters;
             bumpProgress();
             
-            comp.uiConfig = mergeImportedUiConfig(comp.uiConfig, parsedJson, currentDevs, currentTesters);
+            comp.uiConfig = importedUiConfig;
             bumpProgress();
 
             processedTasks.forEach(newTask => {
@@ -3025,7 +4046,9 @@ export async function importWorkspaceData(parsedJson: any, onProgress?: (percent
     return { 
         success: true, 
         importedCount: processedTasks.length, 
-        skippedDuplicates: skippedTasks 
+        skippedDuplicates: skippedTasks,
+        warnings: Array.from(new Set(importWarnings)),
+        missingStatusGroupIssues,
     };
 }
 

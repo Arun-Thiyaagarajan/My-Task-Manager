@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { Task, Environment } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { CheckCircle2, Clock } from 'lucide-react';
 
 interface EnvironmentStatusProps {
@@ -52,58 +52,53 @@ export function EnvironmentStatus({
         };
 
         return (
-          <Tooltip key={env.id}>
-            <TooltipTrigger asChild>
-              <Badge
-                onClick={handleClick}
-                style={{
-                    backgroundColor: isDeployed ? env.color : 'transparent',
-                    color: isDeployed ? '#fff' : env.color,
-                    borderColor: env.color,
-                }}
-                className={cn(
-                  'capitalize font-medium transition-all border',
-                  !isDeployed && 'border-dashed',
-                  size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
-                  interactive && 'cursor-pointer',
-                  interactive && isDeployed && 'hover:brightness-110 hover:scale-105',
-                  interactive && !isDeployed && 'hover:bg-gray-500/10',
-                  justUpdatedEnv === env.name && 'animate-status-in'
+          <AppTooltip
+            key={env.id}
+            content={(
+              <p className="capitalize flex items-center gap-1.5">
+                {isDeployed ? (
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                ) : (
+                  <Clock className="h-3 w-3 text-yellow-500" />
                 )}
-              >
-                {env.name}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-               <p className="capitalize flex items-center gap-1.5">
-                    {isDeployed ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <Clock className="h-3 w-3 text-yellow-500" />
-                    )}
-                    {env.name}: {tooltipText}
-                </p>
-            </TooltipContent>
-          </Tooltip>
+                {env.name}: {tooltipText}
+              </p>
+            )}
+          >
+            <Badge
+              onClick={handleClick}
+              style={{
+                  backgroundColor: isDeployed ? env.color : 'transparent',
+                  color: isDeployed ? '#fff' : env.color,
+                  borderColor: env.color,
+              }}
+              className={cn(
+                'capitalize font-medium transition-all border',
+                !isDeployed && 'border-dashed',
+                size === 'sm' && 'px-1.5 py-0 text-[10px] h-4',
+                interactive && 'cursor-pointer',
+                interactive && isDeployed && 'hover:brightness-110 hover:scale-105',
+                interactive && !isDeployed && 'hover:bg-gray-500/10',
+                justUpdatedEnv === env.name && 'animate-status-in'
+              )}
+            >
+              {env.name}
+            </Badge>
+          </AppTooltip>
         );
       })}
        {hiddenEnvsCount > 0 && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge
-              variant="outline"
-              className={cn(
-                'font-medium',
-                size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
-              )}
-            >
-              +{hiddenEnvsCount}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Plus {hiddenEnvsCount} more environment(s)</p>
-          </TooltipContent>
-        </Tooltip>
+        <AppTooltip content={`Plus ${hiddenEnvsCount} more environment(s)`}>
+          <Badge
+            variant="outline"
+            className={cn(
+              'font-medium',
+              size === 'sm' && 'px-1.5 py-0 text-[10px] h-4'
+            )}
+          >
+            +{hiddenEnvsCount}
+          </Badge>
+        </AppTooltip>
       )}
     </div>
   );

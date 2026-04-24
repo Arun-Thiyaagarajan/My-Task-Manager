@@ -33,7 +33,7 @@ export function MobileFiltersSheet({
       <SheetContent
         side="bottom"
         hideClose
-        className="inset-x-0 top-auto bottom-0 z-[160] flex h-[80vh] max-h-[80vh] flex-col overflow-hidden rounded-t-[1.75rem] rounded-b-none border-x-0 border-b-0 border-t border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.97))] px-0 py-0 shadow-[0_-24px_70px_-34px_rgba(15,23,42,0.42)] md:hidden"
+        className="inset-x-0 top-auto bottom-0 flex h-[80vh] max-h-[80vh] flex-col overflow-hidden rounded-t-[1.75rem] rounded-b-none border-x-0 border-b-0 border-t border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.97))] px-0 py-0 shadow-[0_-24px_70px_-34px_rgba(15,23,42,0.42)] md:hidden"
       >
         <div className="border-b border-border/50 px-5 py-4">
           <SheetHeader className="space-y-0 text-left">

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addTagsToMultipleTasks, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareUiFieldsForExport } from '@/lib/data';
+import { addDeveloper, getDevelopers, getUiConfig, updateTask, getTesters, addTester, moveMultipleTasksToBin, getAppData, setAppData, getLogs, addLog, restoreMultipleTasks, clearExpiredReminders, deleteGeneralReminder, getGeneralReminders, addEnvironment, DATA_KEY, getAuthMode, importWorkspaceData, getUserPreferences, updateUserPreferences, isInitialSyncComplete, getActiveCompanyId, prepareTaskForExport, prepareUiConfigForExport, setUiConfig as persistUiConfig, type MissingImportedStatusGroupIssue } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedDuplicates as findExistingDuplicates, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { TasksGrid } from '@/components/tasks-grid';
 import { TasksTable } from '@/components/tasks-table';
@@ -56,9 +56,10 @@ import {
   FileSpreadsheet,
   BookmarkPlus,
   FolderKanban,
+  RefreshCw,
 } from 'lucide-react';
 import { cn, fuzzySearch, formatTimestamp } from '@/lib/utils';
-import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, resolveStatusConfig } from '@/lib/status-config';
+import { getOrderedTaskStatusGroups, getSortedStatusOptions, getStatusDisplayName, getStatusGroupConfigs, getStatusGroupId, getStatusConfigs, resolveStatusConfig, syncTaskStatuses } from '@/lib/status-config';
 import type { Task, Person, UiConfig, RepositoryConfig, Log, GeneralReminder, BackupFrequency, Environment, UserPreferences, AuthMode, SavedTaskView, SavedTaskViewState } from '@/lib/types';
 import {
   Popover,
@@ -108,8 +109,10 @@ import { Badge } from '@/components/ui/badge';
 import { MultiSelect, type SelectOption } from '@/components/ui/multi-select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
-import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { registerTransferCancellation, triggerTransfer } from '@/components/file-transfer-indicator';
 import { isRepositoryFieldActive } from '@/lib/repository-config';
 import { openGlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -145,6 +148,19 @@ const HOME_SKELETON_DELAY_MS = 250;
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 const HOME_RETURN_SKELETON_MS = 220;
 
+function normalizeSavedTaskView(view: SavedTaskView, fallbackDateIso: string): SavedTaskView {
+  const normalizedState = normalizeSavedViewState(view.state, fallbackDateIso);
+  return {
+    ...view,
+    pinned: Boolean(view.pinned),
+    state: {
+      ...normalizedState,
+      viewMode: 'grid',
+      dateView: normalizedState.dateView === 'calendar' ? 'all' : normalizedState.dateView,
+    },
+  };
+}
+
 export default function Home() {
   const { user, isUserLoading } = useFirebase();
   const activeCompanyId = useActiveCompany();
@@ -176,6 +192,10 @@ export default function Home() {
   const [repoFilter, setRepoFilter] = useState<string[]>([]);
   const [deploymentFilter, setDeploymentFilter] = useState<string[]>([]);
   const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [dueStateFilter, setDueStateFilter] = useState<string[]>([]);
+  const [reminderNoteFilter, setReminderNoteFilter] = useState<string[]>([]);
+  const [dueReminderFilter, setDueReminderFilter] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +209,10 @@ export default function Home() {
   const [desktopRepoFilterDraft, setDesktopRepoFilterDraft] = useState<string[]>([]);
   const [desktopDeploymentFilterDraft, setDesktopDeploymentFilterDraft] = useState<string[]>([]);
   const [desktopTagsFilterDraft, setDesktopTagsFilterDraft] = useState<string[]>([]);
+  const [desktopPriorityFilterDraft, setDesktopPriorityFilterDraft] = useState<string[]>([]);
+  const [desktopDueStateFilterDraft, setDesktopDueStateFilterDraft] = useState<string[]>([]);
+  const [desktopReminderNoteFilterDraft, setDesktopReminderNoteFilterDraft] = useState<string[]>([]);
+  const [desktopDueReminderFilterDraft, setDesktopDueReminderFilterDraft] = useState<string[]>([]);
   const [hasPreservedFilterDraftNotice, setHasPreservedFilterDraftNotice] = useState(false);
   const suppressNextFilterSheetCloseRef = useRef(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -201,11 +225,19 @@ export default function Home() {
   
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [tagsToApply, setTagsToApply] = useState<string[]>([]);
+  const [isBulkTagApplying, setIsBulkTagApplying] = useState(false);
 
   const [isSearching, setIsSearching] = useState(false);
   const [showSlowSearchMessage, setShowSlowSearchMessage] = useState(false);
 
-  const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[] } | null>(null);
+  const [importSummary, setImportSummary] = useState<{ importedCount: number; skippedDuplicates: any[]; warnings: string[] } | null>(null);
+  const [missingStatusGroupReview, setMissingStatusGroupReview] = useState<{
+    issues: Array<MissingImportedStatusGroupIssue & {
+      resolution: 'create' | 'move';
+      targetGroupName: string;
+      targetExistingGroupId: string;
+    }>;
+  } | null>(null);
   const importInFlightRef = useRef(false);
   const hasInitializedGroupStateRef = useRef(false);
   const hasVisibleTaskDataRef = useRef(false);
@@ -215,11 +247,13 @@ export default function Home() {
   const tutorialOpenedSelectModeRef = useRef(false);
   const [showDelayedSkeleton, setShowDelayedSkeleton] = useState(false);
   const [showReturnSkeleton, setShowReturnSkeleton] = useState(false);
+  const [isRefreshingTaskCards, setIsRefreshingTaskCards] = useState(false);
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [savedTaskViews, setSavedTaskViews] = useState<SavedTaskView[]>([]);
   const [isSaveViewDialogOpen, setIsSaveViewDialogOpen] = useState(false);
   const [isManageViewsDialogOpen, setIsManageViewsDialogOpen] = useState(false);
   const [newSavedViewName, setNewSavedViewName] = useState('');
+  const [selectedActiveSavedViewId, setSelectedActiveSavedViewId] = useState<string | null>(null);
   const [dismissedActiveSavedViewId, setDismissedActiveSavedViewId] = useState<string | null>(null);
   const [starterContentAvailable, setStarterContentAvailable] = useState(false);
   const [pendingSavedViewState, setPendingSavedViewState] = useState<SavedTaskViewState | null>(null);
@@ -261,7 +295,12 @@ export default function Home() {
     setSearchQuery(resolvedHomeViewState.searchQuery);
     setExecutedSearchQuery(resolvedHomeViewState.searchQuery);
     setOpenGroups(resolvedHomeViewState.openGroups);
-    setSavedTaskViews(Array.isArray(prefs.savedTaskViews) ? prefs.savedTaskViews : []);
+    setSavedTaskViews(
+      Array.isArray(prefs.savedTaskViews)
+        ? prefs.savedTaskViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso))
+        : []
+    );
+    setSelectedActiveSavedViewId(typeof prefs.activeSavedViewId === 'string' ? prefs.activeSavedViewId : null);
 
     const shouldShowStarterCallout =
       Boolean(prefs.starterContentAvailable) &&
@@ -278,6 +317,10 @@ export default function Home() {
     setRepoFilter(resolvedHomeViewState.filters.repo);
     setDeploymentFilter(resolvedHomeViewState.filters.deployment);
     setTagsFilter(resolvedHomeViewState.filters.tags);
+    setPriorityFilter(resolvedHomeViewState.filters.priority);
+    setDueStateFilter(resolvedHomeViewState.filters.dueState);
+    setReminderNoteFilter(resolvedHomeViewState.filters.reminderNote);
+    setDueReminderFilter(resolvedHomeViewState.filters.dueReminder);
 
     const resolvedDate = resolvedHomeViewState.selectedDate ? new Date(resolvedHomeViewState.selectedDate) : new Date();
     setSelectedDate(isValid(resolvedDate) ? resolvedDate : new Date());
@@ -300,6 +343,10 @@ export default function Home() {
     repoFilter.forEach(r => params.append('repo', r));
     deploymentFilter.forEach(d => params.append('deployment', d));
     tagsFilter.forEach(t => params.append('tags', t));
+    priorityFilter.forEach(priority => params.append('priority', priority));
+    dueStateFilter.forEach(value => params.append('dueState', value));
+    reminderNoteFilter.forEach(value => params.append('reminderNote', value));
+    dueReminderFilter.forEach(value => params.append('dueReminder', value));
 
     const currentQuery = searchParams.toString();
     const newQuery = params.toString();
@@ -322,6 +369,10 @@ export default function Home() {
         repo: repoFilter,
         deployment: deploymentFilter,
         tags: tagsFilter,
+        priority: priorityFilter,
+        dueState: dueStateFilter,
+        reminderNote: reminderNoteFilter,
+        dueReminder: dueReminderFilter,
       },
     });
 
@@ -331,23 +382,32 @@ export default function Home() {
         dateView,
         favoritesOnly,
         lastHomeViewState: currentHomeViewState,
+        activeSavedViewId: selectedActiveSavedViewId,
         taskOpenGroups: openGroups,
         taskFilters: {
             status: statusFilter,
             statusGroup: statusGroupFilter,
             repo: repoFilter,
             deployment: deploymentFilter,
-            tags: tagsFilter
+            tags: tagsFilter,
+            priority: priorityFilter,
+            dueState: dueStateFilter,
+            reminderNote: reminderNoteFilter,
+            dueReminder: dueReminderFilter,
         },
     });
-  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, router, pathname, searchParams, mounted]);
+  }, [executedSearchQuery, sortDescriptor, viewMode, dateView, selectedDate, favoritesOnly, openGroups, selectedActiveSavedViewId, statusFilter, statusGroupFilter, repoFilter, deploymentFilter, tagsFilter, priorityFilter, dueStateFilter, reminderNoteFilter, dueReminderFilter, router, pathname, searchParams, mounted]);
 
-  const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[]) => {
-    setSavedTaskViews(nextViews);
+  const persistSavedTaskViews = useCallback((nextViews: SavedTaskView[], nextActiveSavedViewId: string | null = selectedActiveSavedViewId) => {
+    const fallbackDateIso = new Date().toISOString();
+    const normalizedViews = nextViews.map((view) => normalizeSavedTaskView(view, fallbackDateIso));
+
+    setSavedTaskViews(normalizedViews);
     updateUserPreferences({
-      savedTaskViews: nextViews,
+      savedTaskViews: normalizedViews,
+      activeSavedViewId: nextActiveSavedViewId,
     });
-  }, []);
+  }, [selectedActiveSavedViewId]);
 
   const buildSavedViewState = useCallback((overrides?: Partial<SavedTaskViewState>): SavedTaskViewState => buildHomeViewStateSnapshot({
     viewMode,
@@ -363,6 +423,10 @@ export default function Home() {
       repo: repoFilter,
       deployment: deploymentFilter,
       tags: tagsFilter,
+      priority: priorityFilter,
+      dueState: dueStateFilter,
+      reminderNote: reminderNoteFilter,
+      dueReminder: dueReminderFilter,
     },
     overrides,
   }), [
@@ -378,27 +442,29 @@ export default function Home() {
     repoFilter,
     deploymentFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
   ]);
-  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => buildSavedViewState(), [buildSavedViewState]);
+  const buildCurrentSavedViewState = useCallback((): SavedTaskViewState => {
+    const snapshot = buildSavedViewState();
+    return {
+      ...snapshot,
+      viewMode: 'grid',
+      dateView: snapshot.dateView === 'calendar' ? 'all' : snapshot.dateView,
+    };
+  }, [buildSavedViewState]);
 
   const applySavedTaskView = useCallback((view: SavedTaskView) => {
-    const { state } = view;
-    const nextFilters = {
-      status: state.filters?.status || [],
-      statusGroup: state.filters?.statusGroup || [],
-      repo: state.filters?.repo || [],
-      deployment: state.filters?.deployment || [],
-      tags: state.filters?.tags || [],
-    };
+    const fallbackDateIso = selectedDate?.toISOString() || new Date().toISOString();
+    const state = normalizeSavedViewState(view.state, fallbackDateIso);
+    const nextFilters = state.filters;
+    const nextDateView = state.dateView === 'calendar' ? 'all' : state.dateView;
 
     setIsSearching(true);
-    if (state.dateView === 'calendar') {
-      setIsSelectMode(false);
-      setSelectedTaskIds([]);
-    }
-    setViewMode(state.viewMode);
     setSortDescriptor(state.sortDescriptor);
-    setDateView(state.dateView);
+    setDateView(nextDateView);
     setFavoritesOnly(state.favoritesOnly);
     setOpenGroups(Array.isArray(state.openGroups) ? state.openGroups : []);
     setSearchQuery(state.searchQuery || '');
@@ -408,9 +474,14 @@ export default function Home() {
     setRepoFilter(nextFilters.repo);
     setDeploymentFilter(nextFilters.deployment);
     setTagsFilter(nextFilters.tags);
+    setPriorityFilter(nextFilters.priority);
+    setDueStateFilter(nextFilters.dueState);
+    setReminderNoteFilter(nextFilters.reminderNote);
+    setDueReminderFilter(nextFilters.dueReminder);
 
     const nextDate = state.selectedDate ? new Date(state.selectedDate) : new Date();
     setSelectedDate(isValid(nextDate) ? nextDate : new Date());
+    setSelectedActiveSavedViewId(view.id);
     setDismissedActiveSavedViewId(null);
     setIsManageViewsDialogOpen(false);
 
@@ -431,6 +502,10 @@ export default function Home() {
       repo: [],
       deployment: [],
       tags: [],
+      priority: [],
+      dueState: [],
+      reminderNote: [],
+      dueReminder: [],
     };
     const hasAnySelectedFilters =
       filtersToSave.status.length > 0 ||
@@ -438,6 +513,10 @@ export default function Home() {
       filtersToSave.repo.length > 0 ||
       filtersToSave.deployment.length > 0 ||
       filtersToSave.tags.length > 0 ||
+      filtersToSave.priority.length > 0 ||
+      filtersToSave.dueState.length > 0 ||
+      filtersToSave.reminderNote.length > 0 ||
+      filtersToSave.dueReminder.length > 0 ||
       stateToSave.searchQuery.trim().length > 0;
 
     if (!trimmedName) {
@@ -500,12 +579,14 @@ export default function Home() {
 
   const handleDeleteSavedView = useCallback((viewId: string) => {
     const nextViews = savedTaskViews.filter(view => view.id !== viewId);
-    persistSavedTaskViews(nextViews);
+    const nextActiveSavedViewId = selectedActiveSavedViewId === viewId ? null : selectedActiveSavedViewId;
+    setSelectedActiveSavedViewId(nextActiveSavedViewId);
+    persistSavedTaskViews(nextViews, nextActiveSavedViewId);
     toast({
       title: 'Saved view removed',
       duration: 1800,
     });
-  }, [persistSavedTaskViews, savedTaskViews, toast]);
+  }, [persistSavedTaskViews, savedTaskViews, selectedActiveSavedViewId, toast]);
 
   const handleClearAllTaskFilters = useCallback(() => {
     setIsSearching(true);
@@ -514,14 +595,21 @@ export default function Home() {
     setDeploymentFilter([]);
     setTagsFilter([]);
     setStatusGroupFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
     setSearchQuery('');
     setExecutedSearchQuery('');
   }, []);
 
   const handleClearActiveSavedView = useCallback((viewId: string) => {
+    const nextActiveSavedViewId = selectedActiveSavedViewId === viewId ? null : selectedActiveSavedViewId;
+    setSelectedActiveSavedViewId(nextActiveSavedViewId);
+    updateUserPreferences({ activeSavedViewId: nextActiveSavedViewId });
     setDismissedActiveSavedViewId(viewId);
     handleClearAllTaskFilters();
-  }, [handleClearAllTaskFilters]);
+  }, [handleClearAllTaskFilters, selectedActiveSavedViewId]);
 
   useEffect(() => {
     setDesktopStatusFilterDraft(statusFilter);
@@ -529,6 +617,10 @@ export default function Home() {
     setDesktopRepoFilterDraft(repoFilter);
     setDesktopDeploymentFilterDraft(deploymentFilter);
     setDesktopTagsFilterDraft(tagsFilter);
+    setDesktopPriorityFilterDraft(priorityFilter);
+    setDesktopDueStateFilterDraft(dueStateFilter);
+    setDesktopReminderNoteFilterDraft(reminderNoteFilter);
+    setDesktopDueReminderFilterDraft(dueReminderFilter);
     setHasPreservedFilterDraftNotice(false);
   }, [
     statusFilter,
@@ -536,6 +628,10 @@ export default function Home() {
     repoFilter,
     deploymentFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
   ]);
 
   const handleApplyDesktopFilters = useCallback(() => {
@@ -547,6 +643,10 @@ export default function Home() {
     setRepoFilter(desktopRepoFilterDraft);
     setDeploymentFilter(desktopDeploymentFilterDraft);
     setTagsFilter(desktopTagsFilterDraft);
+    setPriorityFilter(desktopPriorityFilterDraft);
+    setDueStateFilter(desktopDueStateFilterDraft);
+    setReminderNoteFilter(desktopReminderNoteFilterDraft);
+    setDueReminderFilter(desktopDueReminderFilterDraft);
     setIsDesktopFiltersOpen(false);
   }, [
     desktopStatusFilterDraft,
@@ -554,6 +654,10 @@ export default function Home() {
     desktopRepoFilterDraft,
     desktopDeploymentFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const handleApplyMobileFilters = useCallback(() => {
@@ -565,6 +669,10 @@ export default function Home() {
     setRepoFilter(desktopRepoFilterDraft);
     setDeploymentFilter(desktopDeploymentFilterDraft);
     setTagsFilter(desktopTagsFilterDraft);
+    setPriorityFilter(desktopPriorityFilterDraft);
+    setDueStateFilter(desktopDueStateFilterDraft);
+    setReminderNoteFilter(desktopReminderNoteFilterDraft);
+    setDueReminderFilter(desktopDueReminderFilterDraft);
     setIsMobileFiltersOpen(false);
   }, [
     desktopStatusFilterDraft,
@@ -572,6 +680,10 @@ export default function Home() {
     desktopRepoFilterDraft,
     desktopDeploymentFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const handleResetDesktopFilterDraft = useCallback(() => {
@@ -582,11 +694,19 @@ export default function Home() {
     setDesktopRepoFilterDraft([]);
     setDesktopDeploymentFilterDraft([]);
     setDesktopTagsFilterDraft([]);
+    setDesktopPriorityFilterDraft([]);
+    setDesktopDueStateFilterDraft([]);
+    setDesktopReminderNoteFilterDraft([]);
+    setDesktopDueReminderFilterDraft([]);
     setStatusFilter([]);
     setStatusGroupFilter([]);
     setRepoFilter([]);
     setDeploymentFilter([]);
     setTagsFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
   }, []);
 
   const handleResetMobileFilterDraft = useCallback(() => {
@@ -598,11 +718,19 @@ export default function Home() {
     setDesktopRepoFilterDraft([]);
     setDesktopDeploymentFilterDraft([]);
     setDesktopTagsFilterDraft([]);
+    setDesktopPriorityFilterDraft([]);
+    setDesktopDueStateFilterDraft([]);
+    setDesktopReminderNoteFilterDraft([]);
+    setDesktopDueReminderFilterDraft([]);
     setStatusFilter([]);
     setStatusGroupFilter([]);
     setRepoFilter([]);
     setDeploymentFilter([]);
     setTagsFilter([]);
+    setPriorityFilter([]);
+    setDueStateFilter([]);
+    setReminderNoteFilter([]);
+    setDueReminderFilter([]);
     setIsMobileFiltersOpen(false);
   }, []);
 
@@ -613,8 +741,16 @@ export default function Home() {
     setDesktopRepoFilterDraft(repoFilter);
     setDesktopDeploymentFilterDraft(deploymentFilter);
     setDesktopTagsFilterDraft(tagsFilter);
+    setDesktopPriorityFilterDraft(priorityFilter);
+    setDesktopDueStateFilterDraft(dueStateFilter);
+    setDesktopReminderNoteFilterDraft(reminderNoteFilter);
+    setDesktopDueReminderFilterDraft(dueReminderFilter);
   }, [
     deploymentFilter,
+    dueReminderFilter,
+    dueStateFilter,
+    priorityFilter,
+    reminderNoteFilter,
     repoFilter,
     statusFilter,
     statusGroupFilter,
@@ -716,6 +852,10 @@ export default function Home() {
     statusGroupFilter,
     repoFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
     deploymentFilter,
     favoritesOnly,
     sortDescriptor,
@@ -905,12 +1045,40 @@ export default function Home() {
     ]),
     [uiConfig]
   );
+  const priorityOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+      { value: 'urgent', label: 'Urgent' },
+    ],
+    []
+  );
+  const dueStateOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'overdue', label: 'Overdue' },
+      { value: 'today', label: 'Due today' },
+      { value: 'tomorrow', label: 'Due tomorrow' },
+      { value: 'upcoming', label: 'Upcoming' },
+      { value: 'no_due_date', label: 'No due date' },
+    ],
+    []
+  );
+  const binaryReminderOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: 'has', label: 'Has reminder' },
+      { value: 'none', label: 'No reminder' },
+    ],
+    []
+  );
 
-  const handleExport = useCallback((exportType: 'current_view' | 'all_tasks') => {
+  const handleExport = useCallback(async (exportType: 'current_view' | 'all_tasks') => {
     const allDevelopers = getDevelopers();
     const allTesters = getTesters();
     const currentUiConfig = getUiConfig();
     const customFieldDefinitions = currentUiConfig.fields.filter(f => f.isCustom);
+    const yieldToBrowser = () =>
+      new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
     const appNamePrefix = currentUiConfig.appName?.replace(/\s+/g, '_') || 'MyTaskManager';
     const dateSuffix = format(new Date(), "do MMM yyyy");
@@ -947,32 +1115,28 @@ export default function Home() {
     }
 
     const fileName = `${appNamePrefix} ${dateSuffix}.json`;
-    const devIdToName = new Map(allDevelopers.map(d => [d.id, d.name]));
-    const testerIdToName = new Map(allTesters.map(t => [t.id, t.name]));
-    
-    const mapPersonIdsToNames = (task: Task) => {
-        const { developers, testers, ...restOfTask } = task;
-        return {
-            ...restOfTask,
-            isFavorite: task.isFavorite || false,
-            developers: (developers || []).map(id => devIdToName.get(id)).filter((name): name is string => !!name),
-            testers: (testers || []).map(id => testerIdToName.get(id)).filter((name): name is string => !!name),
-        };
-    };
-
-    const activeTasksWithNames = activeTasksToExport.map(mapPersonIdsToNames);
-    const binnedTasksWithNames = binnedTasksToExport.map(mapPersonIdsToNames);
+    const activeTasksWithNames = activeTasksToExport.map(task => ({
+      ...prepareTaskForExport(task, currentUiConfig, allDevelopers, allTesters),
+      isFavorite: task.isFavorite || false,
+    }));
+    const binnedTasksWithNames = binnedTasksToExport.map(task => ({
+      ...prepareTaskForExport(task, currentUiConfig, allDevelopers, allTesters),
+      isFavorite: task.isFavorite || false,
+    }));
 
     const cleanPerson = (p: Person) => ({ name: p.name, email: p.email || '', phone: p.phone || '', additionalFields: p.additionalFields || [] });
 
+    const exportUiConfig = prepareUiConfigForExport(currentUiConfig, allDevelopers, allTesters);
+
     const exportData: any = {
-        appName: currentUiConfig.appName,
-        appIcon: currentUiConfig.appIcon,
-        fields: prepareUiFieldsForExport(currentUiConfig.fields, allDevelopers, allTesters),
-        repositoryConfigs: currentUiConfig.repositoryConfigs,
-        environments: currentUiConfig.environments,
-        statusConfigs: currentUiConfig.statusConfigs || [],
-        taskStatuses: currentUiConfig.taskStatuses || [],
+        appName: exportUiConfig.appName,
+        appIcon: exportUiConfig.appIcon,
+        fields: exportUiConfig.fields,
+        repositoryConfigs: exportUiConfig.repositoryConfigs,
+        environments: exportUiConfig.environments,
+        statusGroups: exportUiConfig.statusGroups || [],
+        statusConfigs: exportUiConfig.statusConfigs || [],
+        taskStatuses: exportUiConfig.taskStatuses || [],
         customFieldDefinitions: customFieldDefinitions,
         developers: allDevelopers.map(cleanPerson),
         testers: allTesters.map(cleanPerson),
@@ -984,11 +1148,16 @@ export default function Home() {
         exportData.trash = binnedTasksWithNames;
     }
 
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+    await yieldToBrowser();
+    const jsonString = JSON.stringify(exportData, null, 2);
+    await yieldToBrowser();
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = jsonString;
+    link.href = downloadUrl;
     link.download = fileName;
     link.click();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
     
     toast({
         variant: 'success',
@@ -1220,10 +1389,11 @@ export default function Home() {
                 
                 if (result.success) {
                     triggerTransfer({ id: transferId, filename: file.name, kind: 'import', status: 'complete', progress: 100 });
-                    if (result.skippedDuplicates.length > 0) {
+                    if (result.skippedDuplicates.length > 0 || result.warnings.length > 0) {
                         setImportSummary({ 
                             importedCount: result.importedCount, 
-                            skippedDuplicates: result.skippedDuplicates 
+                            skippedDuplicates: result.skippedDuplicates,
+                            warnings: result.warnings,
                         });
                     } else {
                         // toast({ 
@@ -1231,6 +1401,17 @@ export default function Home() {
                         //     title: 'Import Complete', 
                         //     description: `Successfully imported ${result.importedCount} tasks.` 
                         // });
+                    }
+                    if (Array.isArray(result.missingStatusGroupIssues) && result.missingStatusGroupIssues.length > 0) {
+                        const availableGroups = getStatusGroupConfigs(getUiConfig());
+                        setMissingStatusGroupReview({
+                          issues: result.missingStatusGroupIssues.map((issue: MissingImportedStatusGroupIssue) => ({
+                            ...issue,
+                            resolution: 'create',
+                            targetGroupName: issue.suggestedName,
+                            targetExistingGroupId: availableGroups[0]?.id || '',
+                          })),
+                        });
                     }
                 }
             } catch (error: any) {
@@ -1297,13 +1478,67 @@ export default function Home() {
     setIsSelectMode(false);
   }, [selectedTaskIds, toast, refreshData]);
 
-  const handleBulkApplyTags = useCallback(() => {
-    addTagsToMultipleTasks(selectedTaskIds, tagsToApply);
-    toast({ variant: 'success', title: 'Tags Applied' });
-    refreshData();
+  const handleBulkApplyTags = useCallback(async () => {
+    if (selectedTaskIds.length === 0 || tagsToApply.length === 0 || isBulkTagApplying) return;
+
+    setIsBulkTagApplying(true);
     setIsTagsDialogOpen(false);
-    setTagsToApply([]);
-  }, [selectedTaskIds, tagsToApply, toast, refreshData]);
+
+    const total = selectedTaskIds.length;
+    const batchSize = total > 300 ? 40 : 20;
+    const { id, update, dismiss } = toast({
+      variant: 'default',
+      title: 'Applying tags',
+      description: `0 of ${total} tasks updated`,
+      duration: 60000,
+    });
+
+    try {
+      for (let index = 0; index < selectedTaskIds.length; index += batchSize) {
+        const batch = selectedTaskIds.slice(index, index + batchSize);
+
+        batch.forEach((taskId) => {
+          const existingTask = getTasks().find((item) => item.id === taskId);
+          if (!existingTask) return;
+          const nextTags = Array.from(new Set([...(existingTask.tags || []), ...tagsToApply]));
+          updateTask(taskId, { tags: nextTags }, true);
+        });
+
+        const completed = Math.min(index + batch.length, total);
+        update({
+          id,
+          title: completed === total ? 'Finalizing tags' : 'Applying tags',
+          description: `${completed} of ${total} tasks updated`,
+        });
+
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve());
+        });
+      }
+
+      addLog({ message: `Applied tags [${tagsToApply.join(', ')}] to **${total}** task(s).` });
+      refreshData();
+      update({
+        id,
+        variant: 'success',
+        title: 'Tags applied',
+        description: `${tagsToApply.length} tag(s) applied to ${total} task(s).`,
+        duration: 4000,
+      });
+      window.setTimeout(() => dismiss(), 4200);
+      setTagsToApply([]);
+    } catch (error) {
+      update({
+        id,
+        variant: 'destructive',
+        title: 'Could not apply tags',
+        description: error instanceof Error ? error.message : 'Something went wrong during the bulk update.',
+        duration: 5000,
+      });
+    } finally {
+      setIsBulkTagApplying(false);
+    }
+  }, [isBulkTagApplying, refreshData, selectedTaskIds, tagsToApply, toast]);
 
   const handleBulkCopyText = useCallback(() => {
     if (!uiConfig) return;
@@ -1319,23 +1554,36 @@ export default function Home() {
     const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     const transferId = `pdf-${Date.now()}`;
     const filename = selectedTasks.length === 1 ? `TF_${selectedTasks[0].title}.pdf` : `TF_Bulk_Export_${selectedTasks.length}_Tasks.pdf`;
+    const abortController = new AbortController();
+    const unregisterCancellation = selectedTasks.length > 1
+      ? registerTransferCancellation(transferId, () => {
+          abortController.abort();
+        })
+      : () => {};
     
     triggerTransfer({
         id: transferId,
         filename,
-        status: 'generating',
-        progress: 0
+        status: 'preparing',
+        progress: 0,
+        cancellable: selectedTasks.length > 1,
     });
 
     try {
         await generateTaskPdf(selectedTasks, uiConfig, developers, testers, 'save', filename, (p) => {
-            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p });
-        });
+            triggerTransfer({ id: transferId, filename, status: 'generating', progress: p, cancellable: selectedTasks.length > 1 });
+        }, tasks, abortController.signal);
         triggerTransfer({ id: transferId, filename, status: 'complete', progress: 100 });
         toast({ variant: 'success', title: 'PDF Exported', description: `Download for ${selectedTasks.length} task(s) is ready.` });
     } catch (e) {
-        triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
-        toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
+        if (e instanceof DOMException && e.name === 'AbortError') {
+            triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export cancelled' });
+        } else {
+            triggerTransfer({ id: transferId, filename, status: 'error', progress: 0, error: 'Export failed' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'There was an error generating your document.' });
+        }
+    } finally {
+        unregisterCancellation();
     }
   }, [selectedTaskIds, tasks, uiConfig, developers, testers, toast]);
 
@@ -1351,8 +1599,20 @@ export default function Home() {
   const isCloudDataPending = currentAuthMode === 'authenticate' && (!activeCompanyIdForSync || !isInitialSyncComplete(activeCompanyIdForSync));
   const isInitialBlockingLoad = mounted && !hasRenderableTaskData && (isLoading || isUserLoading || isCloudDataPending || !hasInitialized);
   const shouldShowDelayedSkeleton = mounted && showDelayedSkeleton && isInitialBlockingLoad;
-  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showReturnSkeleton;
+  const shouldShowListSkeleton = shouldShowDelayedSkeleton || showReturnSkeleton || isRefreshingTaskCards;
   const shouldRenderEmptyState = mounted && !isInitialBlockingLoad && !shouldShowListSkeleton && !isUserLoading && !isCloudDataPending && hasInitialized && dateView !== 'calendar' && filteredTasks.length === 0 && filteredBinnedTasks.length === 0;
+
+  const handleRefreshTaskCards = useCallback(() => {
+    if (isRefreshingTaskCards) return;
+
+    setIsRefreshingTaskCards(true);
+    window.setTimeout(() => {
+      refreshData();
+      window.setTimeout(() => {
+        setIsRefreshingTaskCards(false);
+      }, 220);
+    }, 0);
+  }, [isRefreshingTaskCards, refreshData]);
 
   useEffect(() => {
     if (!isInitialBlockingLoad) {
@@ -1410,14 +1670,27 @@ export default function Home() {
 
   const isSearchActive = searchQuery.trim().length >= 2;
 
-  const activeFilterCount = statusFilter.length + statusGroupFilter.length + repoFilter.length + deploymentFilter.length + tagsFilter.length;
+  const activeFilterCount =
+    statusFilter.length +
+    statusGroupFilter.length +
+    repoFilter.length +
+    deploymentFilter.length +
+    tagsFilter.length +
+    priorityFilter.length +
+    dueStateFilter.length +
+    reminderNoteFilter.length +
+    dueReminderFilter.length;
   const totalActiveFilters = activeFilterCount + (executedSearchQuery ? 1 : 0);
   const desktopDraftFilterCount =
     desktopStatusFilterDraft.length +
     desktopStatusGroupFilterDraft.length +
     desktopRepoFilterDraft.length +
     desktopDeploymentFilterDraft.length +
-    desktopTagsFilterDraft.length;
+    desktopTagsFilterDraft.length +
+    desktopPriorityFilterDraft.length +
+    desktopDueStateFilterDraft.length +
+    desktopReminderNoteFilterDraft.length +
+    desktopDueReminderFilterDraft.length;
 
   const areStringArraysEqual = (left: string[] = [], right: string[] = []) =>
     left.length === right.length && left.every((value, index) => value === right[index]);
@@ -1427,7 +1700,11 @@ export default function Home() {
     !areStringArraysEqual(desktopStatusGroupFilterDraft, statusGroupFilter) ||
     !areStringArraysEqual(desktopRepoFilterDraft, repoFilter) ||
     !areStringArraysEqual(desktopDeploymentFilterDraft, deploymentFilter) ||
-    !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter);
+    !areStringArraysEqual(desktopTagsFilterDraft, tagsFilter) ||
+    !areStringArraysEqual(desktopPriorityFilterDraft, priorityFilter) ||
+    !areStringArraysEqual(desktopDueStateFilterDraft, dueStateFilter) ||
+    !areStringArraysEqual(desktopReminderNoteFilterDraft, reminderNoteFilter) ||
+    !areStringArraysEqual(desktopDueReminderFilterDraft, dueReminderFilter);
   const draftSavedViewState = useMemo(() => buildSavedViewState({
     filters: {
       status: desktopStatusFilterDraft,
@@ -1435,6 +1712,10 @@ export default function Home() {
       repo: desktopRepoFilterDraft,
       deployment: desktopDeploymentFilterDraft,
       tags: desktopTagsFilterDraft,
+      priority: desktopPriorityFilterDraft,
+      dueState: desktopDueStateFilterDraft,
+      reminderNote: desktopReminderNoteFilterDraft,
+      dueReminder: desktopDueReminderFilterDraft,
     },
   }), [
     buildSavedViewState,
@@ -1443,6 +1724,10 @@ export default function Home() {
     desktopStatusFilterDraft,
     desktopStatusGroupFilterDraft,
     desktopTagsFilterDraft,
+    desktopPriorityFilterDraft,
+    desktopDueStateFilterDraft,
+    desktopReminderNoteFilterDraft,
+    desktopDueReminderFilterDraft,
   ]);
 
   const doesDraftHaveAnyFilters =
@@ -1451,6 +1736,10 @@ export default function Home() {
     draftSavedViewState.filters.repo.length > 0 ||
     draftSavedViewState.filters.deployment.length > 0 ||
     draftSavedViewState.filters.tags.length > 0 ||
+    draftSavedViewState.filters.priority.length > 0 ||
+    draftSavedViewState.filters.dueState.length > 0 ||
+    draftSavedViewState.filters.reminderNote.length > 0 ||
+    draftSavedViewState.filters.dueReminder.length > 0 ||
     draftSavedViewState.searchQuery.trim().length > 0;
 
   const showPreservedFilterDraftNotice = hasPreservedFilterDraftNotice && hasUnappliedFilterDraftChanges;
@@ -1461,20 +1750,18 @@ export default function Home() {
       doesDraftHaveAnyFilters &&
       !isFilterSaveSuggestionDismissed &&
       !savedTaskViews.some((view) => {
-        const viewFilters = view.state.filters || {
-          status: [],
-          statusGroup: [],
-          repo: [],
-          deployment: [],
-          tags: [],
-        };
+        const viewFilters = normalizeSavedViewState(view.state, draftSavedViewState.selectedDate).filters;
 
         return (
-          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
-          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
-          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
-          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
-          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+          areStringArraysEqual(viewFilters.status, draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup, draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo, draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment, draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags, draftSavedViewState.filters.tags) &&
+          areStringArraysEqual(viewFilters.priority, draftSavedViewState.filters.priority) &&
+          areStringArraysEqual(viewFilters.dueState, draftSavedViewState.filters.dueState) &&
+          areStringArraysEqual(viewFilters.reminderNote, draftSavedViewState.filters.reminderNote) &&
+          areStringArraysEqual(viewFilters.dueReminder, draftSavedViewState.filters.dueReminder)
         );
       });
 
@@ -1494,7 +1781,7 @@ export default function Home() {
       setIsFilterSaveSuggestionDismissed(true);
     }
     setIsDesktopFiltersOpen(open);
-  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, draftSavedViewState.filters.priority, draftSavedViewState.filters.dueState, draftSavedViewState.filters.reminderNote, draftSavedViewState.filters.dueReminder, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
 
   const handleMobileFiltersOpenChange = useCallback((open: boolean) => {
     const shouldRevealSaveSuggestion =
@@ -1503,20 +1790,18 @@ export default function Home() {
       doesDraftHaveAnyFilters &&
       !isFilterSaveSuggestionDismissed &&
       !savedTaskViews.some((view) => {
-        const viewFilters = view.state.filters || {
-          status: [],
-          statusGroup: [],
-          repo: [],
-          deployment: [],
-          tags: [],
-        };
+        const viewFilters = normalizeSavedViewState(view.state, draftSavedViewState.selectedDate).filters;
 
         return (
-          areStringArraysEqual(viewFilters.status || [], draftSavedViewState.filters.status) &&
-          areStringArraysEqual(viewFilters.statusGroup || [], draftSavedViewState.filters.statusGroup) &&
-          areStringArraysEqual(viewFilters.repo || [], draftSavedViewState.filters.repo) &&
-          areStringArraysEqual(viewFilters.deployment || [], draftSavedViewState.filters.deployment) &&
-          areStringArraysEqual(viewFilters.tags || [], draftSavedViewState.filters.tags)
+          areStringArraysEqual(viewFilters.status, draftSavedViewState.filters.status) &&
+          areStringArraysEqual(viewFilters.statusGroup, draftSavedViewState.filters.statusGroup) &&
+          areStringArraysEqual(viewFilters.repo, draftSavedViewState.filters.repo) &&
+          areStringArraysEqual(viewFilters.deployment, draftSavedViewState.filters.deployment) &&
+          areStringArraysEqual(viewFilters.tags, draftSavedViewState.filters.tags) &&
+          areStringArraysEqual(viewFilters.priority, draftSavedViewState.filters.priority) &&
+          areStringArraysEqual(viewFilters.dueState, draftSavedViewState.filters.dueState) &&
+          areStringArraysEqual(viewFilters.reminderNote, draftSavedViewState.filters.reminderNote) &&
+          areStringArraysEqual(viewFilters.dueReminder, draftSavedViewState.filters.dueReminder)
         );
       });
 
@@ -1536,50 +1821,48 @@ export default function Home() {
       setIsFilterSaveSuggestionDismissed(true);
     }
     setIsMobileFiltersOpen(open);
-  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
+  }, [doesDraftHaveAnyFilters, draftSavedViewState.filters.deployment, draftSavedViewState.filters.repo, draftSavedViewState.filters.status, draftSavedViewState.filters.statusGroup, draftSavedViewState.filters.tags, draftSavedViewState.filters.priority, draftSavedViewState.filters.dueState, draftSavedViewState.filters.reminderNote, draftSavedViewState.filters.dueReminder, hasUnappliedFilterDraftChanges, isFilterSaveSuggestionDismissed, savedTaskViews]);
   const currentSavedViewState = buildCurrentSavedViewState();
 
   const doesSavedViewStateMatch = useCallback((view: SavedTaskView, candidateState: SavedTaskViewState) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state, candidateState.selectedDate);
+    const viewFilters = normalizedViewState.filters;
     const currentFilters = candidateState.filters;
+    const normalizedSavedDateView = normalizedViewState.dateView === 'calendar' ? 'all' : normalizedViewState.dateView;
+    const normalizedCandidateDateView = candidateState.dateView === 'calendar' ? 'all' : candidateState.dateView;
 
     return (
-      view.state.viewMode === candidateState.viewMode &&
-      view.state.sortDescriptor === candidateState.sortDescriptor &&
-      view.state.dateView === candidateState.dateView &&
-      view.state.favoritesOnly === candidateState.favoritesOnly &&
-      (view.state.searchQuery || '') === candidateState.searchQuery &&
-      (view.state.selectedDate || '') === (candidateState.selectedDate || '') &&
-      areStringArraysEqual(view.state.openGroups || [], candidateState.openGroups) &&
-      areStringArraysEqual(viewFilters.status || [], currentFilters.status) &&
-      areStringArraysEqual(viewFilters.statusGroup || [], currentFilters.statusGroup) &&
-      areStringArraysEqual(viewFilters.repo || [], currentFilters.repo) &&
-      areStringArraysEqual(viewFilters.deployment || [], currentFilters.deployment) &&
-      areStringArraysEqual(viewFilters.tags || [], currentFilters.tags)
+      normalizedViewState.sortDescriptor === candidateState.sortDescriptor &&
+      normalizedSavedDateView === normalizedCandidateDateView &&
+      normalizedViewState.favoritesOnly === candidateState.favoritesOnly &&
+      normalizedViewState.searchQuery === candidateState.searchQuery &&
+      (normalizedViewState.selectedDate || '') === (candidateState.selectedDate || '') &&
+      areStringArraysEqual(normalizedViewState.openGroups, candidateState.openGroups) &&
+      areStringArraysEqual(viewFilters.status, currentFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup, currentFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo, currentFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment, currentFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags, currentFilters.tags) &&
+      areStringArraysEqual(viewFilters.priority, currentFilters.priority) &&
+      areStringArraysEqual(viewFilters.dueState, currentFilters.dueState) &&
+      areStringArraysEqual(viewFilters.reminderNote, currentFilters.reminderNote) &&
+      areStringArraysEqual(viewFilters.dueReminder, currentFilters.dueReminder)
     );
   }, []);
 
   const doSavedViewFiltersMatchDraft = useCallback((view: SavedTaskView, draftFilters: SavedTaskViewState['filters']) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const viewFilters = normalizeSavedViewState(view.state).filters;
 
     return (
-      areStringArraysEqual(viewFilters.status || [], draftFilters.status) &&
-      areStringArraysEqual(viewFilters.statusGroup || [], draftFilters.statusGroup) &&
-      areStringArraysEqual(viewFilters.repo || [], draftFilters.repo) &&
-      areStringArraysEqual(viewFilters.deployment || [], draftFilters.deployment) &&
-      areStringArraysEqual(viewFilters.tags || [], draftFilters.tags)
+      areStringArraysEqual(viewFilters.status, draftFilters.status) &&
+      areStringArraysEqual(viewFilters.statusGroup, draftFilters.statusGroup) &&
+      areStringArraysEqual(viewFilters.repo, draftFilters.repo) &&
+      areStringArraysEqual(viewFilters.deployment, draftFilters.deployment) &&
+      areStringArraysEqual(viewFilters.tags, draftFilters.tags) &&
+      areStringArraysEqual(viewFilters.priority, draftFilters.priority) &&
+      areStringArraysEqual(viewFilters.dueState, draftFilters.dueState) &&
+      areStringArraysEqual(viewFilters.reminderNote, draftFilters.reminderNote) &&
+      areStringArraysEqual(viewFilters.dueReminder, draftFilters.dueReminder)
     );
   }, []);
 
@@ -1591,16 +1874,11 @@ export default function Home() {
   };
 
   const getSavedViewPreviewGroups = useCallback((view: SavedTaskView) => {
-    const viewFilters = view.state.filters || {
-      status: [],
-      statusGroup: [],
-      repo: [],
-      deployment: [],
-      tags: [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state);
+    const viewFilters = normalizedViewState.filters;
 
     return [
-      view.state.searchQuery ? { label: 'Search', values: [view.state.searchQuery] } : null,
+      normalizedViewState.searchQuery ? { label: 'Search', values: [normalizedViewState.searchQuery] } : null,
       viewFilters.status.length > 0 ? { label: 'Status', values: viewFilters.status } : null,
       viewFilters.statusGroup.length > 0 ? {
         label: 'Status Group',
@@ -1608,11 +1886,15 @@ export default function Home() {
       } : null,
       viewFilters.repo.length > 0 ? { label: 'Repository', values: viewFilters.repo } : null,
       viewFilters.tags.length > 0 ? { label: 'Tags', values: viewFilters.tags } : null,
+      viewFilters.priority.length > 0 ? { label: 'Priority', values: viewFilters.priority.map((value) => value.charAt(0).toUpperCase() + value.slice(1)) } : null,
+      viewFilters.dueState.length > 0 ? { label: 'Due', values: viewFilters.dueState.map((value) => value.replace(/_/g, ' ')) } : null,
+      viewFilters.reminderNote.length > 0 ? { label: 'Note', values: viewFilters.reminderNote.map((value) => value === 'has' ? 'Has reminder note' : 'No reminder note') } : null,
+      viewFilters.dueReminder.length > 0 ? { label: 'Due Alert', values: viewFilters.dueReminder.map((value) => value === 'has' ? 'Has due reminder' : 'No due reminder') } : null,
       viewFilters.deployment.length > 0 ? {
         label: 'Deployment',
         values: viewFilters.deployment.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value),
       } : null,
-      view.state.favoritesOnly ? { label: 'Mode', values: ['Favorites only'] } : null,
+      normalizedViewState.favoritesOnly ? { label: 'Mode', values: ['Favorites only'] } : null,
     ].filter((group): group is { label: string; values: string[] } => !!group && group.values.length > 0);
   }, [statusGroupOptions]);
 
@@ -1621,40 +1903,40 @@ export default function Home() {
     { label: 'Group', values: desktopStatusGroupFilterDraft.map((groupId) => statusGroupOptions.find(option => option.value === groupId)?.label || groupId) },
     { label: 'Repo', values: desktopRepoFilterDraft },
     { label: 'Tags', values: desktopTagsFilterDraft },
+    { label: 'Priority', values: desktopPriorityFilterDraft.map((value) => value.charAt(0).toUpperCase() + value.slice(1)) },
+    { label: 'Due', values: desktopDueStateFilterDraft.map((value) => value.replace(/_/g, ' ')) },
+    { label: 'Note', values: desktopReminderNoteFilterDraft.map((value) => value === 'has' ? 'Has reminder note' : 'No reminder note') },
+    { label: 'Alert', values: desktopDueReminderFilterDraft.map((value) => value === 'has' ? 'Has due reminder' : 'No due reminder') },
     { label: 'Deploy', values: desktopDeploymentFilterDraft.map((value) => value.startsWith('not_') ? `Not ${value.replace(/^not_/, '')}` : value) },
   ].filter(section => section.values.length > 0);
   const visibleActiveFilterSections = activeFilterSections.slice(0, 3);
   const hiddenActiveFilterSectionsCount = Math.max(activeFilterSections.length - visibleActiveFilterSections.length, 0);
 
   const getSavedViewSummary = (view: SavedTaskView) => {
-    const filters = {
-      status: view.state.filters?.status || [],
-      statusGroup: view.state.filters?.statusGroup || [],
-      repo: view.state.filters?.repo || [],
-      deployment: view.state.filters?.deployment || [],
-      tags: view.state.filters?.tags || [],
-    };
+    const normalizedViewState = normalizeSavedViewState(view.state);
+    const normalizedSavedDateView = normalizedViewState.dateView === 'calendar' ? 'all' : normalizedViewState.dateView;
+    const filters = normalizedViewState.filters;
     const filtersCount =
       filters.status.length +
       filters.statusGroup.length +
       filters.repo.length +
       filters.deployment.length +
       filters.tags.length +
-      (view.state.searchQuery ? 1 : 0);
+      filters.priority.length +
+      filters.dueState.length +
+      filters.reminderNote.length +
+      filters.dueReminder.length +
+      (normalizedViewState.searchQuery ? 1 : 0);
 
-    if (view.state.dateView === 'calendar') {
-      return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Calendar`;
-    }
-
-    if (view.state.dateView === 'monthly') {
+    if (normalizedSavedDateView === 'monthly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Monthly`;
     }
 
-    if (view.state.dateView === 'yearly') {
+    if (normalizedSavedDateView === 'yearly') {
       return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · Yearly`;
     }
 
-    return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${view.state.favoritesOnly ? 'Favorites' : 'All tasks'}`;
+    return `${filtersCount} filter${filtersCount === 1 ? '' : 's'} · ${normalizedViewState.favoritesOnly ? 'Favorites' : 'All tasks'}`;
   };
   const isDraftAlreadySaved = savedTaskViews.some((view) => doSavedViewFiltersMatchDraft(view, draftSavedViewState.filters));
   const canShowFilterSaveSuggestion =
@@ -1674,7 +1956,11 @@ export default function Home() {
             : 'All Tasks';
 
   const matchingSavedView = savedTaskViews.find((view) => isSavedViewActive(view)) || null;
-  const activeSavedView = matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView;
+  const selectedActiveSavedView =
+    selectedActiveSavedViewId && selectedActiveSavedViewId !== dismissedActiveSavedViewId
+      ? savedTaskViews.find((view) => view.id === selectedActiveSavedViewId) || null
+      : null;
+  const activeSavedView = selectedActiveSavedView || (matchingSavedView?.id === dismissedActiveSavedViewId ? null : matchingSavedView);
 
   useEffect(() => {
     if (!dismissedActiveSavedViewId) return;
@@ -1682,6 +1968,13 @@ export default function Home() {
       setDismissedActiveSavedViewId(null);
     }
   }, [dismissedActiveSavedViewId, matchingSavedView]);
+
+  useEffect(() => {
+    if (!selectedActiveSavedViewId) return;
+    if (!savedTaskViews.some((view) => view.id === selectedActiveSavedViewId)) {
+      setSelectedActiveSavedViewId(null);
+    }
+  }, [savedTaskViews, selectedActiveSavedViewId]);
 
   const handleStartSaveCurrentView = useCallback(() => {
     if (activeSavedView) {
@@ -1792,6 +2085,11 @@ export default function Home() {
   const sortOptions = useMemo(() => ([
     { value: 'status-asc', label: 'Status (Asc)' },
     { value: 'status-desc', label: 'Status (Desc)' },
+    { value: 'priority-desc', label: 'Priority (High to Low)' },
+    { value: 'priority-asc', label: 'Priority (Low to High)' },
+    { value: 'due-asc', label: 'Nearest Due Date' },
+    { value: 'due-desc', label: 'Farthest Due Date' },
+    { value: 'overdue-first', label: 'Overdue First' },
     { value: 'title-asc', label: 'Title (A-Z)' },
     { value: 'title-desc', label: 'Title (Z-A)' },
     { value: 'updated-desc', label: 'Recently Updated' },
@@ -1805,14 +2103,14 @@ export default function Home() {
   const hasCustomSort = sortDescriptor !== 'status-asc';
 
   const draftFilterControlsContent = (
-    <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2">
       <MultiSelect
         selected={desktopStatusFilterDraft}
         className={cn(desktopStatusFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={setDesktopStatusFilterDraft}
         options={sortedStatusOptions}
         placeholder="Status..."
-        maxVisible={3}
+        maxVisible={1}
       />
       <MultiSelect
         selected={desktopStatusGroupFilterDraft}
@@ -1820,7 +2118,7 @@ export default function Home() {
         onChange={setDesktopStatusGroupFilterDraft}
         options={statusGroupOptions}
         placeholder="Status Group..."
-        maxVisible={3}
+        maxVisible={1}
       />
       {showRepositoryFilter && (
         <MultiSelect
@@ -1829,7 +2127,7 @@ export default function Home() {
           onChange={setDesktopRepoFilterDraft}
           options={repositoryOptions}
           placeholder="Repository..."
-          maxVisible={3}
+          maxVisible={1}
         />
       )}
       {showTagsFilter && (
@@ -1839,16 +2137,48 @@ export default function Home() {
           onChange={setDesktopTagsFilterDraft}
           options={tagOptions}
           placeholder="Tags..."
-          maxVisible={3}
+          maxVisible={1}
         />
       )}
+      <MultiSelect
+        selected={desktopPriorityFilterDraft}
+        className={cn(desktopPriorityFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopPriorityFilterDraft}
+        options={priorityOptions}
+        placeholder="Priority..."
+        maxVisible={1}
+      />
+      <MultiSelect
+        selected={desktopDueStateFilterDraft}
+        className={cn(desktopDueStateFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueStateFilterDraft}
+        options={dueStateOptions}
+        placeholder="Due state..."
+        maxVisible={1}
+      />
+      <MultiSelect
+        selected={desktopReminderNoteFilterDraft}
+        className={cn(desktopReminderNoteFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopReminderNoteFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Reminder note..."
+        maxVisible={1}
+      />
+      <MultiSelect
+        selected={desktopDueReminderFilterDraft}
+        className={cn(desktopDueReminderFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueReminderFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Due reminder..."
+        maxVisible={1}
+      />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
         className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
         onChange={setDesktopDeploymentFilterDraft}
         options={deploymentOptions}
         placeholder="Deployment..."
-        maxVisible={3}
+        maxVisible={1}
       />
     </div>
   );
@@ -1863,7 +2193,7 @@ export default function Home() {
         placeholder="Status..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       <MultiSelect
         selected={desktopStatusGroupFilterDraft}
@@ -1873,7 +2203,7 @@ export default function Home() {
         placeholder="Status Group..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
       {showRepositoryFilter && (
         <MultiSelect
@@ -1884,7 +2214,7 @@ export default function Home() {
           placeholder="Repository..."
           maxVisible={1}
           mobileBehavior="popover"
-          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+          popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         />
       )}
       {showTagsFilter && (
@@ -1896,9 +2226,49 @@ export default function Home() {
           placeholder="Tags..."
           maxVisible={1}
           mobileBehavior="popover"
-          popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+          popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         />
       )}
+      <MultiSelect
+        selected={desktopPriorityFilterDraft}
+        className={cn(desktopPriorityFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopPriorityFilterDraft}
+        options={priorityOptions}
+        placeholder="Priority..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopDueStateFilterDraft}
+        className={cn(desktopDueStateFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueStateFilterDraft}
+        options={dueStateOptions}
+        placeholder="Due state..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopReminderNoteFilterDraft}
+        className={cn(desktopReminderNoteFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopReminderNoteFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Reminder note..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
+      <MultiSelect
+        selected={desktopDueReminderFilterDraft}
+        className={cn(desktopDueReminderFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
+        onChange={setDesktopDueReminderFilterDraft}
+        options={binaryReminderOptions}
+        placeholder="Due reminder..."
+        maxVisible={1}
+        mobileBehavior="popover"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+      />
       <MultiSelect
         selected={desktopDeploymentFilterDraft}
         className={cn(desktopDeploymentFilterDraft.length > 0 && "border-primary/40 bg-primary/5 shadow-sm")}
@@ -1907,7 +2277,7 @@ export default function Home() {
         placeholder="Deployment..."
         maxVisible={1}
         mobileBehavior="popover"
-        popoverContentClassName="z-[180] w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+        popoverContentClassName="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
       />
     </div>
   );
@@ -1959,6 +2329,208 @@ export default function Home() {
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <Dialog open={!!missingStatusGroupReview} onOpenChange={(open) => !open && setMissingStatusGroupReview(null)}>
+        <DialogContent
+          className="sm:max-w-3xl rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+        >
+          <div className="p-6 pb-4 shrink-0">
+            <DialogHeader>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-2 bg-amber-500/10 rounded-full text-amber-500">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <DialogTitle className="text-xl font-bold">Resolve Missing Status Groups</DialogTitle>
+              </div>
+              <DialogDescription className="font-normal text-sm leading-relaxed">
+                Some imported statuses belong to custom groups that were not available to map safely. Review the affected tasks below and choose whether to create those groups or move the imported statuses into an existing group.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain px-6">
+            <div className="space-y-4 pb-6">
+              {missingStatusGroupReview?.issues.map((issue, index) => (
+                <div key={`${issue.groupKey}-${index}`} className="rounded-2xl border bg-muted/20 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold">{issue.targetGroupName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {issue.statusNames.length} status{issue.statusNames.length === 1 ? '' : 'es'} will be reviewed for this missing group.
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                      {issue.taskTitles.length} affected task{issue.taskTitles.length === 1 ? '' : 's'}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {issue.statusNames.map((statusName) => (
+                      <Badge key={statusName} variant="outline" className="rounded-full px-3 py-1 text-xs font-medium">
+                        {statusName}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">Action</Label>
+                      <Select
+                        value={issue.resolution}
+                        onValueChange={(value: 'create' | 'move') => {
+                          setMissingStatusGroupReview((current) => current ? {
+                            issues: current.issues.map((currentIssue, currentIndex) =>
+                              currentIndex === index ? { ...currentIssue, resolution: value } : currentIssue
+                            ),
+                          } : current);
+                        }}
+                      >
+                        <SelectTrigger className="h-11 bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="create">Create missing group</SelectItem>
+                          <SelectItem value="move">Move to existing group</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {issue.resolution === 'create' ? (
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-semibold text-muted-foreground">Group name</Label>
+                        <Input
+                          value={issue.targetGroupName}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setMissingStatusGroupReview((current) => current ? {
+                              issues: current.issues.map((currentIssue, currentIndex) =>
+                                currentIndex === index ? { ...currentIssue, targetGroupName: nextValue } : currentIssue
+                              ),
+                            } : current);
+                          }}
+                          className="h-11 bg-background"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-semibold text-muted-foreground">Existing group</Label>
+                        <Select
+                          value={issue.targetExistingGroupId}
+                          onValueChange={(value) => {
+                            setMissingStatusGroupReview((current) => current ? {
+                              issues: current.issues.map((currentIssue, currentIndex) =>
+                                currentIndex === index ? { ...currentIssue, targetExistingGroupId: value } : currentIssue
+                              ),
+                            } : current);
+                          }}
+                        >
+                          <SelectTrigger className="h-11 bg-background">
+                            <SelectValue placeholder="Choose group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getStatusGroupConfigs(uiConfig).map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">Affected tasks</Label>
+                    <div className="max-h-44 overflow-y-auto rounded-2xl border bg-background/70 p-3">
+                      <div className="space-y-2">
+                        {issue.taskTitles.length > 0 ? issue.taskTitles.map((taskTitle) => (
+                          <div key={taskTitle} className="rounded-xl border bg-background px-3 py-2 text-sm font-medium">
+                            {taskTitle}
+                          </div>
+                        )) : (
+                          <p className="text-sm text-muted-foreground">No imported tasks matched these statuses directly, but the statuses still need review.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 bg-muted/10 shrink-0">
+            <div className="flex w-full gap-2">
+              <Button variant="outline" onClick={() => setMissingStatusGroupReview(null)} className="flex-1 h-11 rounded-xl font-medium">
+                Review Later
+              </Button>
+              <Button
+                className="flex-1 h-11 rounded-xl font-bold"
+                onClick={() => {
+                  if (!missingStatusGroupReview) return;
+
+                  const currentUiConfig = getUiConfig();
+                  const currentGroups = getStatusGroupConfigs(currentUiConfig);
+                  const currentStatuses = getStatusConfigs(currentUiConfig);
+                  const nextGroups = [...currentGroups];
+                  const nextStatuses = [...currentStatuses];
+
+                  missingStatusGroupReview.issues.forEach((issue) => {
+                    let resolvedGroupName = '';
+
+                    if (issue.resolution === 'create') {
+                      const trimmedName = issue.targetGroupName.trim();
+                      if (!trimmedName) return;
+                      resolvedGroupName = trimmedName;
+                      if (!nextGroups.some((group) => group.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+                        nextGroups.push({
+                          id: trimmedName,
+                          name: trimmedName,
+                          order: nextGroups.length,
+                          isDefault: false,
+                        });
+                      }
+                    } else {
+                      const targetGroup = nextGroups.find((group) => group.id === issue.targetExistingGroupId);
+                      if (!targetGroup) return;
+                      resolvedGroupName = targetGroup.name;
+                    }
+
+                    issue.statusNames.forEach((statusName) => {
+                      const statusIndex = nextStatuses.findIndex((status) => status.name === statusName);
+                      if (statusIndex >= 0) {
+                        nextStatuses[statusIndex] = {
+                          ...nextStatuses[statusIndex],
+                          group: resolvedGroupName,
+                        };
+                      }
+                    });
+                  });
+
+                  const nextConfig = syncTaskStatuses({
+                    ...currentUiConfig,
+                    statusGroups: nextGroups,
+                    statusConfigs: nextStatuses,
+                    taskStatuses: nextStatuses.map((status) => status.name),
+                  });
+
+                  persistUiConfig(nextConfig);
+                  setUiConfig(nextConfig);
+                  setMissingStatusGroupReview(null);
+                  toast({
+                    variant: 'success',
+                    title: 'Status groups resolved',
+                    description: 'Imported statuses were mapped to your selected groups.',
+                  });
+                }}
+              >
+                Apply Resolution
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Summary Dialog */}
       <Dialog open={!!importSummary} onOpenChange={(open) => !open && setImportSummary(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col border-none shadow-2xl">
@@ -1973,6 +2545,7 @@ export default function Home() {
                     <DialogDescription className="font-normal text-sm leading-relaxed">
                         Processed {importSummary?.importedCount} tasks successfully. 
                         {importSummary && importSummary.skippedDuplicates.length > 0 && ` ${importSummary.skippedDuplicates.length} items were omitted due to uniqueness constraints.`}
+                        {importSummary && importSummary.warnings.length > 0 && ` ${importSummary.warnings.length} values need review.`}
                     </DialogDescription>
                 </DialogHeader>
             </div>
@@ -1993,6 +2566,24 @@ export default function Home() {
                                             <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
                                                 Duplicate {item.field}: <span className="text-primary font-bold">{item.value}</span>
                                             </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {importSummary && importSummary.warnings.length > 0 && (
+                        <>
+                            <p className="mb-3 mt-5 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                                <AlertTriangle className="h-3 w-3" />
+                                Mapping warnings
+                            </p>
+                            <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
+                                <div className="divide-y divide-border/50">
+                                    {importSummary.warnings.map((warning, i) => (
+                                        <div key={`${warning}-${i}`} className="p-3 bg-background/50 hover:bg-background transition-colors">
+                                            <p className="text-sm font-medium">{warning}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -2502,7 +3093,7 @@ export default function Home() {
                               onClick={() => handleDateViewChange('monthly')}
                               className={cn(
                                   "inline-flex min-w-0 flex-1 items-center justify-center h-8 px-2.5 rounded-lg text-[11px] font-medium transition-all",
-                                  dateView === 'monthly' ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
+                                  (dateView === 'monthly' || dateView === 'calendar') ? "bg-background text-primary shadow-sm" : "text-muted-foreground"
                               )}
                           >
                               Monthly
@@ -2714,6 +3305,7 @@ export default function Home() {
                     activeSavedViewIsPinned={Boolean(activeSavedView?.pinned)}
                     onApplySavedTaskView={applySavedTaskView}
                     onClearActiveSavedView={handleClearActiveSavedView}
+                    onToggleSavedViewPin={handleToggleSavedViewPin}
                     getSavedViewSummary={getSavedViewSummary}
                     getSavedViewPreviewGroups={getSavedViewPreviewGroups}
                     isLoading={shouldShowListSkeleton}
@@ -2895,7 +3487,7 @@ export default function Home() {
                                     onClick={() => handleDateViewChange('monthly')}
                                     className={cn(
                                         "inline-flex h-9 items-center justify-center rounded-lg px-3 text-xs font-medium transition-all lg:px-4 lg:text-sm",
-                                        dateView === 'monthly' 
+                                        (dateView === 'monthly' || dateView === 'calendar')
                                             ? "bg-background text-primary shadow-sm ring-1 ring-black/5" 
                                             : "text-muted-foreground hover:bg-background/50"
                                     )}
@@ -2941,7 +3533,7 @@ export default function Home() {
                                                   <Heart className={cn("h-5 w-5", favoritesOnly && "fill-red-500 text-red-500")} />
                                               </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent className="font-bold"><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
+                                          <TooltipContent><p>{favoritesOnly ? 'All tasks' : 'Favorites only'}</p></TooltipContent>
                                       </Tooltip>
                                   </TooltipProvider>
                                 )}
@@ -2963,7 +3555,7 @@ export default function Home() {
                                                   {isSelectMode ? <X className="h-4.5 w-4.5" /> : <CheckSquare className="h-4.5 w-4.5" />}
                                               </Button>
                                           </TooltipTrigger>
-                                          <TooltipContent className="font-bold"><p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p></TooltipContent>
+                                          <TooltipContent><p>{isSelectMode ? 'Cancel multi-select' : 'Select multiple tasks'}</p></TooltipContent>
                                       </Tooltip>
                                   </TooltipProvider>
                                 )}
@@ -2984,7 +3576,7 @@ export default function Home() {
                                           </Button>
                                         </TooltipTrigger>
                                       </DropdownMenuTrigger>
-                                      <TooltipContent className="font-bold"><p>Saved views</p></TooltipContent>
+                                      <TooltipContent><p>Saved views</p></TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                   <SavedViewsMenuContent
@@ -2993,6 +3585,25 @@ export default function Home() {
                                     onOpenManageViews={() => setIsManageViewsDialogOpen(true)}
                                   />
                                 </DropdownMenu>
+
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        id="task-cards-refresh"
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={handleRefreshTaskCards}
+                                        disabled={isRefreshingTaskCards}
+                                        className="h-11 w-11 rounded-xl shadow-sm text-muted-foreground"
+                                      >
+                                        <RefreshCw className={cn("h-4.5 w-4.5", isRefreshingTaskCards && "animate-spin")} />
+                                        <span className="sr-only">Refresh Task Cards</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Refresh task cards</p></TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
 
                                 <TooltipProvider>
                                   <Tooltip>
@@ -3014,7 +3625,7 @@ export default function Home() {
                                         <span className="sr-only">Open filters</span>
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent className="font-bold"><p>Filters</p></TooltipContent>
+                                    <TooltipContent><p>Filters</p></TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
                             </div>
@@ -3092,7 +3703,7 @@ export default function Home() {
                     <DialogTitle>Apply Tags</DialogTitle>
                 </div>
                 <DialogDescription className="font-normal text-sm">
-                    Select tags to apply to the **{selectedTaskIds.length}** selected task(s).
+                    Select tags to apply to the <strong>{selectedTaskIds.length}</strong> selected task(s).
                 </DialogDescription>
             </DialogHeader>
             <div className="py-6">
@@ -3108,8 +3719,9 @@ export default function Home() {
                 />
             </div>
             <DialogFooter className="gap-2 sm:justify-end">
-                <Button variant="ghost" onClick={() => setIsTagsDialogOpen(false)} className="font-medium">Cancel</Button>
-                <Button onClick={handleBulkApplyTags} disabled={tagsToApply.length === 0} className="font-bold px-6">
+                <Button variant="ghost" onClick={() => setIsTagsDialogOpen(false)} disabled={isBulkTagApplying} className="font-medium">Cancel</Button>
+                <Button onClick={handleBulkApplyTags} disabled={tagsToApply.length === 0 || isBulkTagApplying} className="font-bold px-6">
+                    {isBulkTagApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Apply to {selectedTaskIds.length} Tasks
                 </Button>
             </DialogFooter>

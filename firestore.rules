@@ -92,5 +92,29 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
+
+    match /sharedTaskLinks/{token} {
+      allow read: if resource == null || (
+                    resource.data.token == token
+                    && resource.data.viewConfig is map
+                    && (!('revokedAt' in resource.data) || resource.data.revokedAt == null)
+                    && (
+                      resource.data.snapshot is map ||
+                      resource.data.encryptedPayload is map
+                    )
+                  );
+
+      allow create: if isSignedIn()
+                    && request.resource.data.token == token
+                    && request.resource.data.ownerUserId == request.auth.uid
+                    && request.resource.data.viewConfig is map;
+                    && (
+                      request.resource.data.snapshot is map ||
+                      request.resource.data.encryptedPayload is map
+                    );
+
+      allow update, delete: if isSignedIn()
+                            && (resource.data.ownerUserId == request.auth.uid || isAdmin());
+    }
   }
 }

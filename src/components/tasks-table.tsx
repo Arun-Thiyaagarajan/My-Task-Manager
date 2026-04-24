@@ -15,20 +15,19 @@ import { Button } from '@/components/ui/button';
 import { TaskStatusBadge, getStatusConfig } from '@/components/task-status-badge';
 import {
   ArrowRight,
+  BellRing,
+  CalendarClock,
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock3,
   Loader2,
 } from 'lucide-react';
 import type { Task, UiConfig, Person, TaskStatus, Environment } from '@/lib/types';
 import { Badge } from './ui/badge';
 import { DeleteTaskButton } from './delete-task-button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -39,7 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { updateTask } from '@/lib/data';
+import { getDevelopers, getTesters, updateTask } from '@/lib/data';
 import { PersonProfileCard } from './person-profile-card';
 import { Checkbox } from './ui/checkbox';
 import { EnvironmentStatus } from './environment-status';
@@ -48,6 +47,8 @@ import { Skeleton } from './ui/skeleton';
 import { StatusIcon, getOrderedTaskStatusGroups, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive } from '@/lib/repository-config';
+import { TaskPriorityBadge } from './task-priority-badge';
+import { getTaskDueLabel, getTaskDueToneClassName, hasDueReminder, hasReminderNote } from '@/lib/task-planning';
 
 interface TasksTableRowProps {
   task: Task;
@@ -199,6 +200,7 @@ const TasksTableRow = memo(function TasksTableRow({
   const visibleRepositories = getTaskRepositories(task, uiConfig);
   const visibleRepoBadges = visibleRepositories.slice(0, 2);
   const hiddenRepositories = visibleRepositories.slice(2);
+  const dueLabel = getTaskDueLabel(task);
 
   return (
     <TableRow 
@@ -240,6 +242,28 @@ const TasksTableRow = memo(function TasksTableRow({
             <p className="text-muted-foreground text-sm truncate mt-1 font-normal">
               {task.summary || task.description}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <TaskPriorityBadge priority={task.priority} compact />
+              <Badge
+                variant="outline"
+                className={cn('max-w-full rounded-full border px-2 py-0.5 text-[10px] font-medium', getTaskDueToneClassName(task))}
+              >
+                <CalendarClock className="mr-1 h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{dueLabel}</span>
+              </Badge>
+              {hasReminderNote(task) ? (
+                <Badge variant="outline" className="rounded-full border-border/60 bg-muted/[0.28] px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <BellRing className="mr-1 h-3.5 w-3.5" />
+                  Note
+                </Badge>
+              ) : null}
+              {hasDueReminder(task) ? (
+                <Badge variant="outline" className="rounded-full border-primary/18 bg-primary/[0.06] px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <Clock3 className="mr-1 h-3.5 w-3.5" />
+                  Due
+                </Badge>
+              ) : null}
+            </div>
         </div>
       </TableCell>
       <TableCell className="align-top">
@@ -297,58 +321,48 @@ const TasksTableRow = memo(function TasksTableRow({
       <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedDevelopers.map((dev) => (
-            <Tooltip key={dev.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                >
-                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                    <AvatarFallback
-                      className="text-xs font-semibold text-white"
-                      style={{
-                        backgroundColor: `#${getAvatarColor(dev.name)}`,
-                      }}
-                    >
-                      {getInitials(dev.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-normal">{dev.name}</p>
-              </TooltipContent>
-            </Tooltip>
+            <AppTooltip key={dev.id} content={dev.name}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAvatarClick(dev, true); }}
+                disabled={isOpening}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+              >
+                <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                  <AvatarFallback
+                    className="text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: `#${getAvatarColor(dev.name)}`,
+                    }}
+                  >
+                    {getInitials(dev.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </AppTooltip>
           ))}
         </div>
       </TableCell>
       <TableCell className="align-top">
         <div className="flex -space-x-2">
           {assignedTesters.map((tester) => (
-            <Tooltip key={tester.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
-                  disabled={isOpening}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                >
-                  <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                    <AvatarFallback
-                      className="text-xs font-semibold text-white"
-                      style={{
-                        backgroundColor: `#${getAvatarColor(tester.name)}`,
-                      }}
-                    >
-                      {getInitials(tester.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-normal">{tester.name}</p>
-              </TooltipContent>
-            </Tooltip>
+            <AppTooltip key={tester.id} content={tester.name}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onAvatarClick(tester, false); }}
+                disabled={isOpening}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+              >
+                <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                  <AvatarFallback
+                    className="text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: `#${getAvatarColor(tester.name)}`,
+                    }}
+                  >
+                    {getInitials(tester.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </AppTooltip>
           ))}
         </div>
       </TableCell>
@@ -366,16 +380,11 @@ const TasksTableRow = memo(function TasksTableRow({
               </Badge>
             ))}
             {hiddenRepositories.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="cursor-default rounded-full border-border/50 bg-muted/[0.35] text-xs font-medium text-muted-foreground"
-                  >
-                    +{hiddenRepositories.length} more
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="start" className="max-w-[20rem]">
+              <AppTooltip
+                side="top"
+                align="start"
+                className="max-w-[20rem]"
+                content={(
                   <div className="flex flex-wrap gap-1.5 p-0.5">
                     {hiddenRepositories.map((repo) => (
                       <Badge
@@ -388,8 +397,15 @@ const TasksTableRow = memo(function TasksTableRow({
                       </Badge>
                     ))}
                   </div>
-                </TooltipContent>
-              </Tooltip>
+                )}
+              >
+                <Badge
+                  variant="outline"
+                  className="cursor-default rounded-full border-border/50 bg-muted/[0.35] text-xs font-medium text-muted-foreground"
+                >
+                  +{hiddenRepositories.length} more
+                </Badge>
+              </AppTooltip>
             )}
           </div>
         </TableCell>
@@ -502,7 +518,9 @@ export const TasksTable = memo(function TasksTable({
   const testersById = new Map(testers.map((t) => [t.id, t.name]).map(([id, name]) => [id, { id, name } as Person]));
 
   const handleAvatarClick = (person: Person, isDeveloper: boolean) => {
-    setPersonInView({ person, isDeveloper });
+    const latestPerson =
+      (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
+    setPersonInView({ person: latestPerson, isDeveloper });
   };
   
   const handleToggleSelection = (taskId: string, checked: boolean) => {

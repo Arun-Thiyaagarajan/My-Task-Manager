@@ -8,7 +8,7 @@ import type { Task, FieldConfig, FieldType, UiConfig, Attachment, Person, Enviro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { 
     Loader2, 
     CalendarIcon, 
@@ -58,9 +58,13 @@ import { getSortedStatusOptions, getStatusDisplayName } from '@/lib/status-confi
 import { isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TASK_PRIORITY_OPTIONS } from '@/lib/task-planning';
+import { triggerTransfer } from '@/components/file-transfer-indicator';
+import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
 
 
 type TaskFormData = z.infer<ReturnType<typeof createTaskSchema>>;
+type TaskSubmitData = Partial<Task> & { subtaskTaskIds?: string[] };
 
 interface TaskFormProps {
   task?: Partial<Task>;
@@ -140,14 +144,43 @@ const normalizePrLinks = (prLinks?: TaskFormData['prLinks']): Task['prLinks'] | 
     return Object.keys(normalized).length > 0 ? normalized : undefined;
 };
 
-const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) => {
+const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> => {
+    const descendants = new Set<string>();
+    const queue = tasks
+        .filter(candidate => candidate.parentTaskId === taskId)
+        .map(candidate => candidate.id);
+
+    while (queue.length > 0) {
+        const currentId = queue.shift();
+        if (!currentId || descendants.has(currentId)) continue;
+        descendants.add(currentId);
+        tasks.forEach(candidate => {
+            if (candidate.parentTaskId === currentId && !descendants.has(candidate.id)) {
+                queue.push(candidate.id);
+            }
+        });
+    }
+
+    return descendants;
+};
+
+const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null, allTasks: Task[] = []) => {
     const defaults: any = {
         title: '',
         description: '',
         status: uiConfig?.taskStatuses?.[0] || 'To Do',
+        priority: 'medium',
+        dueAt: null,
+        dueReminderAt: null,
+        dueReminderPreset: null,
+        reminder: null,
+        reminderExpiresAt: null,
         repositories: [],
         developers: [],
         testers: [],
+        parentTaskId: null,
+        subtaskTaskIds: [],
+        linkedTaskIds: [],
         tags: [],
         prLinks: {},
         deploymentStatus: {},
@@ -196,6 +229,12 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         title: task.title ?? defaults.title,
         description: task.description ?? defaults.description,
         status: getStatusDisplayName(task.status || defaults.status, uiConfig),
+        priority: task.priority || defaults.priority,
+        dueAt: safeParseDate(task.dueAt),
+        dueReminderAt: safeParseDate(task.dueReminderAt),
+        dueReminderPreset: task.dueReminderPreset ?? defaults.dueReminderPreset,
+        reminder: task.reminder ?? defaults.reminder,
+        reminderExpiresAt: safeParseDate(task.reminderExpiresAt),
         devStartDate: safeParseDate(task.devStartDate),
         devEndDate: safeParseDate(task.devEndDate),
         qaStartDate: safeParseDate(task.qaStartDate),
@@ -208,6 +247,9 @@ const getInitialTaskData = (task?: Partial<Task>, uiConfig?: UiConfig | null) =>
         relevantEnvironments: task.relevantEnvironments && task.relevantEnvironments.length > 0 ? task.relevantEnvironments : defaults.relevantEnvironments,
         developers: task.developers || defaults.developers,
         testers: task.testers || defaults.testers,
+        parentTaskId: task.parentTaskId ?? defaults.parentTaskId,
+        subtaskTaskIds: task.id ? allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.id) : defaults.subtaskTaskIds,
+        linkedTaskIds: task.linkedTaskIds || defaults.linkedTaskIds,
         tags: task.tags || defaults.tags,
         azureWorkItemId: task.azureWorkItemId || defaults.azureWorkItemId,
         summary: task.summary ?? defaults.summary,
@@ -319,7 +361,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(dynamicTaskSchema),
-    defaultValues: getInitialTaskData(task, getUiConfig()),
+    defaultValues: getInitialTaskData(task, getUiConfig(), allTasks || []),
   });
 
   const { formState: { isDirty, errors } } = form;
@@ -333,7 +375,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   
   useEffect(() => {
     const currentUiConfig = getUiConfig();
-    const initialData = getInitialTaskData(task, currentUiConfig);
+    const initialData = getInitialTaskData(task, currentUiConfig, allTasks || []);
     initialData.status = getStatusDisplayName(initialData.status || currentUiConfig?.taskStatuses?.[0] || 'To Do', currentUiConfig);
     form.reset(initialData);
     form.clearErrors();
@@ -353,7 +395,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             console.error("Failed to load draft:", e);
         }
     }
-  }, [task, form.reset, uiConfig, draftKey]);
+  }, [task, form.reset, uiConfig, draftKey, allTasks]);
 
   // Auto-save draft logic
   const watchedValues = form.watch();
@@ -377,6 +419,9 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     
     skipDraftAutosaveRef.current = true;
     const restored = { ...(draftData.data || draftData) };
+    restored.dueAt = safeParseDate(restored.dueAt);
+    restored.dueReminderAt = safeParseDate(restored.dueReminderAt);
+    restored.reminderExpiresAt = safeParseDate(restored.reminderExpiresAt);
     restored.devStartDate = safeParseDate(restored.devStartDate);
     restored.devEndDate = safeParseDate(restored.devEndDate);
     restored.qaStartDate = safeParseDate(restored.qaStartDate);
@@ -424,79 +469,189 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     control: form.control,
     name: 'attachments',
   });
+  const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+
+  const handleAttachmentLinkAdd = useCallback(async (pastedText: string) => {
+    try {
+      const url = new URL(pastedText.trim());
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return false;
+      }
+
+      const newAttachment: Attachment = {
+        name: pastedText,
+        url: pastedText,
+        type: 'link',
+      };
+      const newAttachmentIndex = attachments.length;
+      appendAttachment(newAttachment);
+      toast({ variant: 'success', title: 'Link added.', description: 'Generating a smart title...' });
+
+      try {
+        const alias = await getLinkAlias({ url: pastedText });
+        updateAttachment(newAttachmentIndex, {
+          ...newAttachment,
+          name: alias.name || pastedText,
+        });
+        toast({ variant: 'success', title: 'Smart title generated!' });
+      } catch (error) {
+        console.error('Failed to generate smart title', error);
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }, [appendAttachment, attachments.length, toast, updateAttachment]);
 
   const handleImageUpload = (file: File) => {
+    const transferId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    triggerTransfer({
+      id: transferId,
+      filename: file.name,
+      kind: 'upload',
+      status: 'uploading',
+      progress: 10,
+    });
     const reader = new FileReader();
+    reader.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const progress = Math.min(70, Math.round((event.loaded / event.total) * 70));
+      triggerTransfer({
+        id: transferId,
+        filename: file.name,
+        kind: 'upload',
+        status: 'uploading',
+        progress: Math.max(10, progress),
+      });
+    };
     reader.onload = async (e) => {
-        const rawDataUri = e.target?.result as string;
-        const optimizedUri = await compressImage(rawDataUri);
-        appendAttachment({
-            name: file.name,
-            url: optimizedUri,
-            type: 'image',
-        });
-        toast({ variant: 'success', title: 'Image optimized and added.' });
+        try {
+            const rawDataUri = e.target?.result as string;
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 82 });
+            const optimizedUri = await compressImage(rawDataUri);
+            appendAttachment({
+                name: file.name,
+                url: optimizedUri,
+                type: 'image',
+            });
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
+            toast({ variant: 'success', title: 'Image optimized and added.' });
+        } catch (error) {
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
+            toast({
+                variant: 'destructive',
+                title: 'Could not add image',
+                description: error instanceof Error ? error.message : 'Something went wrong while preparing this image.',
+            });
+        }
+    };
+    reader.onerror = () => {
+      triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
     };
     reader.readAsDataURL(file);
   };
-  
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      const items = event.clipboardData?.items;
-      if (!items) return;
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            event.preventDefault();
-            handleImageUpload(file);
-            break;
-          }
-        }
-        if (items[i].type === 'text/plain') {
-          items[i].getAsString(async (pastedText) => {
-            try {
-              const url = new URL(pastedText);
-              if (url.protocol === 'http:' || url.protocol === 'https:') {
-                event.preventDefault();
-                
-                const newAttachment: Attachment = {
-                  name: pastedText,
-                  url: pastedText,
-                  type: 'link',
-                };
-                const newAttachmentIndex = attachments.length;
-                appendAttachment(newAttachment);
-                toast({ variant: 'success', title: 'Link added. Generating title...' });
+  const handleAttachmentPaste = useCallback((event: React.ClipboardEvent<HTMLElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
 
-                try {
-                  const alias = await getLinkAlias({ url: pastedText });
-                  updateAttachment(newAttachmentIndex, {
-                    ...newAttachment,
-                    name: alias.name || pastedText,
-                  });
-                   toast({ variant: 'success', title: 'Smart title generated!' });
-                } catch(e) {
-                  console.error('Failed to generate smart title', e);
-                }
-              }
-            } catch (_) {
-            }
-          });
-          break;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          event.preventDefault();
+          handleImageUpload(file);
+          return;
         }
       }
-    };
+    }
 
-    window.addEventListener('paste', handlePaste);
-    return () => {
-      window.removeEventListener('paste', handlePaste);
-    };
-  }, [appendAttachment, toast, updateAttachment, attachments.length]);
+    const pastedText = event.clipboardData.getData('text/plain').trim();
+    if (!pastedText) return;
+
+    event.preventDefault();
+    void handleAttachmentLinkAdd(pastedText).then((didAdd) => {
+      if (!didAdd) {
+        toast({
+          variant: 'destructive',
+          title: 'Paste a valid link or image',
+          description: 'Attachments support pasted images and http/https links here.',
+        });
+      }
+    });
+  }, [handleAttachmentLinkAdd, toast]);
+
+  const handleAttachmentDrop = useCallback((event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsAttachmentDropActive(false);
+
+    const files = Array.from(event.dataTransfer.files || []);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (imageFiles.length > 0) {
+      imageFiles.forEach(handleImageUpload);
+      return;
+    }
+
+    if (files.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Unsupported file',
+        description: 'Attachments currently support dropped images and web links.',
+      });
+      return;
+    }
+
+    const droppedText = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
+    if (!droppedText.trim()) return;
+
+    void handleAttachmentLinkAdd(droppedText.trim()).then((didAdd) => {
+      if (!didAdd) {
+        toast({
+          variant: 'destructive',
+          title: 'Drop a valid link or image',
+          description: 'Attachments currently support dropped images and http/https links.',
+        });
+      }
+    });
+  }, [handleAttachmentLinkAdd, toast]);
 
   const watchedRepositories = form.watch('repositories', []);
   const watchedRelevantEnvs = form.watch('relevantEnvironments', []);
+  const watchedParentTaskId = form.watch('parentTaskId', null);
+  const relationshipTasks = useMemo(() => {
+    return (allTasks || [])
+      .filter(candidate => !candidate.deletedAt && candidate.id !== task?.id)
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [allTasks, task?.id]);
+  const descendantTaskIds = useMemo(() => {
+    if (!task?.id) return new Set<string>();
+    return collectDescendantTaskIds(allTasks || [], task.id);
+  }, [allTasks, task?.id]);
+  const parentTaskOptions = useMemo(() => {
+    return relationshipTasks
+      .filter(candidate => !descendantTaskIds.has(candidate.id))
+      .map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [descendantTaskIds, relationshipTasks]);
+  const subtaskTaskOptions = useMemo(() => {
+    return relationshipTasks
+      .filter(candidate => candidate.id !== watchedParentTaskId)
+      .map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [relationshipTasks, watchedParentTaskId]);
+  const linkedTaskOptions = useMemo(() => {
+    return relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title }));
+  }, [relationshipTasks]);
+  useEffect(() => {
+    if (!watchedParentTaskId) return;
+    const currentSubtaskIds = form.getValues('subtaskTaskIds') || [];
+    if (!currentSubtaskIds.includes(watchedParentTaskId)) return;
+    form.setValue(
+      'subtaskTaskIds',
+      currentSubtaskIds.filter(taskId => taskId !== watchedParentTaskId),
+      { shouldDirty: true, shouldValidate: true }
+    );
+  }, [form, watchedParentTaskId]);
   const allConfiguredEnvs = uiConfig?.environments || [];
   const activeEnvs = allConfiguredEnvs.filter(env => env && env.name && watchedRelevantEnvs?.includes(env.name));
   const isRepositoryFieldVisible = isRepositoryFieldActive(uiConfig);
@@ -573,8 +728,18 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       }
   };
 
-  const normalizeTaskFormData = (data: TaskFormData): Partial<Task> => ({
+  const normalizeTaskFormData = (data: TaskFormData): TaskSubmitData => ({
     ...data,
+    priority: data.priority || 'medium',
+    parentTaskId: data.parentTaskId || null,
+    subtaskTaskIds: [...new Set((data.subtaskTaskIds || []).filter(Boolean))],
+    linkedTaskIds: [...new Set((data.linkedTaskIds || []).filter(Boolean))],
+    dueAt: data.dueAt ? data.dueAt.toISOString() : null,
+    dueCompletedAt: data.dueCompletedAt ? data.dueCompletedAt.toISOString() : null,
+    dueReminderAt: data.dueReminderAt ? data.dueReminderAt.toISOString() : null,
+    dueReminderPreset: data.dueReminderPreset ?? null,
+    dueReminderBackupAt: data.dueReminderBackupAt ? data.dueReminderBackupAt.toISOString() : null,
+    dueReminderBackupPreset: data.dueReminderBackupPreset ?? null,
     reminderExpiresAt: data.reminderExpiresAt ? data.reminderExpiresAt.toISOString() : null,
     prLinks: normalizePrLinks(data.prLinks),
     devStartDate: data.devStartDate ? data.devStartDate.toISOString() : null,
@@ -626,7 +791,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
   const handleClearForm = useCallback(() => {
     if (!uiConfig) return;
 
-    form.reset(getInitialTaskData(undefined, uiConfig));
+    form.reset(getInitialTaskData(undefined, uiConfig, allTasks || []));
     form.clearErrors();
     skipDraftAutosaveRef.current = true;
     localStorage.removeItem(draftKey);
@@ -643,7 +808,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     window.setTimeout(() => {
       skipDraftAutosaveRef.current = false;
     }, 0);
-  }, [uiConfig, form, draftKey, toast]);
+  }, [uiConfig, form, draftKey, toast, allTasks]);
 
   const canUseTemplates = showTemplateTools && !task?.id;
   const canManageTemplates = canUseTemplates && !!onSaveTaskTemplate && !isMobile;
@@ -675,7 +840,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     if (!templateToApply) return;
 
     resetDraftForTemplateAction();
-    form.reset(getInitialTaskData(templateToApply.taskData, uiConfig));
+    form.reset(getInitialTaskData(templateToApply.taskData, uiConfig, allTasks || []));
     form.clearErrors();
     setSelectedTemplateId(templateId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -683,7 +848,7 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
       title: 'Template applied',
       description: `"${templateToApply.name}" filled the form.`,
     });
-  }, [form, handleClearForm, resetDraftForTemplateAction, taskTemplates, toast, uiConfig]);
+  }, [form, handleClearForm, resetDraftForTemplateAction, taskTemplates, toast, uiConfig, allTasks]);
 
   const handleOpenTemplateDialog = useCallback(() => {
     if (isMobile) return;
@@ -743,13 +908,16 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
     }
   }, [form, isMobile, onSaveTaskTemplate, templateDescription, templateName, toast]);
 
-  const handleDeleteSelectedTemplate = useCallback(() => {
-    if (!selectedTemplate || !onDeleteTaskTemplate) return;
+  const handleResetSelectedTemplate = useCallback(() => {
+    if (!selectedTemplate) return;
 
-    const deleted = onDeleteTaskTemplate(selectedTemplate.id);
-    if (!deleted) return;
+    handleClearForm();
     setSelectedTemplateId('blank');
-  }, [onDeleteTaskTemplate, selectedTemplate]);
+    toast({
+      title: 'Blank template restored',
+      description: `"${selectedTemplate.name}" is no longer applied to this form.`,
+    });
+  }, [handleClearForm, selectedTemplate, toast]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1026,11 +1194,24 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                 id: groupName.toLowerCase().replace(/\s+/g, '-'), 
                 label: groupName,
                 icon,
-                fields: (groupedFields[groupName] || []).map(f => ({ id: `field-container-${f.key}`, label: f.label }))
+                fields: [
+                    ...(groupedFields[groupName] || []).map(f => ({ id: `field-container-${f.key}`, label: f.label })),
+                    ...(groupName === 'Core Details' ? [{ id: 'field-container-priority', label: 'Priority' }] : []),
+                ]
             });
         }
     });
 
+    sections.push({
+        id: 'relationships',
+        label: 'Relationships',
+        icon: Link2,
+        fields: [
+            { id: 'field-container-parentTaskId', label: 'Parent Task' },
+            { id: 'field-container-subtaskTaskIds', label: 'Subtasks' },
+            { id: 'field-container-linkedTaskIds', label: 'Linked Tasks' },
+        ]
+    });
     if ((uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive)) {
         sections.push({ 
             id: 'attachments', 
@@ -1055,7 +1236,6 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
             fields: []
         });
     }
-
     return sections;
   }, [groupOrder, uiConfig, fieldLabels, deploymentFieldConfig, groupedFields, showPrLinksSection]);
 
@@ -1496,15 +1676,15 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                                             type="button"
                                                             variant="outline"
                                                             size="icon"
-                                                            onClick={handleDeleteSelectedTemplate}
-                                                            className="h-10 w-10 rounded-2xl border-destructive/25 bg-background/92 text-destructive/85 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-destructive/40 hover:bg-destructive/[0.08] hover:text-destructive hover:shadow-[0_10px_24px_-18px_rgba(220,38,38,0.45)]"
+                                                            onClick={handleResetSelectedTemplate}
+                                                            className="h-10 w-10 rounded-2xl border-amber-500/25 bg-background/92 text-amber-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform,color] duration-200 hover:-translate-y-[1px] hover:border-amber-500/45 hover:bg-amber-500/[0.08] hover:text-amber-800 hover:shadow-[0_10px_24px_-18px_rgba(245,158,11,0.45)] dark:text-amber-300"
                                                         >
-                                                            <Trash2 className="h-4.5 w-4.5" />
-                                                            <span className="sr-only">Delete selected template</span>
+                                                            <RotateCcw className="h-4.5 w-4.5" />
+                                                            <span className="sr-only">Reset to blank template</span>
                                                         </Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent side="top" className="font-normal">
-                                                        Delete selected template
+                                                        Reset to blank template
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
@@ -1611,11 +1791,133 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className={cn("grid grid-cols-1 gap-6", gridColsClass)}>
-                                {(groupedFields[groupName] || []).map(field => <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>)}
+                                {(groupedFields[groupName] || []).map(field => {
+                                    if (field.key === 'status') {
+                                        return (
+                                        <div key={`${field.id}-with-priority`} className="max-w-full overflow-hidden md:col-span-2">
+                                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                            <div>{renderField(field)}</div>
+                                            <FormField
+                                                control={form.control}
+                                                name="priority"
+                                                render={({ field: priorityField }) => (
+                                                <FormItem id="field-container-priority" className="scroll-mt-32">
+                                                    <FormLabel className="font-medium">Priority</FormLabel>
+                                                    <Select value={priorityField.value || 'medium'} onValueChange={priorityField.onChange}>
+                                                    <FormControl>
+                                                        <SelectTrigger className={cn("font-normal shadow-sm", premiumOutlineButtonClassName)}>
+                                                        <SelectValue placeholder="Select priority" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {TASK_PRIORITY_OPTIONS.map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                            {option.label}
+                                                        </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                    </Select>
+                                                    <FormDescription className="text-xs">
+                                                    Due dates, due reminders, and reminder notes can be managed from the planning popup on the task detail page.
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            </div>
+                                        </div>
+                                        );
+                                    }
+
+                                    return <div key={field.id} className="max-w-full overflow-hidden">{renderField(field)}</div>;
+                                })}
                             </CardContent>
                         </Card>
                     )
                 })}
+
+                <Card id="relationships" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight uppercase tracking-wide">
+                            <Link2 className="h-5 w-5 text-primary" />
+                            Relationships
+                        </CardTitle>
+                        <CardDescription>
+                            Link this task to a parent task or connect it with other related tasks without changing the existing layout flow.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                        <FormField
+                            control={form.control}
+                            name="parentTaskId"
+                            render={({ field }) => (
+                                <FormItem id="field-container-parentTaskId" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Parent Task</FormLabel>
+                                    <FormControl>
+                                        <SearchableSingleSelect
+                                            options={parentTaskOptions}
+                                            value={field.value ?? null}
+                                            onChange={field.onChange}
+                                            placeholder="Select parent task..."
+                                            emptyLabel="No parent task"
+                                            className={premiumOutlineButtonClassName}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        Subtasks are full tasks. Choosing a parent makes this task appear under that parent&apos;s subtask list.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="subtaskTaskIds"
+                            render={({ field }) => (
+                                <FormItem id="field-container-subtaskTaskIds" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Subtasks</FormLabel>
+                                    <FormControl>
+                                        <MultiSelect
+                                            selected={field.value ?? []}
+                                            onChange={field.onChange}
+                                            options={task?.id ? subtaskTaskOptions : []}
+                                            placeholder={task?.id ? "Select subtasks..." : "Save this task first to add subtasks..."}
+                                            className={cn("font-normal", premiumSurfaceFocusClassName)}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        {task?.id
+                                            ? 'Selected tasks will become child tasks of the current task.'
+                                            : 'Create the task first, then you can assign existing tasks as subtasks.'}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="linkedTaskIds"
+                            render={({ field }) => (
+                                <FormItem id="field-container-linkedTaskIds" className="scroll-mt-32">
+                                    <FormLabel className="font-medium">Linked Tasks</FormLabel>
+                                    <FormControl>
+                                        <MultiSelect
+                                            selected={field.value ?? []}
+                                            onChange={field.onChange}
+                                            options={linkedTaskOptions}
+                                            placeholder="Link other tasks..."
+                                            className={cn("font-normal", premiumSurfaceFocusClassName)}
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">
+                                        Linked tasks stay as lightweight references and will appear in the task detail view.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
 
                 {(uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive) && (
                     <Card id="attachments" className="scroll-mt-32 transition-all duration-300 border-none lg:border shadow-xl lg:shadow-md bg-card">
@@ -1625,7 +1927,22 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                 {fieldLabels.get('attachments') || 'Attachments'}
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent
+                            className="space-y-4"
+                            onPaste={handleAttachmentPaste}
+                            onDragEnter={() => setIsAttachmentDropActive(true)}
+                            onDragOver={(event) => {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'copy';
+                                setIsAttachmentDropActive(true);
+                            }}
+                            onDragLeave={(event) => {
+                                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                    setIsAttachmentDropActive(false);
+                                }
+                            }}
+                            onDrop={handleAttachmentDrop}
+                        >
                             <div className="space-y-3">
                                 {attachments.map((item, index) => (
                                     <div key={item.id} className="flex items-center gap-4 p-3 border rounded-xl bg-muted/20 shadow-sm transition-colors hover:bg-muted/30">
@@ -1664,9 +1981,15 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
                                     </div>
                                 ))}
                                 {(attachments.length || 0) === 0 && (
-                                     <div className="border-2 border-dashed rounded-2xl p-8 text-center bg-muted/10">
+                                     <div
+                                        tabIndex={0}
+                                        className={cn(
+                                            "border-2 border-dashed rounded-2xl p-8 text-center bg-muted/10 outline-none transition-colors",
+                                            isAttachmentDropActive && "border-primary/70 bg-primary/5"
+                                        )}
+                                     >
                                         <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                                        <p className="text-sm font-medium text-muted-foreground">Drop files, or paste an image/link</p>
+                                        <p className="text-sm font-medium text-muted-foreground">Drop images here, or paste an image/link while this section is focused</p>
                                      </div>
                                 )}
                             </div>
@@ -1682,11 +2005,14 @@ export function TaskForm({ task, allTasks, onSubmit, submitButtonText, formTitle
 
                             <input
                                 type="file"
-                                min="0"
                                 ref={imageInputRef}
-                                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
+                                onChange={(e) => {
+                                  Array.from(e.target.files || []).forEach(handleImageUpload);
+                                  e.target.value = '';
+                                }}
                                 className="hidden"
                                 accept="image/*"
+                                multiple
                             />
                         </CardContent>
                     </Card>

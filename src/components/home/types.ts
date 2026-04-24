@@ -41,6 +41,7 @@ export interface PinnedSavedViewsStripProps {
   activeSavedViewIsPinned?: boolean;
   onApplySavedTaskView: (view: SavedTaskView) => void;
   onClearActiveSavedView: (viewId: string) => void;
+  onToggleSavedViewPin: (viewId: string) => void;
   getSavedViewSummary: (view: SavedTaskView) => string;
   getSavedViewPreviewGroups: (view: SavedTaskView) => Array<{ label: string; values: string[] }>;
   isLoading?: boolean;

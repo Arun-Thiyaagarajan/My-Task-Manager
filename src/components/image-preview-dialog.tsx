@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCcw, X, Pencil, Camera, Trash2, History, Move } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 
 interface ImagePreviewDialogProps {
   isOpen: boolean;
@@ -198,26 +198,21 @@ export function ImagePreviewDialog({
                         <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">
                             <History className="h-3 w-3" /> Previously Used
                         </div>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button 
-                                        onClick={() => onRestore?.()}
-                                        className="group relative h-16 w-16 rounded-full border-2 border-border/50 overflow-hidden transition-all hover:border-primary active:scale-95 shadow-lg bg-card flex items-center justify-center text-3xl"
-                                    >
-                                        {isActualImage(previousImageUrl) ? (
-                                            <img src={previousImageUrl} alt="Previous" className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all" />
-                                        ) : (
-                                            previousImageUrl
-                                        )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                            <RotateCcw className="h-5 w-5 text-white" />
-                                        </div>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">Restore this version</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <AppTooltip content="Restore this version" side="top">
+                            <button 
+                                onClick={() => onRestore?.()}
+                                className="group relative h-16 w-16 rounded-full border-2 border-border/50 overflow-hidden transition-all hover:border-primary active:scale-95 shadow-lg bg-card flex items-center justify-center text-3xl"
+                            >
+                                {isActualImage(previousImageUrl) ? (
+                                    <img src={previousImageUrl} alt="Previous" className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                                ) : (
+                                    previousImageUrl
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <RotateCcw className="h-5 w-5 text-white" />
+                                </div>
+                            </button>
+                        </AppTooltip>
                     </div>
                 )}
                 

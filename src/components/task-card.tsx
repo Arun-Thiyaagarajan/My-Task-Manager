@@ -13,13 +13,13 @@ import {
 } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { getStatusConfig, TaskStatusBadge } from './task-status-badge';
-import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2, Loader2 } from 'lucide-react';
+import { GitMerge, ExternalLink, Check, Code2, ClipboardCheck, Share2, BellRing, MoreVertical, Trash2, Loader2, CalendarClock } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { getInitials, getAvatarColor, cn, getRepoBadgeStyle } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getInitials, getAvatarColor, cn, getRepoBadgeStyle, getSmartTextPreview, stripRichText, formatTimestamp } from '@/lib/utils';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { DeleteTaskButton } from './delete-task-button';
-import { updateTask } from '@/lib/data';
+import { getDevelopers, getTesters, updateTask } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -35,11 +35,13 @@ import { EnvironmentStatus } from './environment-status';
 import { Checkbox } from './ui/checkbox';
 import { FavoriteToggleButton } from './favorite-toggle';
 import { ReminderDialog } from './reminder-dialog';
-import { ShareMenu } from './share-menu';
+import { AdvancedShareDialog, ShareMenu } from './share-menu';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories } from '@/lib/repository-config';
 import { RichTextViewer } from './ui/rich-text-viewer';
+import { TaskPriorityBadge } from './task-priority-badge';
+import { getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasCompletedDue, hasDueReminder } from '@/lib/task-planning';
 
 interface TaskCardProps {
   task: Task;
@@ -67,6 +69,8 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const [isStatusSaving, setIsStatusSaving] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isAdvancedShareDialogOpen, setIsAdvancedShareDialogOpen] = useState(false);
   const statusDebounceRef = useRef<number | null>(null);
   const statusRequestRef = useRef(0);
   
@@ -171,6 +175,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const handleOpenTask = (e: React.MouseEvent) => {
     if (isOpening) return;
 
+    const isAdvancedShareOpen = (window as Window & { __taskflowAdvancedShareOpen?: boolean }).__taskflowAdvancedShareOpen;
+    if (isAdvancedShareOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    const suppressUntil = (window as Window & { __taskflowSuppressTaskOpenUntil?: number }).__taskflowSuppressTaskOpenUntil || 0;
+    if (suppressUntil > Date.now()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     // Selection mode logic
     if (isSelectMode) {
       handleSelectionChange();
@@ -229,6 +247,15 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
   const visibleRepositories = getTaskRepositories(task, uiConfig);
   const visibleRepoBadges = visibleRepositories.slice(0, 2);
   const hiddenRepositories = visibleRepositories.slice(2);
+  const dueLabel = getTaskDueLabel(task);
+  const dueBadgeLabel = getTaskDueBadgeLabel(task);
+  const hasTaskDueReminder = hasDueReminder(task);
+  const hasTaskDueCompleted = hasCompletedDue(task);
+  const cardDescriptionSource = task.summary?.trim() || task.description || '';
+  const cardDescriptionWordCount = stripRichText(cardDescriptionSource).split(/\s+/).filter(Boolean).length;
+  const cardDescriptionPreview = cardDescriptionWordCount > 22
+    ? getSmartTextPreview(cardDescriptionSource, 22)
+    : cardDescriptionSource;
 
   return (
     <>
@@ -273,7 +300,7 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           <div className="flex flex-col flex-grow z-10">
             <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
-                    <div className="flex-grow min-w-0 flex items-center gap-2">
+                    <div className="flex-grow min-w-0 flex items-start gap-2">
                         <Link
                           href={`/tasks/${task.id}?${currentQueryString}`}
                           className="flex-grow min-w-0 group/title"
@@ -290,25 +317,20 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                         
                         {uiConfig?.remindersEnabled && (
                             <div className="flex-shrink-0" id={`task-card-reminder-btn-${task.id}`}>
-                              <Tooltip>
-                                  <TooltipTrigger asChild>
-                                      <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          disabled={isOpening}
-                                          className="h-7 w-7 rounded-full bg-background/20 transition-colors hover:bg-background/50"
-                                          onClick={(e) => {
-                                              e.stopPropagation();
-                                              setIsReminderOpen(true);
-                                          }}
-                                      >
-                                          <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
-                                      </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                      <p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p>
-                                  </TooltipContent>
-                              </Tooltip>
+                              <AppTooltip content={task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}>
+                                  <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      disabled={isOpening}
+                                      className="h-7 w-7 rounded-full bg-background/20 transition-colors hover:bg-background/50"
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          setIsReminderOpen(true);
+                                      }}
+                                  >
+                                      <BellRing className={cn("h-4 w-4 text-muted-foreground", task.reminder && "text-amber-600 dark:text-amber-400")} />
+                                  </Button>
+                              </AppTooltip>
                             </div>
                         )}
                     </div>
@@ -371,11 +393,41 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
             </CardHeader>
             <CardContent className="flex flex-grow flex-col p-4 pt-2">
               <div className="relative mb-3 min-h-[40px] text-sm text-muted-foreground">
-                <div className="line-clamp-2 leading-relaxed font-normal text-foreground/78 [&_blockquote]:my-0 [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0">
-                  <RichTextViewer text={task.summary || task.description} />
+                <div className="line-clamp-2 leading-relaxed font-normal text-muted-foreground [&_blockquote]:my-0 [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0">
+                  <RichTextViewer
+                    text={cardDescriptionPreview}
+                    tone="muted"
+                  />
                 </div>
               </div>
               <div className="flex-grow space-y-3">
+                <div className="flex flex-wrap items-center gap-2 overflow-hidden">
+                  <TaskPriorityBadge priority={task.priority} compact />
+                  <AppTooltip
+                    side="top"
+                    align="start"
+                    className="max-w-[16rem]"
+                    content={(
+                      <div className="space-y-1 text-xs font-normal">
+                        <p>{dueLabel}</p>
+                        {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
+                        {hasTaskDueCompleted && task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig?.timeFormat || '12h')}</p> : null}
+                      </div>
+                    )}
+                  >
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'max-w-full rounded-full border px-2.5 py-1 text-[10px] font-medium whitespace-normal break-words leading-[1.25]',
+                        getTaskDueToneClassName(task)
+                      )}
+                    >
+                      <CalendarClock className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{dueBadgeLabel}</span>
+                    </Badge>
+                  </AppTooltip>
+                </div>
+
                 {visibleRepositories.length > 0 && (
                   <div className="flex items-start gap-2 text-sm text-muted-foreground">
                     <GitMerge className="mt-0.5 h-4 w-4 shrink-0" />
@@ -391,16 +443,11 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                         </Badge>
                       ))}
                       {hiddenRepositories.length > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="cursor-default rounded-full border-border/50 bg-muted/[0.35] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
-                            >
-                              +{hiddenRepositories.length} more
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                        <AppTooltip
+                          side="top"
+                          align="start"
+                          className="max-w-[18rem]"
+                          content={(
                             <div className="flex flex-wrap gap-1.5 p-0.5">
                               {hiddenRepositories.map((repo) => (
                                 <Badge
@@ -413,8 +460,15 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                                 </Badge>
                               ))}
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
+                          )}
+                        >
+                          <Badge
+                            variant="outline"
+                            className="cursor-default rounded-full border-border/50 bg-muted/[0.35] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+                          >
+                            +{hiddenRepositories.length} more
+                          </Badge>
+                        </AppTooltip>
                       )}
                     </div>
                   </div>
@@ -468,53 +522,49 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   {hasDevelopers && (
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        <Tooltip>
-                            <TooltipTrigger asChild><Code2 className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{developersLabel}</p></TooltipContent>
-                        </Tooltip>
+                        <AppTooltip content={developersLabel}>
+                            <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </AppTooltip>
                       </div>
                       <div className="flex items-center -space-x-2">
                           {visibleDevelopers.map((dev) => (
-                            <Tooltip key={dev.id}>
-                              <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        setPersonInView({ person: dev, isDeveloper: true });
-                                    }}
-                                    disabled={isOpening}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                                >
-                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
-                                    <AvatarFallback 
-                                      className="text-[10px] font-medium text-white"
-                                      style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
-                                    >
-                                      {getInitials(dev.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent><p className="font-normal">{dev.name}</p></TooltipContent>
-                            </Tooltip>
+                            <AppTooltip key={dev.id} content={dev.name}>
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const latestDeveloper = getDevelopers().find((entry) => entry.id === dev.id) || dev;
+                                      setPersonInView({ person: latestDeveloper, isDeveloper: true });
+                                  }}
+                                  disabled={isOpening}
+                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                              >
+                                <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
+                                  <AvatarFallback 
+                                    className="text-[10px] font-medium text-white"
+                                    style={{ backgroundColor: `#${getAvatarColor(dev.name)}` }}
+                                  >
+                                    {getInitials(dev.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </button>
+                            </AppTooltip>
                           ))}
                           {hiddenDevelopersCount > 0 && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
-                                </Avatar>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <AppTooltip
+                              content={(
                                 <div className="text-sm p-1 space-y-1 font-normal">
                                     <p className="font-medium">More {developersLabel}:</p>
                                     <ul className="list-disc list-inside space-y-0.5">
                                         {hiddenDevelopers.map(dev => <li key={dev.id}>{dev.name}</li>)}
                                     </ul>
                                 </div>
-                              </TooltipContent>
-                            </Tooltip>
+                              )}
+                            >
+                              <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
+                                <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenDevelopersCount}</AvatarFallback>
+                              </Avatar>
+                            </AppTooltip>
                           )}
                       </div>
                     </div>
@@ -523,49 +573,49 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                   {hasTesters && (
                     <div className="flex items-center gap-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        <Tooltip>
-                            <TooltipTrigger asChild><ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{testersLabel}</p></TooltipContent>
-                        </Tooltip>
+                        <AppTooltip content={testersLabel}>
+                            <ClipboardCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                        </AppTooltip>
                       </div>
                       <div className="flex -space-x-2">
                           {visibleTesters.map((tester) => (
-                            <Tooltip key={tester.id}>
-                              <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPersonInView({ person: tester, isDeveloper: false }); }}
-                                    disabled={isOpening}
-                                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
-                                >
-                                  <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
-                                    <AvatarFallback
-                                      className="text-[10px] font-medium text-white"
-                                      style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
-                                    >
-                                      {getInitials(tester.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent><p className="font-normal">{tester.name}</p></TooltipContent>
-                            </Tooltip>
+                            <AppTooltip key={tester.id} content={tester.name}>
+                              <button
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const latestTester = getTesters().find((entry) => entry.id === tester.id) || tester;
+                                      setPersonInView({ person: latestTester, isDeveloper: false });
+                                  }}
+                                  disabled={isOpening}
+                                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full disabled:cursor-not-allowed"
+                              >
+                                <Avatar className="h-7 w-7 cursor-pointer border-2 border-background">
+                                  <AvatarFallback
+                                    className="text-[10px] font-medium text-white"
+                                    style={{ backgroundColor: `#${getAvatarColor(tester.name)}` }}
+                                  >
+                                    {getInitials(tester.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </button>
+                            </AppTooltip>
                           ))}
                           {hiddenTestersCount > 0 && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
-                                  <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
-                                </Avatar>
-                              </TooltipTrigger>
-                              <TooltipContent>
+                            <AppTooltip
+                              content={(
                                 <div className="text-sm p-1 space-y-1 font-normal">
                                     <p className="font-medium">More {testersLabel}:</p>
                                     <ul className="list-disc list-inside space-y-0.5">
                                         {hiddenTesters.map(tester => <li key={tester.id}>{tester.name}</li>)}
                                     </ul>
                                 </div>
-                              </TooltipContent>
-                            </Tooltip>
+                              )}
+                            >
+                              <Avatar className="relative z-[2] h-7 w-7 border-2 border-background">
+                                <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">+{hiddenTestersCount}</AvatarFallback>
+                              </Avatar>
+                            </AppTooltip>
                           )}
                       </div>
                     </div>
@@ -578,33 +628,42 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
                 onUpdate={onTaskUpdate}
               />
               {showMoreOptions ? (
-                 <DropdownMenu>
+                <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" disabled={isOpening} className="h-8 w-8 rounded-full bg-background/20 hover:bg-background/50">
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">More options</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                    <DropdownMenuLabel className="font-medium">Actions</DropdownMenuLabel>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56 rounded-xl border-border/60 p-1.5 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.4)]"
+                    onClick={e => e.stopPropagation()}
+                  >
                     <ShareMenu 
                       task={task} 
                       uiConfig={uiConfig!} 
                       developers={developers} 
                       testers={testers}
-                      asSubmenu
+                      hideAdvancedShareDialog
+                      onAdvancedShareSelect={() => {
+                        setIsMoreMenuOpen(false);
+                        window.setTimeout(() => {
+                          setIsAdvancedShareDialogOpen(true);
+                        }, 0);
+                      }}
+                    />
+                    <DropdownMenuItem
+                      onSelect={e => e.preventDefault()}
+                      className="min-h-0 rounded-lg px-2 py-1.5 text-[13px] font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
                     >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      <span className="font-normal">Share</span>
-                    </ShareMenu>
-                    <DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                       <DeleteTaskButton
                         taskId={task.id}
                         taskTitle={task.title}
                         onSuccess={onTaskDelete}
                       >
-                        <div className="flex items-center font-normal">
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <div className="flex items-center">
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
                           <span>Delete</span>
                         </div>
                       </DeleteTaskButton>
@@ -652,6 +711,16 @@ export const TaskCard = memo(function TaskCard({ task: initialTask, onTaskDelete
           }}
           pinnedTaskIds={pinnedTaskIds || []}
           onPinToggle={onPinToggle}
+        />
+      )}
+      {uiConfig && (
+        <AdvancedShareDialog
+          open={isAdvancedShareDialogOpen}
+          onOpenChange={setIsAdvancedShareDialogOpen}
+          task={task}
+          uiConfig={uiConfig}
+          developers={developers}
+          testers={testers}
         />
       )}
     </>

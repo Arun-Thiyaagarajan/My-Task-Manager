@@ -33,6 +33,10 @@ export function normalizeSavedViewState(
       repo: Array.isArray(state?.filters?.repo) ? state.filters.repo : [],
       deployment: Array.isArray(state?.filters?.deployment) ? state.filters.deployment : [],
       tags: Array.isArray(state?.filters?.tags) ? state.filters.tags : [],
+      priority: Array.isArray(state?.filters?.priority) ? state.filters.priority : [],
+      dueState: Array.isArray(state?.filters?.dueState) ? state.filters.dueState : [],
+      reminderNote: Array.isArray(state?.filters?.reminderNote) ? state.filters.reminderNote : [],
+      dueReminder: Array.isArray(state?.filters?.dueReminder) ? state.filters.dueReminder : [],
     },
   };
 }
@@ -52,6 +56,10 @@ export function buildLegacyHomeViewState(prefs: UserPreferences, fallbackDateIso
       repo: prefs.taskFilters?.repo || [],
       deployment: prefs.taskFilters?.deployment || [],
       tags: prefs.taskFilters?.tags || [],
+      priority: prefs.taskFilters?.priority || [],
+      dueState: prefs.taskFilters?.dueState || [],
+      reminderNote: prefs.taskFilters?.reminderNote || [],
+      dueReminder: prefs.taskFilters?.dueReminder || [],
     },
   }, fallbackDateIso);
 }
@@ -81,6 +89,10 @@ export function buildHomeViewStateSnapshot(input: {
       repo: input.overrides?.filters?.repo ?? input.filters?.repo ?? [],
       deployment: input.overrides?.filters?.deployment ?? input.filters?.deployment ?? [],
       tags: input.overrides?.filters?.tags ?? input.filters?.tags ?? [],
+      priority: input.overrides?.filters?.priority ?? input.filters?.priority ?? [],
+      dueState: input.overrides?.filters?.dueState ?? input.filters?.dueState ?? [],
+      reminderNote: input.overrides?.filters?.reminderNote ?? input.filters?.reminderNote ?? [],
+      dueReminder: input.overrides?.filters?.dueReminder ?? input.filters?.dueReminder ?? [],
     },
   }, input.selectedDate);
 }
@@ -148,6 +160,30 @@ export function buildHomeViewStateFromUrl(
   const urlTags = searchParams.getAll('tags');
   if (urlTags.length > 0) {
     nextState.filters.tags = urlTags;
+    hasRelevantParams = true;
+  }
+
+  const urlPriority = searchParams.getAll('priority');
+  if (urlPriority.length > 0) {
+    nextState.filters.priority = urlPriority;
+    hasRelevantParams = true;
+  }
+
+  const urlDueState = searchParams.getAll('dueState');
+  if (urlDueState.length > 0) {
+    nextState.filters.dueState = urlDueState;
+    hasRelevantParams = true;
+  }
+
+  const urlReminderNote = searchParams.getAll('reminderNote');
+  if (urlReminderNote.length > 0) {
+    nextState.filters.reminderNote = urlReminderNote;
+    hasRelevantParams = true;
+  }
+
+  const urlDueReminder = searchParams.getAll('dueReminder');
+  if (urlDueReminder.length > 0) {
+    nextState.filters.dueReminder = urlDueReminder;
     hasRelevantParams = true;
   }
 

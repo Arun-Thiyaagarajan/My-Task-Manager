@@ -99,6 +99,10 @@ export interface SavedTaskViewState {
     repo: string[];
     deployment: string[];
     tags: string[];
+    priority: string[];
+    dueState: string[];
+    reminderNote: string[];
+    dueReminder: string[];
   };
 }
 
@@ -159,6 +163,7 @@ export interface UserPreferences {
   sortDescriptor?: string;
   dateView?: 'all' | 'monthly' | 'calendar' | 'yearly';
   lastHomeViewState?: SavedTaskViewState;
+  activeSavedViewId?: string | null;
   taskOpenGroups?: string[];
   savedTaskViews?: SavedTaskView[];
   taskFilters?: {
@@ -167,6 +172,10 @@ export interface UserPreferences {
     repo?: string[];
     deployment?: string[];
     tags?: string[];
+    priority?: string[];
+    dueState?: string[];
+    reminderNote?: string[];
+    dueReminder?: string[];
   };
   noteFilters?: {
     search?: string;
@@ -197,6 +206,13 @@ export interface Task {
   summary?: string | null;
   deletedAt?: string | null;
   isFavorite?: boolean;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  dueAt?: string | null;
+  dueCompletedAt?: string | null;
+  dueReminderAt?: string | null;
+  dueReminderPreset?: 'at_due' | '15m_before' | '1h_before' | '1d_before' | 'custom' | null;
+  dueReminderBackupAt?: string | null;
+  dueReminderBackupPreset?: 'at_due' | '15m_before' | '1h_before' | '1d_before' | 'custom' | null;
   reminder?: string | null;
   reminderExpiresAt?: string | null;
   
@@ -215,6 +231,8 @@ export interface Task {
   relevantEnvironments?: string[];
   developers?: string[]; // Storing Person IDs
   testers?: string[]; // Storing Person IDs
+  parentTaskId?: string | null;
+  linkedTaskIds?: string[];
   comments?: Comment[];
   attachments?: Attachment[];
   

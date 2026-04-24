@@ -3,8 +3,10 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import type { Task, UiConfig, Person, FieldConfig, Environment, Comment, Attachment } from './types';
+import { getBinnedTasks, getTasks } from './data';
 import { pickDefaultIconName, resolveStatusConfig } from './status-config';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from './repository-config';
+import { getTaskDueLabel, getTaskPriorityLabel } from './task-planning';
 
 // --- SVG ICONS FOR PDF WATERMARK ---
 const STATUS_SVG_ICONS: Record<string, string> = {
@@ -187,12 +189,32 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
+const buildRelationshipTaskPool = (task: Task, allTasks?: Task[]) => {
+    const fallbackTasks = [...getTasks(), ...getBinnedTasks()];
+    const combinedTasks = [...(allTasks || []), ...fallbackTasks, task];
+    const dedupedTasks = new Map<string, Task>();
+
+    combinedTasks.forEach(candidate => {
+        if (!candidate?.id || dedupedTasks.has(candidate.id)) return;
+        dedupedTasks.set(candidate.id, candidate);
+    });
+
+    return [...dedupedTasks.values()];
+};
+
+const resolveRelationshipTitle = (taskId: string, relationshipTasks: Task[]) => {
+    if (!taskId) return '';
+    const matchedTask = relationshipTasks.find(task => task.id === taskId);
+    return matchedTask?.title || taskId;
+};
+
 const _drawTaskOnPage = async (
     doc: jsPDF,
     task: Task,
     uiConfig: UiConfig,
     developers: Person[],
-    testers: Person[]
+    testers: Person[],
+    allTasks?: Task[]
 ) => {
     let y = 0;
     const statusAssets = await prepareStatusPdfAssets(task, uiConfig);
@@ -392,6 +414,7 @@ const _drawTaskOnPage = async (
     const fieldLabels = new Map(uiConfig.fields.map(f => [f.key, f.label]));
     const customFields = uiConfig.fields.filter(f => f.isCustom && f.isActive && task.customFields && typeof task.customFields[f.key] !== 'undefined' && task.customFields[f.key] !== null && task.customFields[f.key] !== '');
     const visibleRepositories = getTaskRepositories(task, uiConfig);
+    const relationshipTasks = buildRelationshipTaskPool(task, allTasks);
 
     // --- PDF DRAWING ---
     drawHeader();
@@ -421,6 +444,25 @@ const _drawTaskOnPage = async (
     drawKeyValue(fieldLabels.get('developers') || 'Developers', assignedDevs || 'None');
     const assignedTesters = (task.testers || []).map(id => testersById.get(id)).filter(Boolean).join(', ');
     drawKeyValue(fieldLabels.get('testers') || 'Testers', assignedTesters || 'None');
+    drawKeyValue(fieldLabels.get('priority') || 'Priority', getTaskPriorityLabel(task.priority));
+    drawKeyValue(fieldLabels.get('dueAt') || 'Due Date', getTaskDueLabel(task));
+    if (task.parentTaskId) {
+        drawKeyValue('Parent Task', resolveRelationshipTitle(task.parentTaskId, relationshipTasks));
+    }
+    const subtaskTitles = relationshipTasks
+        .filter(candidate => candidate.parentTaskId === task.id)
+        .map(candidate => candidate.title);
+    if (subtaskTitles.length > 0) {
+        drawKeyValue('Subtasks', subtaskTitles.join(', '));
+    }
+    if (task.linkedTaskIds && task.linkedTaskIds.length > 0) {
+        const linkedTaskTitles = task.linkedTaskIds
+            .map(linkedTaskId => resolveRelationshipTitle(linkedTaskId, relationshipTasks))
+            .filter(Boolean);
+        if (linkedTaskTitles.length > 0) {
+            drawKeyValue('Linked Tasks', linkedTaskTitles.join(', '));
+        }
+    }
     if (isRepositoryFieldActive(uiConfig) && visibleRepositories.length > 0) {
         drawKeyValue(fieldLabels.get('repositories') || 'Repositories', visibleRepositories.join(', '));
     }
@@ -459,39 +501,40 @@ const _drawTaskOnPage = async (
         }
     });
 
-    if (shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0 && task.prLinks && Object.keys(task.prLinks).length > 0) {
-        let firstPrLabel = '';
-        let firstPrValue: { text: string; link: string } | '' = '';
-        outer: for (const [env, repos] of Object.entries(task.prLinks)) {
-            if (!repos) continue;
-            for (const [repoName, prIdString] of Object.entries(repos)) {
-                if (!prIdString) continue;
-                const firstPrId = prIdString.split(',').map(s => s.trim()).filter(Boolean)[0];
-                if (!firstPrId) continue;
-                const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
-                const baseUrl = repoConfig?.baseUrl || '';
-                const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${firstPrId}` : '';
-                firstPrLabel = `${repoName} #${firstPrId} (${env})`;
-                firstPrValue = { text: `PR #${firstPrId}`, link: fullUrl };
-                break outer;
-            }
-        }
-        drawSectionHeader('Pull Requests', estimateKeyValueHeight(firstPrLabel, firstPrValue));
-        Object.entries(task.prLinks).forEach(([env, repos]) => {
+    if (shouldShowPrLinks(uiConfig) && visibleRepositories.length > 0) {
+        const prEntries: Array<{ env: string; repoName: string; id: string; fullUrl: string }> = [];
+        Object.entries(task.prLinks || {}).forEach(([env, repos]) => {
             if (!repos) return;
             Object.entries(repos).forEach(([repoName, prIdString]) => {
                 if (!prIdString) return;
                 const prIds = prIdString.split(',').map(s => s.trim()).filter(Boolean);
                 const repoConfig = uiConfig.repositoryConfigs.find(rc => rc.name === repoName);
-                
-                prIds.forEach(id => {
-                    const baseUrl = repoConfig?.baseUrl || '';
-                    const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}${id}` : '';
-                    const label = `${repoName} #${id} (${env})`;
-                    drawKeyValue(label, { text: fullUrl ? `PR #${id}` : 'Link not available', link: fullUrl });
+                const baseUrl = repoConfig?.baseUrl || '';
+
+                prIds.forEach((id) => {
+                    const fullUrl = baseUrl ? `${baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`}${id}` : '';
+                    prEntries.push({ env, repoName, id, fullUrl });
                 });
             });
         });
+
+        if (prEntries.length === 0) {
+            drawSectionHeader('Pull Requests', estimateKeyValueHeight('Status', 'No Pull request found'));
+            drawKeyValue('Status', 'No Pull request found');
+        } else {
+        let firstPrLabel = '';
+        let firstPrValue: { text: string; link: string } | '' = '';
+        const firstPr = prEntries[0];
+        if (firstPr) {
+            firstPrLabel = `${firstPr.repoName} #${firstPr.id} (${firstPr.env})`;
+            firstPrValue = { text: `PR #${firstPr.id}`, link: firstPr.fullUrl };
+        }
+        drawSectionHeader('Pull Requests', estimateKeyValueHeight(firstPrLabel, firstPrValue));
+        prEntries.forEach(({ env, repoName, id, fullUrl }) => {
+            const label = `${repoName} #${id} (${env})`;
+            drawKeyValue(label, { text: fullUrl ? `PR #${id}` : 'Link not available', link: fullUrl });
+        });
+        }
     }
 
     if (task.attachments && task.attachments.length > 0) {
@@ -573,22 +616,32 @@ export const generateTaskPdf = async (
     testers: Person[], 
     outputType: 'save' | 'blob' = 'save',
     filename?: string,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    allTasks?: Task[],
+    abortSignal?: AbortSignal
 ): Promise<Blob | void> => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const tasksArray = Array.isArray(tasks) ? tasks : [tasks];
+    const tasksArray = Array.isArray(tasks)
+        ? [...tasks].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+        : [tasks];
     
     for (let i = 0; i < tasksArray.length; i++) {
+        if (abortSignal?.aborted) {
+            throw new DOMException('PDF generation cancelled.', 'AbortError');
+        }
         const task = tasksArray[i];
         if (i > 0) {
             doc.addPage();
         }
-        await _drawTaskOnPage(doc, task, uiConfig, developers, testers);
+        await _drawTaskOnPage(doc, task, uiConfig, developers, testers, allTasks);
         if (onProgress) {
             onProgress(Math.round(((i + 1) / tasksArray.length) * 100));
         }
         // Yield to main thread to prevent blocking
         await new Promise(resolve => setTimeout(resolve, 0));
+        if (abortSignal?.aborted) {
+            throw new DOMException('PDF generation cancelled.', 'AbortError');
+        }
     }
     
     const sanitizeFilename = (name: string): string => {

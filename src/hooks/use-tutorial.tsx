@@ -90,14 +90,9 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         description: 'Open your general reminders from here to track workspace-wide notes and important follow-ups outside individual tasks.',
       },
       {
-        element: '#header-theme-toggle',
-        title: 'Switch Themes',
-        description: 'Switch between light and dark modes to match your comfort and viewing preference.',
-      },
-      {
         element: '#header-profile-trigger',
-        title: 'Profile And Sign-In',
-        description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About, and in local mode you will also see Sign In / Cloud Sync.',
+        title: 'Profile',
+        description: 'This tutorial opens the profile menu for you here. Use it to access My Profile, Settings, and Help & About.',
       },
       {
         element: '#floating-ai-assistant-trigger',
@@ -215,6 +210,11 @@ const routeRegistry: Record<TutorialRouteKey, (context: TutorialContext) => Tuto
         element: '#task-detail-main',
         title: 'Task Overview',
         description: 'This page is the main operating view for a task, including status, description, reminders, and linked work.',
+      },
+      {
+        element: '#task-detail-relationships',
+        title: 'Task Relationships',
+        description: 'Parent task, subtasks, and linked tasks work together as one feature here. Use parent task for hierarchy, subtasks for breakdown, and linked tasks for related work that should stay separate.',
       },
       {
         element: '#task-detail-edit',

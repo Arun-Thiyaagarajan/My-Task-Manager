@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, getTaskById as getDirectTaskById, getTasks as getDirectTasks } from '@/lib/data';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport, syncTaskSubtasks } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share } from 'lucide-react';
+import { ArrowLeft, BookOpen, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, RotateCcw } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -27,7 +27,6 @@ import { ImagePreviewDialog } from '@/components/image-preview-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { attachmentSchema } from '@/lib/validators';
-import { RelatedTasksSection } from '@/components/related-tasks-section';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -45,6 +44,7 @@ import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
 import { Textarea } from '@/components/ui/textarea';
 import { TextareaToolbar, applyFormat, type FormatType } from '@/components/ui/textarea-toolbar';
@@ -58,6 +58,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles, isStatusValue } from '@/lib/status-config';
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
+import { TaskPriorityBadge } from '@/components/task-priority-badge';
+import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasCompletedDue, hasDueReminder, hasParkedDueReminder, parseTaskDate } from '@/lib/task-planning';
+import { TaskPlanningEditor } from '@/components/task-planning-editor';
+import { TaskRelationshipsSection } from '@/components/task-relationships-section';
+import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -123,8 +128,6 @@ export default function TaskPage() {
   const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
   const [newLink, setNewLink] = useState({ name: '', url: '' });
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
-  const [relatedTasksTitle, setRelatedTasksTitle] = useState<string>('');
   const [taskLogs, setTaskLogs] = useState<Log[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -134,6 +137,10 @@ export default function TaskPage() {
   const [editingValue, setEditingValue] = useState<any>('');
   const [justUpdatedStatus, setJustUpdatedStatus] = useState<string | null>(null);
   const [isStatusSaving, setIsStatusSaving] = useState(false);
+  const [isPlanningEditorOpen, setIsPlanningEditorOpen] = useState(false);
+  const [attachmentsAccordionValue, setAttachmentsAccordionValue] = useState('');
+  const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+  const [isRefreshingTaskDetail, setIsRefreshingTaskDetail] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descriptionEditorRef = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +149,7 @@ export default function TaskPage() {
   
   const PINNED_TASKS_STORAGE_KEY = 'taskflow_pinned_tasks';
   const taskId = params.id as string;
+  const ATTACHMENTS_ACCORDION_STORAGE_KEY = `taskflow_task_attachments_${taskId}`;
   const reminderPreview = useMemo(() => {
     if (!task?.reminder) return '';
     return task.reminder
@@ -155,8 +163,60 @@ export default function TaskPage() {
       .replace(/\s+/g, ' ')
       .trim();
   }, [task?.reminder]);
+  const dueLabel = useMemo(() => getTaskDueLabel(task), [task]);
+  const dueBadgeLabel = useMemo(() => getTaskDueBadgeLabel(task), [task]);
+  const hasTaskDueReminder = useMemo(() => hasDueReminder(task), [task]);
+  const hasTaskDueCompleted = useMemo(() => hasCompletedDue(task), [task]);
+  const hasDueReminderAlerted = useMemo(() => {
+    const dueReminderDate = parseTaskDate(task?.dueReminderAt);
+    if (!dueReminderDate) return false;
+    return dueReminderDate.getTime() <= Date.now();
+  }, [task?.dueReminderAt]);
+  const hasParkedTaskDueReminder = useMemo(() => hasParkedDueReminder(task), [task]);
+  const isTaskPastDue = useMemo(() => {
+    const dueDate = parseTaskDate(task?.dueAt);
+    if (!dueDate || task?.dueCompletedAt) return false;
+    return dueDate.getTime() < Date.now();
+  }, [task?.dueAt, task?.dueCompletedAt]);
+  const shouldAskForDueCompletionTime = useMemo(() => {
+    const dueDate = parseTaskDate(task?.dueAt);
+    if (!dueDate || task?.dueCompletedAt) return false;
+    return dueDate.getTime() < Date.now();
+  }, [task?.dueAt, task?.dueCompletedAt]);
+  const relationshipTasks = useMemo(
+    () => allTasks.filter(candidate => !candidate.deletedAt && candidate.id !== task?.id).sort((a, b) => a.title.localeCompare(b.title)),
+    [allTasks, task?.id]
+  );
+  const descendantTaskIds = useMemo(
+    () => (task?.id ? collectDescendantTaskIds(allTasks, task.id) : new Set<string>()),
+    [allTasks, task?.id]
+  );
+  const parentTaskOptions = useMemo(
+    () => relationshipTasks
+      .filter(candidate => !descendantTaskIds.has(candidate.id))
+      .map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [descendantTaskIds, relationshipTasks]
+  );
+  const editingRelationshipParentTaskId = useMemo(
+    () =>
+      editingSection === 'relationships' && editingValue && typeof editingValue === 'object'
+        ? editingValue.parentTaskId || null
+        : null,
+    [editingSection, editingValue]
+  );
+  const subtaskTaskOptions = useMemo(
+    () =>
+      relationshipTasks
+        .filter(candidate => candidate.id !== editingRelationshipParentTaskId)
+        .map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [editingRelationshipParentTaskId, relationshipTasks]
+  );
+  const linkedTaskOptions = useMemo(
+    () => relationshipTasks.map(candidate => ({ value: candidate.id, label: candidate.title })),
+    [relationshipTasks]
+  );
   
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (taskId) {
       clearExpiredReminders();
       const activeCompanyId = getActiveCompanyId();
@@ -191,7 +251,44 @@ export default function TaskPage() {
       setIsLoading(false);
       window.dispatchEvent(new Event('navigation-end'));
     }
-  }
+  }, [isUserLoading, taskId]);
+
+  const handleRefreshTaskDetail = useCallback(async () => {
+    if (isRefreshingTaskDetail) return;
+
+    setIsRefreshingTaskDetail(true);
+    window.dispatchEvent(new Event('sync-start'));
+
+    try {
+      const completionPromise = new Promise<void>((resolve) => {
+        const handleComplete = () => resolve();
+        window.addEventListener('taskflow-refresh-finished', handleComplete, { once: true });
+      });
+
+      window.dispatchEvent(new Event('taskflow-refresh-request'));
+      await Promise.race([
+        completionPromise,
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ]);
+
+      loadData();
+      toast({
+        variant: 'success',
+        title: 'Task refreshed',
+        description: 'The latest task details are now in view.',
+        duration: 2000,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Refresh failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setIsRefreshingTaskDetail(false);
+      window.dispatchEvent(new Event('sync-end'));
+    }
+  }, [isRefreshingTaskDetail, loadData, toast]);
 
   useEffect(() => {
     loadData();
@@ -209,7 +306,7 @@ export default function TaskPage() {
         window.removeEventListener('reminders-expired', loadData);
         window.clearInterval(reminderExpiryInterval);
     };
-  }, [taskId, isUserLoading]);
+  }, [loadData]);
 
   useEffect(() => {
     return () => {
@@ -226,73 +323,14 @@ export default function TaskPage() {
   }, [justUpdatedStatus]);
 
   useEffect(() => {
-    if (!task || task.deletedAt) {
-      setRelatedTasks([]);
-      setRelatedTasksTitle('');
-      return;
+    try {
+      const saved = window.localStorage.getItem(ATTACHMENTS_ACCORDION_STORAGE_KEY);
+      setAttachmentsAccordionValue(saved === 'attachments' ? 'attachments' : '');
+    } catch {
+      setAttachmentsAccordionValue('');
     }
-    
-    const allDevs = getDevelopers();
-    const tasksForRelated = getTasks().filter(t => t.id !== task.id);
-    const strategies: (() => { title: string, tasks: Task[] } | null)[] = [];
+  }, [ATTACHMENTS_ACCORDION_STORAGE_KEY]);
 
-    if (task.developers && task.developers.length > 0) {
-        const primaryDevId = task.developers[0];
-        const primaryDev = allDevs.find(d => d.id === primaryDevId);
-        if (primaryDev) {
-            strategies.push(() => {
-              const related = tasksForRelated.filter(t => t.developers?.includes(primaryDevId));
-              return related.length > 0 ? {
-                title: `More from ${primaryDev.name}`,
-                tasks: related
-              } : null;
-            });
-        }
-    }
-
-    if (task.repositories && Array.isArray(task.repositories) && task.repositories.length > 0) {
-        const primaryRepo = task.repositories[0];
-        strategies.push(() => {
-          const related = tasksForRelated.filter(t => {
-              const repos = Array.isArray(t.repositories) ? t.repositories : [];
-              return repos.includes(primaryRepo);
-          });
-          return related.length > 0 ? {
-            title: `More in ${primaryRepo}`,
-            tasks: related
-          } : null;
-        });
-    }
-
-    if (task.devStartDate) {
-        const taskDate = new Date(task.devStartDate);
-        const taskMonth = taskDate.getMonth();
-        const taskYear = taskDate.getFullYear();
-        strategies.push(() => {
-          const related = tasksForRelated.filter(t => {
-              if (!t.devStartDate) return false;
-              const otherDate = new Date(t.devStartDate);
-              return otherDate.getMonth() === taskMonth && otherDate.getFullYear() === taskYear;
-          });
-          return related.length > 0 ? {
-            title: `Also from ${format(taskDate, 'MMMM yyyy')}`,
-            tasks: related
-          } : null;
-        });
-    }
-    
-    const validStrategies = strategies.map(s => s()).filter(s => s !== null) as { title: string, tasks: Task[] }[];
-
-    if (validStrategies.length > 0) {
-        const randomIndex = Math.floor(Math.random() * validStrategies.length);
-        const selectedStrategy = validStrategies[randomIndex];
-        
-        const shuffled = selectedStrategy.tasks.sort(() => 0.5 - Math.random());
-        setRelatedTasks(shuffled.slice(0, 4));
-        setRelatedTasksTitle(selectedStrategy.title);
-    }
-  }, [task]);
-  
   useEffect(() => {
     if (editingSection === 'title' && titleInputRef.current) {
         titleInputRef.current.focus();
@@ -312,6 +350,14 @@ export default function TaskPage() {
         testers: task.testers || [],
         repositories: task.repositories || [],
         azureWorkItemId: task.azureWorkItemId || '',
+      });
+      return;
+    }
+    if (section === 'relationships') {
+      setEditingValue({
+        parentTaskId: task.parentTaskId || null,
+        subtaskTaskIds: allTasks.filter(candidate => candidate.parentTaskId === task.id).map(candidate => candidate.id),
+        linkedTaskIds: task.linkedTaskIds || [],
       });
       return;
     }
@@ -416,6 +462,41 @@ export default function TaskPage() {
       });
     }
     handleCancelEditing();
+  };
+
+  const handleSaveRelationshipsEditing = async () => {
+    if (!task || !editingValue || typeof editingValue !== 'object') return;
+
+    const nextRelationships = editingValue as {
+      parentTaskId?: string | null;
+      subtaskTaskIds?: string[];
+      linkedTaskIds?: string[];
+    };
+
+    try {
+      const updatedTask = updateTask(task.id, {
+        parentTaskId: nextRelationships.parentTaskId || null,
+        linkedTaskIds: [...new Set((nextRelationships.linkedTaskIds || []).filter(Boolean))],
+      });
+      syncTaskSubtasks(task.id, nextRelationships.subtaskTaskIds || []);
+      if (updatedTask) {
+        setTask(updatedTask);
+        setAllTasks(getTasks());
+        setTaskLogs(getLogsForTask(task.id));
+        toast({
+          variant: 'success',
+          title: 'Relationships Updated',
+          description: 'Your changes have been saved.',
+        });
+      }
+      handleCancelEditing();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not update relationships',
+        description: error instanceof Error ? error.message : 'Please review the selected tasks and try again.',
+      });
+    }
   };
 
   const handleTogglePin = (taskIdToToggle: string) => {
@@ -590,29 +671,92 @@ export default function TaskPage() {
         filename: file.name,
         kind: 'upload',
         status: 'uploading',
-        progress: 0
+        progress: 10
     });
 
     const reader = new FileReader();
+    reader.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        const progress = Math.min(68, Math.round((event.loaded / event.total) * 68));
+        triggerTransfer({
+            id: transferId,
+            filename: file.name,
+            kind: 'upload',
+            status: 'uploading',
+            progress: Math.max(10, progress),
+        });
+    };
     reader.onload = async (e) => {
-        const rawDataUri = e.target?.result as string;
-        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 50 });
-        
-        const optimizedUri = await compressImage(rawDataUri);
-        const newAttachment: Attachment = { 
-            name: file.name, 
-            url: optimizedUri, 
-            type: 'image',
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-            mimeType: file.type
-        };
-        
-        setLocalAttachments(prev => [...prev, newAttachment]);
-        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
-        toast({ variant: 'success', title: 'Image optimized and added.'});
+        try {
+            const rawDataUri = e.target?.result as string;
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'uploading', progress: 82 });
+            
+            const optimizedUri = await compressImage(rawDataUri);
+            const newAttachment: Attachment = { 
+                name: file.name, 
+                url: optimizedUri, 
+                type: 'image',
+                size: file.size,
+                uploadedAt: new Date().toISOString(),
+                mimeType: file.type
+            };
+            
+            setLocalAttachments(prev => [...prev, newAttachment]);
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'complete', progress: 100 });
+            toast({ variant: 'success', title: 'Image optimized and added.'});
+        } catch (error) {
+            triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
+            toast({
+                variant: 'destructive',
+                title: 'Could not add image',
+                description: error instanceof Error ? error.message : 'Something went wrong while preparing this image.',
+            });
+        }
+    };
+    reader.onerror = () => {
+        triggerTransfer({ id: transferId, filename: file.name, kind: 'upload', status: 'error', progress: 0, error: 'Upload failed' });
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAttachmentLinkAdd = async (pastedText: string) => {
+      try {
+          const url = new URL(pastedText.trim());
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+              return false;
+          }
+
+          const newAttachment: Attachment = {
+              name: pastedText,
+              url: pastedText,
+              type: 'link',
+              uploadedAt: new Date().toISOString()
+          };
+          const newAttachmentIndex = localAttachments.length;
+          setLocalAttachments(prev => [...prev, newAttachment]);
+          toast({ variant: 'success', title: 'Link added.', description: 'Generating a smart title...' });
+
+          try {
+            const alias = await getLinkAlias({ url: pastedText });
+            setLocalAttachments(current => {
+                const updated = [...current];
+                if (updated[newAttachmentIndex]) {
+                  updated[newAttachmentIndex] = {
+                      ...updated[newAttachmentIndex],
+                      name: alias.name || pastedText,
+                  };
+                }
+                return updated;
+            });
+            toast({ variant: 'success', title: 'Smart title generated!'});
+          } catch(error) {
+             console.error('Failed to generate smart title', error);
+          }
+
+          return true;
+      } catch {
+          return false;
+      }
   };
 
   const handleAddLink = async () => {
@@ -648,68 +792,70 @@ export default function TaskPage() {
       }
   }
 
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      if (!isEditingAttachmentsRef.current) return;
-      const items = event.clipboardData?.items;
-      if (!items) return;
+  const handleAttachmentPaste = async (event: React.ClipboardEvent<HTMLElement>) => {
+    if (!isEditingAttachmentsRef.current) return;
+    const items = event.clipboardData?.items;
+    if (!items) return;
 
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) {
-            event.preventDefault();
-            handleImageUpload(file);
-            break;
-          }
-        }
-        if (items[i].type === 'text/plain') {
-            items[i].getAsString(async (pastedText) => {
-                try {
-                    const url = new URL(pastedText);
-                    if (url.protocol === 'http:' || url.protocol === 'https:') {
-                        event.preventDefault();
-                        
-                        const newAttachment: Attachment = {
-                            name: pastedText,
-                            url: pastedText,
-                            type: 'link',
-                            uploadedAt: new Date().toISOString()
-                        };
-                        const newAttachmentIndex = localAttachments.length;
-                        setLocalAttachments(prev => [...prev, newAttachment]);
-                        toast({ variant: 'success', title: 'Pasted link added. Generating title...' });
-
-                        try {
-                          const alias = await getLinkAlias({ url: pastedText });
-                          setLocalAttachments(current => {
-                              const updated = [...current];
-                              if (updated[newAttachmentIndex]) {
-                                updated[newAttachmentIndex] = {
-                                    ...updated[newAttachmentIndex],
-                                    name: alias.name || pastedText,
-                                };
-                              }
-                              return updated;
-                          });
-                          toast({ variant: 'success', title: 'Smart title generated!'});
-                        } catch(e) {
-                           console.error('Failed to generate smart title', e);
-                        }
-                    }
-                } catch (_) {
-                }
-            });
-            break;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          event.preventDefault();
+          handleImageUpload(file);
+          return;
         }
       }
-    };
+    }
 
-    window.addEventListener('paste', handlePaste);
-    return () => {
-      window.removeEventListener('paste', handlePaste);
-    };
-  }, [toast, localAttachments.length]);
+    const pastedText = event.clipboardData.getData('text/plain').trim();
+    if (!pastedText) return;
+
+    event.preventDefault();
+    const didAdd = await handleAttachmentLinkAdd(pastedText);
+    if (!didAdd) {
+      toast({
+        variant: 'destructive',
+        title: 'Paste a valid link or image',
+        description: 'Attachments support pasted images and http/https links here.',
+      });
+    }
+  };
+
+  const handleAttachmentDrop = async (event: React.DragEvent<HTMLElement>) => {
+    if (!isEditingAttachmentsRef.current) return;
+    event.preventDefault();
+    setIsAttachmentDropActive(false);
+
+    const files = Array.from(event.dataTransfer.files || []);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (imageFiles.length > 0) {
+      imageFiles.forEach(handleImageUpload);
+      return;
+    }
+
+    if (files.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Unsupported file',
+        description: 'Attachments currently support dropped images and web links.',
+      });
+      return;
+    }
+
+    const droppedText = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
+    if (!droppedText.trim()) return;
+
+    const didAdd = await handleAttachmentLinkAdd(droppedText.trim());
+    if (!didAdd) {
+      toast({
+        variant: 'destructive',
+        title: 'Drop a valid link or image',
+        description: 'Attachments currently support dropped images and http/https links.',
+      });
+    }
+  };
   
   const handleRestore = () => {
     if (task && task.deletedAt) {
@@ -731,6 +877,44 @@ export default function TaskPage() {
     }
   };
 
+  const handlePlanningSuccess = (updatedTask?: Task | null) => {
+    const nextTask = updatedTask ?? getTaskById(taskId);
+    if (nextTask) {
+      setTask(nextTask);
+      setTaskLogs(getLogsForTask(taskId));
+    }
+  };
+
+  const handleAttachmentsAccordionChange = (value: string) => {
+    setAttachmentsAccordionValue(value);
+    try {
+      window.localStorage.setItem(ATTACHMENTS_ACCORDION_STORAGE_KEY, value);
+    } catch {
+      // Ignore persistence failures.
+    }
+  };
+
+  const handlePersonUpdated = (nextPerson: Person | null, deleted = false) => {
+    const nextDevelopers = getDevelopers();
+    const nextTesters = getTesters();
+    setDevelopers(nextDevelopers);
+    setTesters(nextTesters);
+
+    if (deleted || !nextPerson) {
+      setPersonInView(null);
+      return;
+    }
+
+    setPersonInView((current) =>
+      current
+        ? {
+            ...current,
+            person: nextPerson,
+          }
+        : null
+    );
+  };
+
   const handleRemoveReminder = () => {
       if (!task) return;
       
@@ -747,6 +931,33 @@ export default function TaskPage() {
       
       handleReminderSuccess();
   };
+
+  const handleToggleDueCompletion = () => {
+    if (!task) return;
+
+    const nextValue = task.dueCompletedAt ? null : new Date().toISOString();
+    const updatedTask = updateTask(task.id, buildDueCompletionUpdate(task, nextValue));
+    if (updatedTask) {
+      setTask(updatedTask);
+      setTaskLogs(getLogsForTask(task.id));
+      addLog({
+        taskId: updatedTask.id,
+        message: nextValue
+          ? `Marked due completion for "**${updatedTask.title}**" at *${formatTimestamp(nextValue, uiConfig?.timeFormat || '12h')}*.${task.dueReminderAt ? ' The due reminder was safely removed and will come back if you undo this.' : ''}`
+          : `Reset due completion for "**${updatedTask.title}**".${updatedTask.dueReminderAt ? ` The due reminder is back for *${formatTimestamp(updatedTask.dueReminderAt, uiConfig?.timeFormat || '12h')}*.` : ''}`,
+      });
+      toast({
+        title: nextValue ? 'Due marked complete' : 'Due completion reset',
+        description: nextValue
+          ? task.dueReminderAt
+            ? `Marked complete at ${formatTimestamp(nextValue, uiConfig?.timeFormat || '12h')}. The due reminder was removed for now.`
+            : `Marked complete at ${formatTimestamp(nextValue, uiConfig?.timeFormat || '12h')}.`
+          : updatedTask.dueReminderAt
+            ? `Due completion was cleared and the reminder is back for ${formatTimestamp(updatedTask.dueReminderAt, uiConfig?.timeFormat || '12h')}.`
+            : `Due completion was cleared for "${task.title}".`,
+      });
+    }
+  };
   
   const handleExportJson = () => {
     if (!task || !uiConfig) return;
@@ -761,30 +972,32 @@ export default function TaskPage() {
     const testersToExport = testers.filter(t => testerIdsInTask.has(t.id));
     const logsToExport = getLogsForTask(task.id);
 
-    const devIdToName = new Map(developers.map(d => [d.id, d.name]));
-    const testerIdToName = new Map(testers.map(t => [t.id, t.name]));
-
-    const taskWithNames = {
-        ...task,
-        developers: (task.developers || []).map(id => devIdToName.get(id)).filter(Boolean),
-        testers: (task.testers || []).map(id => testerIdToName.get(id)).filter(Boolean),
-    };
+    const taskWithNames = prepareTaskForExport(task, uiConfig, developers, testers);
+    const exportUiConfig = prepareUiConfigForExport(uiConfig, developers, testers);
 
     const exportData = {
-        appName: uiConfig.appName,
-        appIcon: uiConfig.appIcon,
-        repositoryConfigs: uiConfig.repositoryConfigs,
+        appName: exportUiConfig.appName,
+        appIcon: exportUiConfig.appIcon,
+        fields: exportUiConfig.fields,
+        repositoryConfigs: exportUiConfig.repositoryConfigs,
+        environments: exportUiConfig.environments,
+        statusGroups: exportUiConfig.statusGroups || [],
+        statusConfigs: exportUiConfig.statusConfigs || [],
+        taskStatuses: exportUiConfig.taskStatuses || [],
         developers: developersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         testers: testersToExport.map(p => ({ name: p.name, email: p.email, phone: p.phone, additionalFields: p.additionalFields })),
         tasks: [taskWithNames],
         logs: logsToExport,
+        exportedAt: new Date().toISOString(),
     };
-    
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = jsonString;
+    link.href = downloadUrl;
     link.download = jsonFilename;
     link.click();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
 
     toast({
         variant: 'success',
@@ -913,6 +1126,10 @@ const handleCopyDescription = () => {
 
   const handleNavigateBack = () => {
     window.dispatchEvent(new Event('navigation-start'));
+    if (previousTaskLink) {
+      router.push(previousTaskLink);
+      return;
+    }
     if (typeof window !== 'undefined' && !isBinned) {
       window.sessionStorage.setItem(HOME_RETURN_SKELETON_KEY, '1');
     }
@@ -950,7 +1167,16 @@ const handleCopyDescription = () => {
   }
   
   const isBinned = !!task.deletedAt;
-  const backLink = isBinned ? '/bin' : `/?${searchParams.toString()}`;
+  const previousTaskId = searchParams.get('fromTaskId');
+  const previousReturnTaskId = searchParams.get('returnToTaskId');
+  const homeSearchParams = new URLSearchParams(searchParams.toString());
+  homeSearchParams.delete('fromTaskId');
+  homeSearchParams.delete('returnToTaskId');
+  const previousTaskLink =
+    previousTaskId && previousTaskId !== task.id
+      ? `/tasks/${previousTaskId}${previousReturnTaskId ? `?fromTaskId=${previousReturnTaskId}` : ''}`
+      : null;
+  const backLink = isBinned ? '/bin' : `/?${homeSearchParams.toString()}`;
   
   const statusConfig = getStatusConfig(task.status, uiConfig);
   const { cardClassName } = statusConfig;
@@ -978,12 +1204,16 @@ const handleCopyDescription = () => {
   }));
   const developerOptions = developers.map(d => ({value: d.id, label: d.name}));
   const testerOptions = testers.map(t => ({value: t.id, label: t.name}));
-
   const prField = shouldShowPrLinks(uiConfig) ? (uiConfig?.fields || []).find(f => f.key === 'prLinks' && f.isActive) : undefined;
   const deploymentField = (uiConfig?.fields || []).find(f => f.key === 'deploymentStatus' && f.isActive);
   const attachmentsField = (uiConfig?.fields || []).find(f => f.key === 'attachments' && f.isActive);
   const commentsField = (uiConfig?.fields || []).find(f => f.key === 'comments' && f.isActive);
   const historyField = !isBinned;
+  const shouldShowRelationshipsSection =
+    !isBinned ||
+    !!task.parentTaskId ||
+    (task.linkedTaskIds || []).length > 0 ||
+    allTasks.some(candidate => candidate.parentTaskId === task.id);
   const sectionCardClassName = "rounded-[1.35rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.005),rgba(255,255,255,0.001))] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_40px_-32px_rgba(15,23,42,0.24)]";
   const sectionHeaderClassName = "space-y-2 px-5 pb-3 pt-5 sm:px-6 sm:pt-6";
   const sectionTitleClassName = "text-[1.06rem] font-semibold tracking-tight text-foreground";
@@ -1034,7 +1264,7 @@ const handleCopyDescription = () => {
             </div>
           ) : (
             <div className="flex gap-1.5 sm:gap-2">
-                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers}>
+                <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers} allTasks={allTasks}>
                     <Button
                         variant="outline"
                         size={isMobile ? "icon" : "sm"}
@@ -1062,14 +1292,28 @@ const handleCopyDescription = () => {
                                     )}
                                 >
                                     <BellRing className={cn(isMobile ? "h-5 w-5" : "h-4 w-4 mr-2")} />
-                                    {!isMobile && (task.reminder ? "Reminder" : "Remind")}
+                                    {!isMobile && (task.reminder ? "Note" : "Add Note")}
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder' : 'Set Reminder'}</p></TooltipContent>
+                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}</p></TooltipContent>
                     </Tooltip>
                     </TooltipProvider>
                 )}
 
+                <Button
+                    type="button"
+                    onClick={handleRefreshTaskDetail}
+                    variant="outline"
+                    size="sm"
+                    disabled={isRefreshingTaskDetail}
+                    className={cn(
+                      toolbarButtonClassName,
+                      "hidden h-9 md:inline-flex"
+                    )}
+                >
+                    <RotateCcw className={cn("mr-2 h-4 w-4", isRefreshingTaskDetail && "animate-spin")} />
+                    Refresh
+                </Button>
                 <Button
                     id="task-detail-edit"
                     onClick={handleNavigateEdit}
@@ -1175,7 +1419,31 @@ const handleCopyDescription = () => {
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 flex items-center gap-2 group/title" onDoubleClick={() => handleStartEditing('title', task.title)}>
+                      <div className="flex-1 space-y-3">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <TaskPriorityBadge priority={task.priority} />
+                          <div className="flex min-w-0 flex-col items-start gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium', getTaskDueToneClassName(task))}
+                                >
+                                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                                  {dueLabel}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="start" className="max-w-[16rem]">
+                                <div className="space-y-1 text-xs font-normal">
+                                  <p>{dueLabel}</p>
+                                  {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
+                                  {task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}</p> : null}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 group/title" onDoubleClick={() => handleStartEditing('title', task.title)}>
                         {editingSection === 'title' ? (
                             <Input 
                                 ref={titleInputRef}
@@ -1201,6 +1469,7 @@ const handleCopyDescription = () => {
                             </Tooltip>
                           </TooltipProvider>
                         )}
+                        </div>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
                         {!isBinned && <FavoriteToggleButton taskId={task.id} isFavorite={!!task.isFavorite} onUpdate={loadData} />}
@@ -1453,6 +1722,198 @@ const handleCopyDescription = () => {
               </Card>
             )}
 
+            {attachmentsField && (
+                <Card className={sectionCardClassName}>
+                    <CardHeader className={cn(sectionHeaderClassName, "pb-3")}>
+                        <CardTitle className={cn("flex items-center justify-between gap-3", sectionTitleClassName)}>
+                          <span className="flex items-center gap-2">
+                            <Paperclip className="h-5 w-5 text-primary/80" />
+                            {fieldLabels.get('attachments') || 'Attachments'}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {!isBinned && (
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                  if (isEditingAttachments) {
+                                      handleSaveAttachments();
+                                  } else {
+                                      setIsEditingAttachments(true);
+                                      isEditingAttachmentsRef.current = true;
+                                      setLocalAttachments(task.attachments || []);
+                                  }
+                              }} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
+                                  {isEditingAttachments ? 'Save' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
+                              </Button>
+                            )}
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                    <CardContent className="px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
+                      <Accordion type="single" collapsible value={attachmentsAccordionValue} onValueChange={handleAttachmentsAccordionChange} className="w-full">
+                        <AccordionItem value="attachments" className="border-none">
+                          <AccordionTrigger className="rounded-[1rem] px-0 py-0 text-sm font-medium text-muted-foreground hover:no-underline">
+                            <span>
+                              {task.attachments?.length ? `${task.attachments.length} attachment${task.attachments.length === 1 ? '' : 's'}` : 'No attachments'}
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-4">
+                            {isEditingAttachments ? (
+                              <div
+                                className="space-y-3"
+                                onPaste={handleAttachmentPaste}
+                                onDragEnter={() => setIsAttachmentDropActive(true)}
+                                onDragOver={(event) => {
+                                  event.preventDefault();
+                                  event.dataTransfer.dropEffect = 'copy';
+                                  setIsAttachmentDropActive(true);
+                                }}
+                                onDragLeave={(event) => {
+                                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                    setIsAttachmentDropActive(false);
+                                  }
+                                }}
+                                onDrop={handleAttachmentDrop}
+                              >
+                                <div className="space-y-2">
+                                  {localAttachments.map((att, index) => (
+                                    <div key={index} className="group/attachment flex items-start gap-2 rounded-[1rem] border border-border/45 bg-muted/[0.04] p-3">
+                                      <div className="flex-1 space-y-1">
+                                        <Input
+                                          value={att.name}
+                                          onChange={(e) => {
+                                            const newAtts = [...localAttachments];
+                                            newAtts[index].name = e.target.value;
+                                            setLocalAttachments(newAtts);
+                                          }}
+                                          placeholder="Attachment name"
+                                          className="h-8 font-normal"
+                                        />
+                                        {att.type === 'link' && (
+                                          <Input
+                                            value={att.url}
+                                            onChange={(e) => {
+                                              const newAtts = [...localAttachments];
+                                              newAtts[index].url = e.target.value;
+                                              setLocalAttachments(newAtts);
+                                            }}
+                                            placeholder="https://example.com"
+                                            className="h-8 font-normal"
+                                          />
+                                        )}
+                                      </div>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive" onClick={() => handleDeleteAttachment(index)}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div
+                                  tabIndex={0}
+                                  className={cn(
+                                    "rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.032] p-4 text-center text-sm text-muted-foreground font-normal outline-none transition-colors",
+                                    isAttachmentDropActive && "border-primary/70 bg-primary/[0.06]"
+                                  )}
+                                >
+                                  <p>Drop images here, or paste an image/link while this section is focused</p>
+                                  <div className="mt-2 flex items-center justify-center gap-2">
+                                    <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
+                                      <PopoverTrigger asChild>
+                                        <Button type="button" variant="outline" size="sm" className="font-medium"><Link2 className="mr-2 h-4 w-4" /> Add Link</Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-80 rounded-[1rem] border-border/60 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]">
+                                        <div className="grid gap-4">
+                                          <div className="space-y-2">
+                                            <h4 className="font-semibold leading-none">Add Link</h4>
+                                            <p className="text-sm text-muted-foreground font-normal">Enter a name and a valid URL.</p>
+                                          </div>
+                                          <div className="grid gap-2">
+                                            <Input placeholder="Link Name" value={newLink.name} onChange={(e) => setNewLink((p) => ({ ...p, name: e.target.value }))} className="font-normal" />
+                                            <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink((p) => ({ ...p, url: e.target.value }))} className="font-normal" />
+                                          </div>
+                                          <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" onClick={() => setIsAddLinkPopoverOpen(false)} className="font-medium">Cancel</Button>
+                                            <Button onClick={handleAddLink} className="font-semibold">Add</Button>
+                                          </div>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()} className="font-medium"><Image className="mr-2 h-4 w-4" /> Add Image</Button>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    id="task-attachment-upload"
+                                    ref={imageInputRef}
+                                    onChange={(e) => {
+                                      Array.from(e.target.files || []).forEach(handleImageUpload);
+                                      e.target.value = '';
+                                    }}
+                                    className="hidden"
+                                    accept="image/*"
+                                    multiple
+                                  />
+                                </div>
+                              </div>
+                            ) : (!task.attachments || task.attachments.length === 0) ? (
+                              <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.028] py-7 text-center text-muted-foreground">
+                                <p className="text-sm font-medium">No attachments yet.</p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                {task.attachments.map((att, index) => {
+                                  const isImage = att.type === 'image' || isImageUrl(att.url);
+                                  return (
+                                    <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/78 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/45 hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.15)] dark:hover:bg-muted/[0.045] dark:hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
+                                      <div className="min-w-0 flex items-center gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-border/55 bg-muted/[0.5]">
+                                          {isImage ? <img src={att.url} alt={att.name} className="h-full w-full object-cover" /> : <Link2 className="h-5 w-5 text-muted-foreground" />}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <button
+                                            onClick={() => {
+                                              if (isImage) {
+                                                setPreviewImage({ url: att.url, name: att.name });
+                                              } else {
+                                                window.open(att.url, '_blank', 'noopener,noreferrer');
+                                              }
+                                            }}
+                                            className="block w-full truncate text-left text-sm font-semibold text-foreground transition-colors hover:text-primary hover:underline"
+                                          >
+                                            {att.name}
+                                          </button>
+                                          <div className="mt-0.5 flex items-center gap-2">
+                                            {att.size ? <span className="text-[10px] font-medium uppercase text-muted-foreground">{formatBytes(att.size)}</span> : null}
+                                            {att.uploadedAt ? (
+                                              <span className="text-[10px] font-medium uppercase text-muted-foreground">
+                                                • {format(new Date(att.uploadedAt), 'MMM d')}
+                                              </span>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/attachment:opacity-100">
+                                        <ShareMenu task={task} uiConfig={uiConfig} developers={developers} testers={testers} allTasks={allTasks} attachment={att}>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/60">
+                                            <Share className="h-4 w-4 text-muted-foreground" />
+                                          </Button>
+                                        </ShareMenu>
+                                        {!isImage && (
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/60" onClick={() => window.open(att.url, '_blank')}>
+                                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </CardContent>
+                </Card>
+            )}
+
             <div className="hidden lg:block space-y-6">
                 {commentsField && !isBinned && (
                     <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
@@ -1463,8 +1924,169 @@ const handleCopyDescription = () => {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <Card className={cn("h-fit", sectionCardClassName)}>
+          <div className="flex flex-col gap-6">
+            <Card className={cn('order-2 h-fit', sectionCardClassName)}>
+              <CardHeader className={cn(sectionHeaderClassName, 'pb-4')}>
+                <CardTitle className={cn('flex items-center justify-between gap-3', sectionTitleClassName)}>
+                  <span className="flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5" />
+                    Planning
+                  </span>
+                  {!isBinned && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsPlanningEditorOpen(true)}
+                      className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                    >
+                      <Pencil className="mr-1.5 h-3 w-3" />
+                      Edit
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
+                <div className="rounded-[1.1rem] border border-border/55 bg-[linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] px-4 py-3 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)]">
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Priority</p>
+                  <div className="mt-1">
+                    <TaskPriorityBadge priority={task.priority} />
+                  </div>
+                </div>
+                <div className="rounded-[1.1rem] border border-border/55 bg-[linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] px-4 py-3 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)]">
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Due Date</p>
+                  <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn('inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium', getTaskDueToneClassName(task))}>
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="max-w-[min(46vw,14rem)] truncate sm:max-w-[19rem]">{dueBadgeLabel}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                          <div className="space-y-1 text-xs font-normal">
+                            <p>{dueLabel}</p>
+                            {task.dueAt && !hasTaskDueCompleted ? <p>{formatTimestamp(task.dueAt, uiConfig.timeFormat)}</p> : null}
+                            {task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}</p> : null}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      {task.dueCompletedAt ? (
+                        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          {task.dueAt ? (
+                            <p className="truncate">
+                              <span className="font-medium text-foreground/75">Due:</span>{' '}
+                              {formatTimestamp(task.dueAt, uiConfig.timeFormat)}
+                            </p>
+                          ) : null}
+                          <p className="truncate">
+                            <span className="font-medium text-foreground/75">Completed:</span>{' '}
+                            {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}
+                          </p>
+                        </div>
+                      ) : task.dueAt ? (
+                        <p className="mt-2 truncate text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground/75">Due:</span>{' '}
+                          {formatTimestamp(task.dueAt, uiConfig.timeFormat)}
+                        </p>
+                      ) : null}
+                    </div>
+                    {!isBinned ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="shrink-0">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={!hasTaskDueCompleted && shouldAskForDueCompletionTime}
+                              onClick={hasTaskDueCompleted || !shouldAskForDueCompletionTime ? handleToggleDueCompletion : undefined}
+                              className={cn(
+                                'h-11 w-11 rounded-2xl border',
+                                hasTaskDueCompleted
+                                  ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 hover:bg-emerald-500/[0.12] dark:text-emerald-300'
+                                  : shouldAskForDueCompletionTime
+                                    ? 'border-border/60 bg-background/60 text-muted-foreground/55 opacity-100'
+                                    : 'border-border/60 bg-background/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                              )}
+                            >
+                              {hasTaskDueCompleted ? <RotateCcw className="h-4.5 w-4.5" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-normal">
+                            {hasTaskDueCompleted
+                              ? 'Undo due completion'
+                              : shouldAskForDueCompletionTime
+                                ? 'Set the actual completion time from Planning edit'
+                                : 'Mark due complete'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="rounded-[1.1rem] border border-border/55 bg-[linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))] px-4 py-3 shadow-[0_18px_38px_-34px_rgba(15,23,42,0.35)]">
+                  <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Due Reminder</p>
+                  {hasTaskDueReminder && task.dueReminderAt ? (
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              'mt-1 inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium',
+                              hasDueReminderAlerted
+                                ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300'
+                                : 'border-primary/18 bg-primary/[0.06] text-primary'
+                            )}
+                          >
+                            <BellRing className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="max-w-[min(40vw,12rem)] truncate sm:max-w-[16rem]">
+                              {hasDueReminderAlerted
+                                ? 'Alerted'
+                                : task.dueReminderPreset
+                                  ? getDueReminderPresetLabel(task.dueReminderPreset)
+                                  : 'Scheduled'}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                          <div className="space-y-1 text-xs font-normal">
+                            <p>
+                              {hasDueReminderAlerted
+                                ? 'Alerted'
+                                : task.dueReminderPreset
+                                  ? getDueReminderPresetLabel(task.dueReminderPreset)
+                                  : 'Scheduled'}
+                            </p>
+                            <p>{hasDueReminderAlerted ? 'Alerted at ' : 'Alerts at '}{formatTimestamp(task.dueReminderAt, uiConfig.timeFormat)}</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {hasDueReminderAlerted ? 'Alerted at ' : 'Alerts at '}
+                        {formatTimestamp(task.dueReminderAt, uiConfig.timeFormat)}
+                      </p>
+                    </>
+                  ) : hasParkedTaskDueReminder ? (
+                    <>
+                      <div className="mt-1 inline-flex items-center rounded-full border border-border/60 bg-muted/[0.3] px-3 py-1.5 text-sm font-medium text-muted-foreground">
+                        <BellRing className="mr-2 h-4 w-4" />
+                        Removed after completion
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Undo due completion to restore the reminder.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-sm font-normal text-muted-foreground">No due-date reminder scheduled.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={cn("order-1 h-fit", sectionCardClassName)}>
                 <CardHeader className={cn(sectionHeaderClassName, "pb-4")}>
                   <CardTitle className={cn("flex items-center justify-between", sectionTitleClassName)}>
                     <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
@@ -1602,164 +2224,9 @@ const handleCopyDescription = () => {
                     <h4 className="mb-1.5 text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Important Dates</h4>
                     <TimelineSection task={task} uiConfig={uiConfig} fieldLabels={fieldLabels} onDateUpdate={handleDateUpdate} onDeploymentDateUpdate={handleDeploymentDateUpdate} isBinned={isBinned}/>
                   </div>
-                </CardContent>
+              </CardContent>
             </Card>
 
-            {attachmentsField && (
-                <Card className={sectionCardClassName}>
-                    <CardHeader className={cn(sectionHeaderClassName, "flex-row items-center justify-between space-y-0")}>
-                        <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}>
-                            <Paperclip className="h-5 w-5 text-primary/80" />{fieldLabels.get('attachments') || 'Attachments'}
-                        </CardTitle>
-                        {!isBinned && (
-                            <Button variant="ghost" size="sm" onClick={() => {
-                                if (isEditingAttachments) {
-                                    handleSaveAttachments();
-                                } else {
-                                    setIsEditingAttachments(true);
-                                    isEditingAttachmentsRef.current = true;
-                                    setLocalAttachments(task.attachments || []);
-                                }
-                            }} className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground">
-                                {isEditingAttachments ? 'Save' : <><Pencil className="h-3 w-3 mr-1.5" /> Edit</>}
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-3 px-5 pb-5 pt-0 sm:px-6 sm:pb-6">
-                         {isEditingAttachments ? (
-                            <div className="space-y-3">
-                                <div className="space-y-2">
-                                {localAttachments.map((att, index) => (
-                                    <div key={index} className="group/attachment flex items-start gap-2 rounded-[1rem] border border-border/45 bg-muted/[0.04] p-3">
-                                        <div className="flex-1 space-y-1">
-                                          <Input 
-                                            value={att.name} 
-                                            onChange={(e) => {
-                                                const newAtts = [...localAttachments];
-                                                newAtts[index].name = e.target.value;
-                                                setLocalAttachments(newAtts);
-                                            }}
-                                            placeholder="Attachment name"
-                                            className="h-8 font-normal"
-                                          />
-                                          {att.type === 'link' && (
-                                            <Input 
-                                                value={att.url} 
-                                                onChange={(e) => {
-                                                    const newAtts = [...localAttachments];
-                                                    newAtts[index].url = e.target.value;
-                                                    setLocalAttachments(newAtts);
-                                                }}
-                                                placeholder="https://example.com"
-                                                className="h-8 font-normal"
-                                            />
-                                          )}
-                                        </div>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteAttachment(index)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
-                                </div>
-
-                                <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.032] p-4 text-center text-sm text-muted-foreground font-normal">
-                                    <p>Drop files, or paste an image/link</p>
-                                    <div className="flex items-center justify-center gap-2 mt-2">
-                                        <Popover open={isAddLinkPopoverOpen} onOpenChange={setIsAddLinkPopoverOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button type="button" variant="outline" size="sm" className="font-medium"><Link2 className="h-4 w-4 mr-2" /> Add Link</Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-80 rounded-[1rem] border-border/60 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]">
-                                                <div className="grid gap-4">
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-semibold leading-none">Add Link</h4>
-                                                        <p className="text-sm text-muted-foreground font-normal">Enter a name and a valid URL.</p>
-                                                    </div>
-                                                    <div className="grid gap-2">
-                                                        <Input placeholder="Link Name" value={newLink.name} onChange={(e) => setNewLink(p => ({...p, name: e.target.value}))} className="font-normal"/>
-                                                        <Input placeholder="https://..." value={newLink.url} onChange={(e) => setNewLink(p => ({...p, url: e.target.value}))} className="font-normal" />
-                                                    </div>
-                                                    <Button onClick={handleAddLink} className="font-semibold">Add</Button>
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()} className="font-medium"><Image className="h-4 w-4 mr-2" /> Add Image</Button>
-                                    </div>
-                                    <input type="file" id="task-attachment-upload" ref={imageInputRef} onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])} className="hidden" accept="image/*" />
-                                </div>
-                            </div>
-                         ) : (!task.attachments || task.attachments.length === 0) ? (
-                            <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.028] py-7 text-center text-muted-foreground">
-                                <p className="text-sm font-medium">No attachments yet.</p>
-                            </div>
-                         ) : (
-                             <div className="space-y-3">
-                                {task.attachments.map((att, index) => {
-                                    const isImage = att.type === 'image' || isImageUrl(att.url);
-                                    return (
-                                        <div key={index} className="group/attachment flex items-center justify-between rounded-[1rem] border border-border/55 bg-background/78 p-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/45 hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.15)] dark:hover:bg-muted/[0.045] dark:hover:shadow-[0_14px_28px_-24px_rgba(15,23,42,0.24)]">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-border/55 bg-muted/[0.5]">
-                                                    {isImage ? (
-                                                        <img src={att.url} alt={att.name} className="h-full w-full object-cover" />
-                                                    ) : (
-                                                        <Link2 className="h-5 w-5 text-muted-foreground" />
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <button
-                                                        onClick={() => {
-                                                            if (isImage) {
-                                                                setPreviewImage({ url: att.url, name: att.name });
-                                                            } else {
-                                                                window.open(att.url, '_blank', 'noopener,noreferrer');
-                                                            }
-                                                        }}
-                                                        className="block w-full truncate text-left text-sm font-semibold text-foreground transition-colors hover:text-primary hover:underline"
-                                                    >
-                                                        {att.name}
-                                                    </button>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        {att.size && <span className="text-[10px] text-muted-foreground font-medium uppercase">{formatBytes(att.size)}</span>}
-                                                        {att.uploadedAt && (
-                                                            <span className="text-[10px] text-muted-foreground font-medium uppercase">
-                                                                • {format(new Date(att.uploadedAt), 'MMM d')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/attachment:opacity-100">
-                                                <ShareMenu 
-                                                    task={task} 
-                                                    uiConfig={uiConfig} 
-                                                    developers={developers} 
-                                                    testers={testers}
-                                                    attachment={att}
-                                                >
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-muted/60">
-                                                        <Share className="h-4 w-4 text-muted-foreground" />
-                                                    </Button>
-                                                </ShareMenu>
-                                                {!isImage && (
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="h-8 w-8 rounded-lg hover:bg-muted/60"
-                                                        onClick={() => window.open(att.url, '_blank')}
-                                                    >
-                                                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                             </div>
-                         )}
-                    </CardContent>
-                </Card>
-            )}
           </div>
         </div>
         
@@ -1772,18 +2239,93 @@ const handleCopyDescription = () => {
             )}
         </div>
 
-        {!isBinned && relatedTasks.length > 0 && (
-          <div className="mt-8 lg:col-span-3">
-            <RelatedTasksSection
-              title={relatedTasksTitle}
-              tasks={relatedTasks}
-              onTaskUpdate={loadData}
-              uiConfig={uiConfig}
-              developers={developers}
-              testers={testers}
-              pinnedTaskIds={pinnedTaskIds}
-              onPinToggle={handleTogglePin}
-            />
+        {shouldShowRelationshipsSection && (
+          <div id="task-detail-relationships" className="mt-8 scroll-mt-28 lg:mt-10">
+            <Card className={cn("h-fit w-full", sectionCardClassName)}>
+              <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+                {editingSection === 'relationships' ? (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-[1.06rem] font-semibold tracking-tight text-foreground">Relationships</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Update parent, subtasks context, and linked tasks directly from the detail view.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Parent Task</Label>
+                        <div className="mt-2">
+                          <SearchableSingleSelect
+                            options={parentTaskOptions}
+                            value={editingValue?.parentTaskId ?? null}
+                            onChange={(value) =>
+                              setEditingValue((prev: any) => ({
+                                ...(prev || {}),
+                                parentTaskId: value,
+                                subtaskTaskIds: ((prev?.subtaskTaskIds as string[] | undefined) || []).filter(taskId => taskId !== value),
+                              }))
+                            }
+                            placeholder="Select parent task..."
+                            emptyLabel="No parent task"
+                            searchPlaceholder="Search tasks..."
+                            dialogTitle="Choose parent task"
+                            dialogDescription="Search and select a single parent task."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Subtasks</Label>
+                        <div className="mt-2">
+                          <MultiSelect
+                            selected={editingValue?.subtaskTaskIds || []}
+                            onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), subtaskTaskIds: val }))}
+                            options={subtaskTaskOptions}
+                            placeholder="Select subtasks..."
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">Linked Tasks</Label>
+                        <div className="mt-2">
+                          <MultiSelect
+                            selected={editingValue?.linkedTaskIds || []}
+                            onChange={val => setEditingValue((prev: any) => ({ ...(prev || {}), linkedTaskIds: val }))}
+                            options={linkedTaskOptions}
+                            placeholder="Link other tasks..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
+                      <Button variant="ghost" onClick={handleCancelEditing} className="font-medium">Cancel</Button>
+                      <Button onClick={handleSaveRelationshipsEditing} className="font-semibold">Save</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <TaskRelationshipsSection
+                    task={task}
+                    allTasks={allTasks}
+                    uiConfig={uiConfig}
+                    fromTaskId={previousTaskId}
+                    returnToTaskId={previousReturnTaskId}
+                    action={!isBinned ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleStartEditing('relationships', {})}
+                          className="rounded-lg text-muted-foreground hover:bg-muted/55 hover:text-foreground"
+                        >
+                          <Pencil className="mr-1.5 h-3 w-3" /> Edit
+                        </Button>
+                      </div>
+                    ) : null}
+                  />
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
@@ -1793,6 +2335,7 @@ const handleCopyDescription = () => {
         typeLabel={personInView?.isDeveloper ? (fieldLabels.get('developers') || 'Developer') : (fieldLabels.get('testers') || 'QA')}
         isOpen={!!personInView}
         onOpenChange={(isOpen) => !isOpen && setPersonInView(null)}
+        onPersonUpdated={handlePersonUpdated}
       />
       <ImagePreviewDialog
         isOpen={!!previewImage}
@@ -1810,6 +2353,14 @@ const handleCopyDescription = () => {
           onPinToggle={handleTogglePin}
         />
       )}
+      {task && (
+        <TaskPlanningEditor
+          open={isPlanningEditorOpen}
+          onOpenChange={setIsPlanningEditorOpen}
+          task={task}
+          onSuccess={handlePlanningSuccess}
+        />
+      )}
     </>
   );
 }
@@ -1821,10 +2372,6 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
   setPersonInView: (person: { person: Person, isDeveloper: boolean }) => void;
   isDeveloper: boolean;
 }) {
-  const canOpenPopup = (person: Person): boolean => {
-    return !!(person.email || person.phone || (person.additionalFields && person.additionalFields.length > 0));
-  };
-  
   return (
     <div className="space-y-3">
         <h4 className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">{title}</h4>
@@ -1835,9 +2382,12 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                     <Tooltip>
                         <TooltipTrigger asChild>
                         <button 
-                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)] disabled:cursor-not-allowed disabled:opacity-70"
-                            onClick={() => setPersonInView({ person, isDeveloper })}
-                            disabled={!canOpenPopup(person)}
+                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)]"
+                            onClick={() => {
+                              const latestPerson =
+                                (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
+                              setPersonInView({ person: latestPerson, isDeveloper });
+                            }}
                         >
                             <Avatar className="h-8 w-8 ring-1 ring-border/35">
                             <AvatarFallback
@@ -1854,11 +2404,9 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
                             </span>
                         </button>
                         </TooltipTrigger>
-                        {!canOpenPopup(person) && (
-                            <TooltipContent>
-                                <p className="font-normal">No contact details available.</p>
-                            </TooltipContent>
-                        )}
+                        <TooltipContent>
+                            <p className="font-normal">View and edit person details.</p>
+                        </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 ))

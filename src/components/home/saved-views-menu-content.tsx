@@ -31,7 +31,7 @@ export function SavedViewsMenuContent({
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Save current view</p>
-            <p className="text-[11px] text-muted-foreground">Store the current filters and layout.</p>
+            <p className="text-[11px] text-muted-foreground">Store the current filters, search, and sort.</p>
           </div>
         </div>
       </DropdownMenuItem>

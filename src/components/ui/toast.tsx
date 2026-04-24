@@ -16,7 +16,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed top-0 z-[200] flex max-h-screen w-full flex-col items-center gap-3 p-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:bottom-0 sm:right-0 sm:top-auto sm:items-stretch sm:flex-col md:max-w-[440px] md:p-5",
+      "fixed top-0 z-[500] flex max-h-screen w-full flex-col items-center gap-2.5 p-3 pt-[calc(env(safe-area-inset-top)+0.65rem)] sm:bottom-0 sm:right-0 sm:top-auto sm:items-stretch sm:flex-col md:max-w-[380px] md:p-4",
       className
     )}
     {...props}
@@ -34,7 +34,7 @@ const toastVariants = cva(
           "destructive group border-destructive bg-destructive text-destructive-foreground",
         success: "success group border-transparent bg-green-600 text-white",
         warning: "warning group border-transparent bg-yellow-500 text-black",
-        premium: "premium group rounded-[26px] border-white/10 bg-background/88 p-0 shadow-[0_24px_70px_-30px_hsl(var(--foreground)/0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/78",
+        premium: "premium group rounded-[22px] border-white/10 bg-background/88 p-0 shadow-[0_20px_54px_-28px_hsl(var(--foreground)/0.42)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/78",
       },
     },
     defaultVariants: {

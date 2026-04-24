@@ -278,7 +278,7 @@ export function PrLinksGroup({ prLinks, repositories, configuredEnvs, repository
                             )}
                             </div>
                         ) : (
-                            <p className="text-muted-foreground text-xs italic">No PRs for this environment.</p>
+                            <p className="text-muted-foreground text-xs italic">No Pull request found.</p>
                         )}
                         
                         {isEditing && (

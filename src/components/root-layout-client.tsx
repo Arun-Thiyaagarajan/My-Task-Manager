@@ -15,6 +15,7 @@ import { GlobalSpotlightSearch } from '@/components/global-spotlight-search';
 import { OfflineScreen } from '@/components/offline-screen';
 import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect-handler';
 import { AIAssistant } from '@/components/ai-assistant';
+import { DueReminderWatcher } from '@/components/due-reminder-watcher';
 import { clearExpiredReminders } from '@/lib/data';
 
 /**
@@ -23,12 +24,14 @@ import { clearExpiredReminders } from '@/lib/data';
  */
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isSharedPage = pathname?.startsWith('/share/');
+  const isSharedPage = pathname?.startsWith('/share/') || pathname?.startsWith('/s/');
+  const isTaskDetailPage = Boolean(pathname?.match(/^\/tasks\/[^/]+$/));
   const isTaskForm =
     pathname === '/tasks/new' ||
     pathname === '/tasks/templates/new' ||
     pathname?.startsWith('/tasks/templates/') && pathname?.endsWith('/edit') ||
     pathname?.startsWith('/tasks/') && pathname?.endsWith('/edit');
+  const enableMobilePullToRefresh = pathname === '/' || isTaskDetailPage;
 
   useEffect(() => {
     const runExpirySweep = () => {
@@ -59,10 +62,11 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
     <Providers>
         <GoogleAuthRedirectHandler />
         <FaviconSync />
+        <DueReminderWatcher />
         <div className="relative flex min-h-screen flex-col">
         {!isSharedPage && <Header />}
         <NavigationLoader />
-        <PullToRefresh>
+        <PullToRefresh enabled={enableMobilePullToRefresh}>
           <main className={cn("flex-1", (!isSharedPage && !isTaskForm) && "pb-32 md:pb-0")}>
             {children}
           </main>

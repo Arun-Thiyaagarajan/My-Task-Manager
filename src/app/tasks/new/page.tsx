@@ -103,10 +103,16 @@ export default function NewTaskPage() {
       return;
     }
   
-    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, ...otherData } = validationResult.data;
+    const { deploymentDates, devStartDate, devEndDate, qaStartDate, qaEndDate, dueAt, dueReminderAt, subtaskTaskIds, ...otherData } = validationResult.data;
 
 	    const taskDataToCreate: Partial<Task> = {
 	        ...otherData,
+	        dueAt: dueAt ? dueAt.toISOString() : null,
+	        dueCompletedAt: null,
+	        dueReminderAt: dueReminderAt ? dueReminderAt.toISOString() : null,
+	        dueReminderPreset: otherData.dueReminderPreset ?? null,
+	        dueReminderBackupAt: null,
+	        dueReminderBackupPreset: null,
 	        reminderExpiresAt: otherData.reminderExpiresAt ? otherData.reminderExpiresAt.toISOString() : null,
 	        prLinks: normalizePrLinks(otherData.prLinks),
 	        devStartDate: devStartDate ? devStartDate.toISOString() : new Date().toISOString(),
@@ -129,15 +135,23 @@ export default function NewTaskPage() {
     
     taskDataToCreate.summary = null;
 
-    const newTask = addTask(taskDataToCreate);
-    
-    toast({
-        variant: 'success',
-        title: `Task created`,
-        description: "Your new task has been saved.",
-    });
+    try {
+      const newTask = addTask(taskDataToCreate);
 
-    router.push(`/tasks/${newTask.id}`);
+      toast({
+          variant: 'success',
+          title: `Task created`,
+          description: "Your new task has been saved.",
+      });
+
+      router.push(`/tasks/${newTask.id}`);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not create task',
+        description: error instanceof Error ? error.message : 'Please review the task relationships and try again.',
+      });
+    }
   };
 
   const handleSaveTemplate = (template: { name: string; description?: string; taskData: Partial<Task> }) => {

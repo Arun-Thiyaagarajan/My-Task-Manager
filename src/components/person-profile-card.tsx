@@ -1,22 +1,29 @@
 'use client';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Phone, Briefcase, UserCheck, Link as LinkIcon, ExternalLink } from 'lucide-react';
-import type { Person, PersonField } from '@/lib/types';
-import { getInitials, getAvatarColor, cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import type { CSSProperties } from 'react';
-import { Separator } from './ui/separator';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { RichTextViewer } from './ui/rich-text-viewer';
-import { PersonInfoGrid } from './person-info-grid';
+import { Briefcase, Check, Copy, Mail, Pencil, Phone, UserCheck } from 'lucide-react';
+
+import {
+  getDevelopers,
+  getTesters,
+  updateDeveloper,
+  updateTester,
+} from '@/lib/data';
+import type { Person, PersonField } from '@/lib/types';
+import { cn, getAvatarColor, getInitials } from '@/lib/utils';
+import { PersonEditorForm, type PersonEditorFormData } from '@/components/person-editor-form';
+import { PersonInfoGrid } from '@/components/person-info-grid';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { AppTooltip } from '@/components/ui/tooltip';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface PersonProfileCardProps {
   person: Person | null;
@@ -24,129 +31,333 @@ interface PersonProfileCardProps {
   isDeveloper: boolean;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onPersonUpdated?: (person: Person | null, deleted?: boolean) => void;
 }
 
 const renderFieldValue = (field: PersonField) => {
-    switch(field.type) {
-        case 'url':
-            return <a href={field.value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all flex items-center gap-1"><ExternalLink className="h-3 w-3" /> {field.value}</a>;
-        case 'date':
-            return <span>{format(new Date(field.value), 'PPP')}</span>;
-        case 'textarea':
-             return <RichTextViewer text={field.value} />;
-        default:
-            return <span>{field.value}</span>
-    }
+  switch (field.type) {
+    case 'url':
+      return (
+        <a href={field.value} target="_blank" rel="noopener noreferrer" className="flex break-all text-primary hover:underline">
+          {field.value}
+        </a>
+      );
+    case 'date':
+      return <span>{format(new Date(field.value), 'PPP')}</span>;
+    case 'textarea':
+      return <RichTextViewer text={field.value} />;
+    default:
+      return <span>{field.value}</span>;
+  }
+};
+
+const getFieldCopyValue = (field: PersonField) => {
+  switch (field.type) {
+    case 'date':
+      return format(new Date(field.value), 'PPP');
+    default:
+      return field.value;
+  }
+};
+
+function CopyFieldButton({
+  value,
+  copyId,
+  copiedId,
+  onCopy,
+}: {
+  value: string;
+  copyId: string;
+  copiedId: string | null;
+  onCopy: (copyId: string, value: string) => void;
+}) {
+  const isCopied = copiedId === copyId;
+
+  return (
+    <AppTooltip content={isCopied ? 'Copied' : 'Copy'} side="top">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          'h-8 w-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-200',
+          isCopied ? 'text-emerald-600 hover:text-emerald-700' : 'hover:bg-muted/60 hover:text-foreground'
+        )}
+        onClick={() => onCopy(copyId, value)}
+      >
+        <span className="relative flex h-4 w-4 items-center justify-center">
+          <Copy
+            className={cn(
+              'absolute h-4 w-4 transition-all duration-200',
+              isCopied ? 'scale-75 opacity-0' : 'scale-100 opacity-100'
+            )}
+          />
+          <Check
+            className={cn(
+              'absolute h-4 w-4 transition-all duration-200',
+              isCopied ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+            )}
+          />
+        </span>
+        <span className="sr-only">{isCopied ? 'Copied' : 'Copy value'}</span>
+      </Button>
+    </AppTooltip>
+  );
 }
 
-export function PersonProfileCard({ person, typeLabel, isDeveloper, isOpen, onOpenChange }: PersonProfileCardProps) {
-  if (!person) {
-    return null;
-  }
-  
+export function PersonProfileCard({
+  person,
+  typeLabel,
+  isDeveloper,
+  isOpen,
+  onOpenChange,
+  onPersonUpdated,
+}: PersonProfileCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [displayPerson, setDisplayPerson] = useState<Person | null>(person);
+  const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
+  const editFormId = `person-profile-edit-${person?.id || 'unknown'}`;
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setDisplayPerson(person);
+  }, [person]);
+
+  useEffect(() => {
+    if (!copiedFieldId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCopiedFieldId(null);
+    }, 1400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [copiedFieldId]);
+
+  if (!displayPerson) return null;
+
   const TypeIcon = isDeveloper ? Briefcase : UserCheck;
-  
-  const nameColor = getAvatarColor(person.name);
-  const badgeStyle: CSSProperties = {
+  const nameColor = getAvatarColor(displayPerson.name);
+  const badgeStyle = {
     backgroundColor: `#${nameColor}20`,
     color: `#${nameColor}`,
     borderColor: `#${nameColor}40`,
   };
+  const hasContactInfo = Boolean(displayPerson.email || displayPerson.phone);
+  const hasAdditionalFields = Boolean(displayPerson.additionalFields && displayPerson.additionalFields.length > 0);
 
-  const hasContactInfo = person.email || person.phone;
-  const hasAdditionalFields = person.additionalFields && person.additionalFields.length > 0;
+  const handleSave = (data: PersonEditorFormData) => {
+    setIsPending(true);
+    try {
+      if (isDeveloper) {
+        updateDeveloper(displayPerson.id, data);
+      } else {
+        updateTester(displayPerson.id, data);
+      }
+
+      const refreshedPerson = (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === displayPerson.id) || {
+        ...displayPerson,
+        ...data,
+      };
+
+      setDisplayPerson(refreshedPerson);
+      onPersonUpdated?.(refreshedPerson, false);
+      toast({ variant: 'success', title: `${typeLabel} updated` });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.message || 'Could not save these changes.',
+      });
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const handleCopyField = async (copyId: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedFieldId(copyId);
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Copy failed',
+        description: 'Clipboard access is not available right now.',
+      });
+    }
+  };
+
+  const profileSummary = hasContactInfo || hasAdditionalFields
+    ? null
+    : 'No contact information yet. You can add details right here.';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.45)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.012))]">
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.16),transparent_70%)] dark:bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.2),transparent_68%)]" />
-          <DialogHeader className="px-6 pb-5 pt-8">
-            <div className="grid items-start gap-5 md:grid-cols-[auto_1fr] md:items-center">
-              <div className="mx-auto md:mx-0">
-                <Avatar className="h-24 w-24 border-[5px] border-background/95 shadow-[0_22px_44px_-26px_rgba(15,23,42,0.45)] ring-1 ring-border/60">
-                  <AvatarFallback
-                    className="text-4xl font-semibold text-white"
-                    style={{
-                      backgroundColor: `#${getAvatarColor(person.name)}`,
-                    }}
-                  >
-                    {getInitials(person.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="min-w-0 text-center md:text-left">
-                <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{person.name}</DialogTitle>
-                <DialogDescription className="sr-only">
-                  Profile information for {person.name}, {typeLabel}
-                </DialogDescription>
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-                  <Badge variant="outline" className="rounded-full border px-3 py-1 text-[11px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" style={badgeStyle}>
-                    <TypeIcon className="mr-1.5 h-3 w-3" />
-                    {typeLabel}
-                  </Badge>
-                  {hasContactInfo ? (
-                    <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-semibold">
-                      Reachable
-                    </Badge>
-                  ) : null}
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setIsEditing(false);
+          }
+          onOpenChange(nextOpen);
+        }}
+      >
+        <DialogContent
+          className={cn(
+            'flex w-[calc(100vw-1rem)] max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,hsl(var(--card)),hsl(var(--background)))] p-0 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.45)]',
+            isEditing
+              ? 'h-[min(100dvh-1rem,56rem)] max-h-[min(100dvh-1rem,56rem)] sm:h-[min(92dvh,56rem)] sm:max-h-[min(92dvh,56rem)]'
+              : 'h-auto max-h-[min(100dvh-1rem,56rem)] sm:max-h-[min(92dvh,56rem)]'
+          )}
+        >
+          <div className="relative shrink-0">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.16),transparent_70%)]" />
+            <DialogHeader className="px-5 pb-5 pt-7 sm:px-6 sm:pt-8">
+              <div className="grid items-start gap-5 md:grid-cols-[auto_1fr_auto] md:items-center">
+                <div className="mx-auto md:mx-0">
+                  <Avatar className="h-24 w-24 border-[5px] border-background/95 shadow-[0_22px_44px_-26px_rgba(15,23,42,0.45)] ring-1 ring-border/60">
+                    <AvatarFallback
+                      className="text-4xl font-semibold text-white"
+                      style={{ backgroundColor: `#${nameColor}` }}
+                    >
+                      {getInitials(displayPerson.name)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-              </div>
-            </div>
-          </DialogHeader>
-        </div>
-        <div className="space-y-5 px-6 pb-6 pt-1">
-            {hasContactInfo && (
-              <PersonInfoGrid>
-                {person.email && (
-                    <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/78 hover:bg-muted/[0.05] hover:shadow-[0_14px_30px_-28px_rgba(15,23,42,0.24)]">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <Mail className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Email</p>
-                            <a href={`mailto:${person.email}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
-                                {person.email}
-                            </a>
-                        </div>
-                    </div>
-                )}
-                 {person.phone && (
-                    <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/78 hover:bg-muted/[0.05] hover:shadow-[0_14px_30px_-28px_rgba(15,23,42,0.24)]">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <Phone className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Phone</p>
-                            <a href={`tel:${person.phone}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
-                                {person.phone}
-                            </a>
-                        </div>
-                    </div>
-                )}
-              </PersonInfoGrid>
-            )}
-            
-            {hasContactInfo && hasAdditionalFields && <Separator className="bg-border/60" />}
 
-            {hasAdditionalFields && (
-                <PersonInfoGrid className="items-start">
-                    {person.additionalFields?.map(field => (
-                        <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[border-color,background-color,box-shadow] duration-200 hover:border-border/75 hover:bg-muted/[0.042] hover:shadow-[0_14px_30px_-28px_rgba(15,23,42,0.2)]">
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
-                            <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>
-                        </div>
-                    ))}
+                <div className="min-w-0 text-center md:text-left">
+                  <div className="flex items-center justify-center gap-2 md:justify-start">
+                    <DialogTitle className="text-[1.65rem] font-semibold tracking-tight text-foreground">{displayPerson.name}</DialogTitle>
+                    {!isEditing ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Edit person</span>
+                      </Button>
+                    ) : null}
+                  </div>
+                  <DialogDescription className="sr-only">Profile information and edit controls for {displayPerson.name}</DialogDescription>
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+                    <Badge variant="outline" className="rounded-full border px-3 py-1 text-[11px] font-semibold" style={badgeStyle}>
+                      <TypeIcon className="mr-1.5 h-3 w-3" />
+                      {typeLabel}
+                    </Badge>
+                    {hasContactInfo ? <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-semibold">Reachable</Badge> : null}
+                  </div>
+                  {profileSummary ? <p className="mt-3 text-sm text-muted-foreground">{profileSummary}</p> : null}
+                </div>
+
+                <div className="hidden md:block" />
+              </div>
+            </DialogHeader>
+          </div>
+
+          <ScrollArea className={cn('min-h-0', isEditing ? 'flex-1' : 'max-h-[min(100dvh-9rem,42rem)] sm:max-h-[min(92dvh-10rem,42rem)]')}>
+            <div className="space-y-5 px-5 pb-6 pt-1 sm:px-6 sm:pb-7">
+              {isEditing ? (
+                <div className="rounded-[1.25rem] border border-border/60 bg-muted/[0.045] p-4 sm:p-5">
+                  <PersonEditorForm
+                    personToEdit={displayPerson}
+                    onSave={handleSave}
+                    isPending={isPending}
+                    compact
+                    showFooter={false}
+                    formId={editFormId}
+                  />
+                </div>
+              ) : null}
+
+              {!isEditing && hasContactInfo ? (
+                <PersonInfoGrid>
+                  {displayPerson.email ? (
+                    <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Email</p>
+                        <a href={`mailto:${displayPerson.email}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
+                          {displayPerson.email}
+                        </a>
+                      </div>
+                      <CopyFieldButton
+                        value={displayPerson.email}
+                        copyId="person-email"
+                        copiedId={copiedFieldId}
+                        onCopy={handleCopyField}
+                      />
+                    </div>
+                  ) : null}
+                  {displayPerson.phone ? (
+                    <div className="flex items-start gap-3 rounded-[1rem] border border-border/60 bg-muted/[0.035] px-3.5 py-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.85rem] border border-border/55 bg-background/80 text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">Phone</p>
+                        <a href={`tel:${displayPerson.phone}`} className="break-all text-sm font-medium leading-6 text-foreground transition-colors hover:text-primary hover:underline">
+                          {displayPerson.phone}
+                        </a>
+                      </div>
+                      <CopyFieldButton
+                        value={displayPerson.phone}
+                        copyId="person-phone"
+                        copiedId={copiedFieldId}
+                        onCopy={handleCopyField}
+                      />
+                    </div>
+                  ) : null}
                 </PersonInfoGrid>
-            )}
+              ) : null}
 
-            {!hasContactInfo && !hasAdditionalFields && (
-              <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.03] px-4 py-5 text-center">
-                <p className="text-sm text-muted-foreground font-medium">No contact information available.</p>
-              </div>
-            )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              {!isEditing && hasContactInfo && hasAdditionalFields ? <Separator className="bg-border/60" /> : null}
+
+              {!isEditing && hasAdditionalFields ? (
+                <PersonInfoGrid className="items-start">
+                  {displayPerson.additionalFields?.map(field => (
+                    <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3">
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
+                          <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>
+                        </div>
+                        <CopyFieldButton
+                          value={getFieldCopyValue(field)}
+                          copyId={`person-field-${field.id}`}
+                          copiedId={copiedFieldId}
+                          onCopy={handleCopyField}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </PersonInfoGrid>
+              ) : null}
+
+              {!hasContactInfo && !hasAdditionalFields && !isEditing ? (
+                <div className="rounded-[1rem] border border-dashed border-border/65 bg-muted/[0.03] px-4 py-5 text-center">
+                  <p className="text-sm text-muted-foreground font-medium">No contact information available.</p>
+                </div>
+              ) : null}
+            </div>
+          </ScrollArea>
+          {isEditing ? (
+            <DialogFooter className="shrink-0 flex-row justify-center gap-2 border-t border-border/60 bg-muted/10 px-6 py-4 sm:justify-center">
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" form={editFormId} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Person
+              </Button>
+            </DialogFooter>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

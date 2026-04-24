@@ -33,7 +33,7 @@ export function DesktopFiltersSheet({
       <SheetContent
         side="right"
         hideClose
-        className="hidden w-[min(34rem,92vw)] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.96))] px-0 py-0 shadow-[0_30px_90px_-44px_rgba(15,23,42,0.42)] md:flex md:max-w-none md:flex-col"
+        className="hidden w-[min(38rem,94vw)] border-border/60 bg-[linear-gradient(180deg,hsl(var(--background)/0.99),hsl(var(--card)/0.96))] px-0 py-0 shadow-[0_30px_90px_-44px_rgba(15,23,42,0.42)] md:flex md:max-w-none md:flex-col"
       >
         <div className="border-b border-border/50 px-6 py-5">
           <SheetHeader className="space-y-0 text-left">

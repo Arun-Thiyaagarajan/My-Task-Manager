@@ -9,6 +9,7 @@ import { getDeploymentScore, matchesTaskFilters, matchesTaskSearchQuery } from '
 import { getStatusDisplayName } from '@/lib/status-config';
 import { getAuthMode, getActiveCompanyId, isInitialSyncComplete } from '@/lib/data';
 import { FileText, GitMerge, Tag, User } from 'lucide-react';
+import { compareTasksByDueDate, compareTasksOverdueFirst, getTaskPriorityScore } from '@/lib/task-planning';
 
 type DateView = 'all' | 'monthly' | 'calendar' | 'yearly';
 
@@ -23,6 +24,10 @@ interface UseTaskFilteringOptions {
   statusGroupFilter: string[];
   repoFilter: string[];
   tagsFilter: string[];
+  priorityFilter: string[];
+  dueStateFilter: string[];
+  reminderNoteFilter: string[];
+  dueReminderFilter: string[];
   deploymentFilter: string[];
   favoritesOnly: boolean;
   sortDescriptor: string;
@@ -46,6 +51,10 @@ export function useTaskFiltering({
   statusGroupFilter,
   repoFilter,
   tagsFilter,
+  priorityFilter,
+  dueStateFilter,
+  reminderNoteFilter,
+  dueReminderFilter,
   deploymentFilter,
   favoritesOnly,
   sortDescriptor,
@@ -98,6 +107,10 @@ export function useTaskFiltering({
             statusGroupFilter,
             repoFilter,
             tagsFilter,
+            priorityFilter,
+            dueStateFilter,
+            reminderNoteFilter,
+            dueReminderFilter,
             deploymentFilter,
             showRepositoryFilter,
             query: executedSearchQuery,
@@ -149,6 +162,20 @@ export function useTaskFiltering({
             return sortDirection === 'asc' ? startA - startB : startB - startA;
           }
 
+          if (sortBy === 'priority') {
+            const priorityA = getTaskPriorityScore(a.priority);
+            const priorityB = getTaskPriorityScore(b.priority);
+            return sortDirection === 'asc' ? priorityA - priorityB : priorityB - priorityA;
+          }
+
+          if (sortBy === 'due') {
+            return compareTasksByDueDate(a, b, sortDirection === 'desc' ? 'desc' : 'asc');
+          }
+
+          if (sortBy === 'overdue') {
+            return compareTasksOverdueFirst(a, b);
+          }
+
           return 0;
         });
 
@@ -195,6 +222,10 @@ export function useTaskFiltering({
     statusGroupFilter,
     repoFilter,
     tagsFilter,
+    priorityFilter,
+    dueStateFilter,
+    reminderNoteFilter,
+    dueReminderFilter,
     deploymentFilter,
     showRepositoryFilter,
     executedSearchQuery,

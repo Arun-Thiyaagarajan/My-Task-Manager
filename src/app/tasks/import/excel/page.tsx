@@ -274,12 +274,23 @@ function buildImportTaskPayload(
     relevantEnvironments,
     attachments: Array.isArray(normalizedTask.attachments) ? normalizedTask.attachments : [],
     comments: Array.isArray(normalizedTask.comments) ? normalizedTask.comments : [],
+    parentTaskId:
+      typeof normalizedTask.parentTaskId === 'string' && normalizedTask.parentTaskId.trim().length > 0
+        ? normalizedTask.parentTaskId
+        : null,
+    linkedTaskIds: Array.isArray(normalizedTask.linkedTaskIds)
+      ? [...new Set(normalizedTask.linkedTaskIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))]
+      : [],
     customFields:
       normalizedTask.customFields && typeof normalizedTask.customFields === 'object'
         ? normalizedTask.customFields
         : {},
     azureWorkItemId: typeof normalizedTask.azureWorkItemId === 'string' ? normalizedTask.azureWorkItemId : '',
     summary: normalizedTask.summary ?? null,
+    priority: normalizedTask.priority === 'low' || normalizedTask.priority === 'high' || normalizedTask.priority === 'urgent' ? normalizedTask.priority : 'medium',
+    dueAt: normalizedTask.dueAt ?? null,
+    dueReminderAt: normalizedTask.dueReminderAt ?? null,
+    dueReminderPreset: normalizedTask.dueReminderPreset ?? null,
     reminder: normalizedTask.reminder ?? null,
     reminderExpiresAt: normalizedTask.reminderExpiresAt ?? null,
     devStartDate:
