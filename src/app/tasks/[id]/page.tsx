@@ -71,6 +71,32 @@ const isImageUrl = (url: string): boolean => {
 
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 
+const getValidDate = (value: unknown): Date | null => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value as string | number);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const collectDescendantTaskIds = (tasks: Task[], taskId: string): Set<string> => {
+  const descendants = new Set<string>();
+  const queue = tasks
+    .filter(candidate => candidate.parentTaskId === taskId)
+    .map(candidate => candidate.id);
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || descendants.has(currentId)) continue;
+    descendants.add(currentId);
+    tasks.forEach(candidate => {
+      if (candidate.parentTaskId === currentId && !descendants.has(candidate.id)) {
+        queue.push(candidate.id);
+      }
+    });
+  }
+
+  return descendants;
+};
+
 
 export default function TaskPage() {
   const { isUserLoading } = useFirebase();
@@ -301,6 +327,7 @@ export default function TaskPage() {
     if (!task) return;
 
     let finalValue = value !== undefined ? value : editingValue;
+    const customFieldConfig = isCustom ? uiConfig?.fields.find(field => field.isCustom && field.key === key) : undefined;
 
     if (key === 'title') {
         if (!finalValue || finalValue.trim() === '') {
@@ -326,6 +353,19 @@ export default function TaskPage() {
     
     if (key === 'repositories' && !Array.isArray(finalValue)) {
         finalValue = finalValue ? [finalValue] : [];
+    }
+
+    if (customFieldConfig?.type === 'date') {
+        if (finalValue === null || finalValue === undefined || finalValue === '') {
+            finalValue = null;
+        } else {
+            const parsedDate = getValidDate(finalValue);
+            if (!parsedDate) {
+                toast({ variant: 'destructive', title: 'Validation Error', description: 'Please select a valid date.' });
+                return;
+            }
+            finalValue = parsedDate.toISOString();
+        }
     }
     
     let updatePayload: Partial<Task> = {};
@@ -784,8 +824,10 @@ const handleCopyDescription = () => {
           }
           case 'textarea':
               return <RichTextViewer text={String(value)} />;
-          case 'date':
-              return value ? format(new Date(value), 'PPP') : 'Not set';
+          case 'date': {
+              const dateValue = getValidDate(value);
+              return dateValue ? format(dateValue, 'PPP') : <span className="text-muted-foreground">Invalid date</span>;
+          }
           case 'checkbox':
               return value ? 'Yes' : 'No';
           case 'url': {
@@ -1355,6 +1397,45 @@ const handleCopyDescription = () => {
                                     autoFocus
                                     className="font-normal"
                                 />
+                            ) : field.type === 'date' ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Popover defaultOpen>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-9 rounded-lg px-3 font-normal"
+                                      >
+                                        {getValidDate(editingValue) ? format(getValidDate(editingValue)!, 'PPP') : 'Pick a date'}
+                                        <CalendarIcon className="ml-2 h-4 w-4 opacity-60" />
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto rounded-[1rem] border-border/60 p-0 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.24)]" align="start">
+                                      <Calendar
+                                        mode="single"
+                                        selected={getValidDate(editingValue) || undefined}
+                                        onSelect={(date) => handleSaveEditing(field.key, true, date || null)}
+                                        defaultMonth={getValidDate(editingValue) || new Date()}
+                                        initialFocus
+                                      />
+                                      <div className="border-t border-border/55 p-2 text-center">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="w-full font-medium"
+                                          onClick={() => handleSaveEditing(field.key, true, null)}
+                                        >
+                                          Clear Date
+                                        </Button>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                  <Button type="button" variant="ghost" size="sm" className="h-9 rounded-lg" onClick={handleCancelEditing}>
+                                    Cancel
+                                  </Button>
+                                </div>
                             ) : (
                                 <Input
                                     value={editingValue}
