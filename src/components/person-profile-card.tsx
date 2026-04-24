@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Briefcase, ExternalLink, Mail, Pencil, Phone, UserCheck } from 'lucide-react';
+import { Briefcase, Check, Copy, Mail, Pencil, Phone, UserCheck } from 'lucide-react';
 
 import {
   getDevelopers,
@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -50,6 +51,63 @@ const renderFieldValue = (field: PersonField) => {
   }
 };
 
+const getFieldCopyValue = (field: PersonField) => {
+  switch (field.type) {
+    case 'date':
+      return format(new Date(field.value), 'PPP');
+    default:
+      return field.value;
+  }
+};
+
+function CopyFieldButton({
+  value,
+  copyId,
+  copiedId,
+  onCopy,
+}: {
+  value: string;
+  copyId: string;
+  copiedId: string | null;
+  onCopy: (copyId: string, value: string) => void;
+}) {
+  const isCopied = copiedId === copyId;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-8 w-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-200',
+            isCopied ? 'text-emerald-600 hover:text-emerald-700' : 'hover:bg-muted/60 hover:text-foreground'
+          )}
+          onClick={() => onCopy(copyId, value)}
+        >
+          <span className="relative flex h-4 w-4 items-center justify-center">
+            <Copy
+              className={cn(
+                'absolute h-4 w-4 transition-all duration-200',
+                isCopied ? 'scale-75 opacity-0' : 'scale-100 opacity-100'
+              )}
+            />
+            <Check
+              className={cn(
+                'absolute h-4 w-4 transition-all duration-200',
+                isCopied ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              )}
+            />
+          </span>
+          <span className="sr-only">{isCopied ? 'Copied' : 'Copy value'}</span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{isCopied ? 'Copied' : 'Copy'}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function PersonProfileCard({
   person,
   typeLabel,
@@ -61,12 +119,23 @@ export function PersonProfileCard({
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [displayPerson, setDisplayPerson] = useState<Person | null>(person);
+  const [copiedFieldId, setCopiedFieldId] = useState<string | null>(null);
   const editFormId = `person-profile-edit-${person?.id || 'unknown'}`;
   const { toast } = useToast();
 
   useEffect(() => {
     setDisplayPerson(person);
   }, [person]);
+
+  useEffect(() => {
+    if (!copiedFieldId) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setCopiedFieldId(null);
+    }, 1400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [copiedFieldId]);
 
   if (!displayPerson) return null;
 
@@ -106,6 +175,19 @@ export function PersonProfileCard({
       });
     } finally {
       setIsPending(false);
+    }
+  };
+
+  const handleCopyField = async (copyId: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedFieldId(copyId);
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Copy failed',
+        description: 'Clipboard access is not available right now.',
+      });
     }
   };
 
@@ -206,6 +288,12 @@ export function PersonProfileCard({
                           {displayPerson.email}
                         </a>
                       </div>
+                      <CopyFieldButton
+                        value={displayPerson.email}
+                        copyId="person-email"
+                        copiedId={copiedFieldId}
+                        onCopy={handleCopyField}
+                      />
                     </div>
                   ) : null}
                   {displayPerson.phone ? (
@@ -219,6 +307,12 @@ export function PersonProfileCard({
                           {displayPerson.phone}
                         </a>
                       </div>
+                      <CopyFieldButton
+                        value={displayPerson.phone}
+                        copyId="person-phone"
+                        copiedId={copiedFieldId}
+                        onCopy={handleCopyField}
+                      />
                     </div>
                   ) : null}
                 </PersonInfoGrid>
@@ -230,8 +324,18 @@ export function PersonProfileCard({
                 <PersonInfoGrid className="items-start">
                   {displayPerson.additionalFields?.map(field => (
                     <div key={field.id} className="rounded-[1rem] border border-border/60 bg-muted/[0.03] px-3.5 py-3">
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
-                      <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/85">{field.label}</p>
+                          <div className="break-words text-sm font-medium leading-relaxed text-foreground">{renderFieldValue(field)}</div>
+                        </div>
+                        <CopyFieldButton
+                          value={getFieldCopyValue(field)}
+                          copyId={`person-field-${field.id}`}
+                          copiedId={copiedFieldId}
+                          onCopy={handleCopyField}
+                        />
+                      </div>
                     </div>
                   ))}
                 </PersonInfoGrid>
