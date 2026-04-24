@@ -2473,11 +2473,26 @@ export function deleteReleaseUpdate(id: string): boolean {
 }
 
 // Comment management
+function normalizeStoredComment(comment: Comment | string): Comment {
+    if (typeof comment === 'string') {
+        return {
+            text: comment,
+            timestamp: new Date().toISOString(),
+        };
+    }
+
+    return {
+        text: comment.text ?? '',
+        timestamp: comment.timestamp || new Date().toISOString(),
+        ...(comment.editedAt ? { editedAt: comment.editedAt } : {}),
+    };
+}
+
 export function addComment(taskId: string, text: string): Task | null {
     const comment: Comment = { text, timestamp: new Date().toISOString() };
     const task = getTaskById(taskId);
     if (task) {
-        const comments = [...(task.comments || []), comment];
+        const comments = [...(task.comments || []).map(normalizeStoredComment), comment];
         const updated = updateTask(taskId, { comments }, true);
         if (updated) {
             addLog({ message: `Added a comment to task "**${updated.title}**"`, taskId });
@@ -2490,8 +2505,8 @@ export function addComment(taskId: string, text: string): Task | null {
 export function updateComment(taskId: string, index: number, text: string): Task | null {
     const task = getTaskById(taskId);
     if (task && task.comments && task.comments[index]) {
-        const comments = [...task.comments];
-        comments[index] = { ...comments[index], text };
+        const comments = task.comments.map(normalizeStoredComment);
+        comments[index] = { ...comments[index], text, editedAt: new Date().toISOString() };
         const updated = updateTask(taskId, { comments }, true);
         if (updated) {
             addLog({ message: `Updated a comment on task "**${updated.title}**"`, taskId });
@@ -2504,7 +2519,7 @@ export function updateComment(taskId: string, index: number, text: string): Task
 export function deleteComment(taskId: string, index: number): Task | null {
     const task = getTaskById(taskId);
     if (task && task.comments && task.comments[index]) {
-        const comments = task.comments.filter((_, i) => i !== index);
+        const comments = task.comments.map(normalizeStoredComment).filter((_, i) => i !== index);
         const updated = updateTask(taskId, { comments }, true);
         if (updated) {
             addLog({ message: `Removed a comment from task "**${updated.title}**"`, taskId });

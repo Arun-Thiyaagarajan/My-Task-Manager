@@ -29,6 +29,7 @@ export const attachmentSchema = z.object({
 export const commentSchema = z.object({
   text: z.string(),
   timestamp: z.string().datetime(),
+  editedAt: z.string().datetime().optional(),
 });
 
 export const noteLayoutSchema = z.object({

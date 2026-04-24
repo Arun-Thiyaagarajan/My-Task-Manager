@@ -50,9 +50,16 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
       }
       return comment;
   };
+
+  const getValidDate = (value?: string) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+  };
   
   const getCommentText = (comment: Comment | string) => typeof comment === 'string' ? comment : comment.text;
-  const getCommentTimestamp = (comment: Comment | string) => (typeof comment !== 'string' && comment.timestamp) ? new Date(comment.timestamp) : null;
+  const getCommentTimestamp = (comment: Comment) => getValidDate(comment.timestamp);
+  const getCommentEditedAt = (comment: Comment) => getValidDate(comment.editedAt);
 
 
   const handleAddComment = () => {
@@ -121,8 +128,10 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                         <div className="space-y-4">
                             <div className="space-y-4">
                                 {comments.map((comment, index) => {
-                                    const text = getCommentText(comment);
-                                    const timestamp = getCommentTimestamp(comment);
+                                    const normalizedComment = getCommentObject(comment);
+                                    const text = getCommentText(normalizedComment);
+                                    const timestamp = getCommentTimestamp(normalizedComment);
+                                    const editedAt = getCommentEditedAt(normalizedComment);
                                     
                                     return (
                                     <div key={index} className="group rounded-[1rem] border border-border/50 bg-muted/[0.042] p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/65 hover:bg-muted/[0.055]">
@@ -162,9 +171,9 @@ export function CommentsSection({ taskId, comments, onCommentsUpdate, readOnly =
                                                 </div>
                                                 )}
                                             </div>
-                                            {timestamp && (
+                                            {(timestamp || editedAt) && (
                                                 <p className="text-xs text-muted-foreground self-end">
-                                                {formatTimestamp(timestamp, uiConfig.timeFormat)}
+                                                {editedAt ? `Edited ${formatTimestamp(editedAt, uiConfig.timeFormat)}` : timestamp ? formatTimestamp(timestamp, uiConfig.timeFormat) : ''}
                                                 </p>
                                             )}
                                         </div>

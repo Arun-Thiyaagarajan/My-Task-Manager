@@ -58,6 +58,7 @@ export interface Log {
 export interface Comment {
   text: string;
   timestamp: string;
+  editedAt?: string;
 }
 
 export interface GeneralReminder {

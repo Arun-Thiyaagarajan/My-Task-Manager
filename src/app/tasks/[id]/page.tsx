@@ -442,11 +442,8 @@ export default function TaskPage() {
 
   const handleCommentsUpdate = (newComments: Comment[]) => {
     if (task) {
-      const updatedTask = updateTask(task.id, { comments: newComments });
-      if(updatedTask) {
-        setTask(updatedTask);
-        setTaskLogs(getLogsForTask(task.id));
-      }
+      setTask({ ...task, comments: newComments });
+      setTaskLogs(getLogsForTask(task.id));
     }
   };
 

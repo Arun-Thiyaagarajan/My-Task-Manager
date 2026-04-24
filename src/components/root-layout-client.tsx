@@ -67,7 +67,7 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </PullToRefresh>
-        {!isSharedPage && <AIAssistant />}
+        {!isSharedPage && !isTaskForm && <AIAssistant />}
         {!isSharedPage && <GlobalSpotlightSearch />}
         <OfflineScreen />
         <FileTransferIndicator />
