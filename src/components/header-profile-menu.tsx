@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import {
@@ -9,9 +10,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { AlertCircle, Cog, HelpCircle, History, LogOut, MailCheck, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { AlertCircle, Cog, HelpCircle, History, Home, LogOut, MailCheck, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { cn, getAvatarGradient, getInitials } from '@/lib/utils';
 import { getAuthMode } from '@/lib/data';
+import { AppTooltip } from '@/components/ui/tooltip';
 
 interface HeaderProfileMenuProps {
   profileName: string;
@@ -23,6 +25,7 @@ interface HeaderProfileMenuProps {
   onNavigateSettings: () => void;
   onNavigateReleases: () => void;
   onNavigateHelp: () => void;
+  onMakeStartPage: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
   onResendVerification: () => void;
@@ -34,24 +37,34 @@ function isActualImage(url: string | null | undefined) {
   return url.startsWith('data:image') || url.startsWith('http') || url.startsWith('/');
 }
 
-function ActionCard({
-  icon: Icon,
-  title,
-  onSelect,
-  accentClassName,
-}: {
+type ActionCardProps = Omit<React.ComponentPropsWithoutRef<typeof DropdownMenuItem>, 'children'> & {
   icon: typeof UserIcon;
   title: string;
   onSelect: () => void;
   accentClassName?: string;
-}) {
+};
+
+const ActionCard = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuItem>,
+  ActionCardProps
+>(function ActionCard({
+  icon: Icon,
+  title,
+  onSelect,
+  accentClassName,
+  className,
+  ...props
+}, ref) {
   return (
     <DropdownMenuItem
+      ref={ref}
       onSelect={onSelect}
       className={cn(
         'min-h-0 rounded-[0.95rem] border border-border/50 px-3 py-2.5 font-medium',
-        accentClassName
+        accentClassName,
+        className
       )}
+      {...props}
     >
       <div className="flex min-w-0 items-center gap-3">
         <Icon className="h-4 w-4 shrink-0 opacity-70" />
@@ -59,7 +72,7 @@ function ActionCard({
       </div>
     </DropdownMenuItem>
   );
-}
+});
 
 export function HeaderProfileMenu({
   profileName,
@@ -71,6 +84,7 @@ export function HeaderProfileMenu({
   onNavigateSettings,
   onNavigateReleases,
   onNavigateHelp,
+  onMakeStartPage,
   onSignIn,
   onSignOut,
   onResendVerification,
@@ -146,6 +160,13 @@ export function HeaderProfileMenu({
           <ActionCard icon={Cog} title="Settings" onSelect={onNavigateSettings} />
           <ActionCard icon={History} title="What&apos;s New" onSelect={onNavigateReleases} />
           <ActionCard icon={HelpCircle} title="Help & About" onSelect={onNavigateHelp} />
+          <AppTooltip
+            content="Make the current page open first when TaskFlow starts on this account."
+            side="left"
+            className="max-w-[15rem] text-xs leading-5"
+          >
+            <ActionCard icon={Home} title="Make this as start page" onSelect={onMakeStartPage} accentClassName="border-primary/20 bg-primary/5 text-primary focus:bg-primary/10 focus:text-primary" />
+          </AppTooltip>
           {/* DONT TOUCH THIS CODE */}
           {/* {!isSignedIn ? (
             <ActionCard

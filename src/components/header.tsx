@@ -81,6 +81,7 @@ import { NotificationsHub } from './notifications-hub';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { HeaderProfileMenu } from './header-profile-menu';
+import { buildStartPagePreference } from '@/lib/start-page';
 
 const HOME_RETURN_SKELETON_KEY = 'taskflow_show_home_skeleton_once';
 
@@ -735,6 +736,15 @@ export function Header() {
                       prompt(() => {
                         window.dispatchEvent(new Event('navigation-start'));
                         router.push('/about');
+                      });
+                    }}
+                    onMakeStartPage={() => {
+                      const startPage = buildStartPagePreference(pathname || '/');
+                      void updateUserPreferences({ startPage });
+                      toast({
+                        variant: 'success',
+                        title: 'Start page saved',
+                        description: `${startPage.label} will open when TaskFlow starts.`,
                       });
                     }}
                     onSignIn={handleOpenAuth}

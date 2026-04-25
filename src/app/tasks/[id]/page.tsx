@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport, syncTaskSubtasks } from '@/lib/data';
+import { getUiConfig, updateTask, getDevelopers, getTesters, restoreTask, getLogsForTask, addDeveloper, addTester, getActiveCompanyId, getAuthMode, isInitialSyncComplete, clearExpiredReminders, addLog, getTaskById as getDirectTaskById, getTasks as getDirectTasks, prepareTaskForExport, prepareUiConfigForExport, syncTaskSubtasks, getUserPreferences, updateUserPreferences } from '@/lib/data';
 import { getCachedTaskById as getTaskById, getCachedTasks as getTasks } from '@/lib/cached-data';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -63,6 +63,7 @@ import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLab
 import { TaskPlanningEditor } from '@/components/task-planning-editor';
 import { TaskRelationshipsSection } from '@/components/task-relationships-section';
 import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
+import { normalizeStartPagePath } from '@/lib/start-page';
 
 
 const isImageUrl = (url: string): boolean => {
@@ -108,6 +109,7 @@ export default function TaskPage() {
   const isMobile = useIsMobile();
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [task, setTask] = useState<Task | null>(null);
   const [uiConfig, setUiConfig] = useState<UiConfig | null>(null);
@@ -123,6 +125,7 @@ export default function TaskPage() {
   
   const [isEditingAttachments, setIsEditingAttachments] = useState(false);
   const isEditingAttachmentsRef = useRef(false);
+  const missingTaskRedirectRef = useRef(false);
   const [localAttachments, setLocalAttachments] = useState<Attachment[]>([]);
   
   const [isAddLinkPopoverOpen, setIsAddLinkPopoverOpen] = useState(false);
@@ -1150,6 +1153,34 @@ const handleCopyDescription = () => {
   const isSyncing = authMode === 'authenticate' && (!activeCompanyId || !isInitialSyncComplete(activeCompanyId));
   const activeSkeletons = isLoading || isUserLoading || isSyncing;
 
+  useEffect(() => {
+    if (activeSkeletons || !uiConfig || task || missingTaskRedirectRef.current) return;
+
+    missingTaskRedirectRef.current = true;
+    const currentPath = normalizeStartPagePath(pathname);
+    const startPage = getUserPreferences().startPage;
+    const isSavedStartPage = !!startPage && normalizeStartPagePath(startPage.path) === currentPath;
+
+    if (isSavedStartPage) {
+      void updateUserPreferences({ startPage: null });
+    }
+
+    toast({
+      variant: 'warning',
+      title: 'Task unavailable',
+      description: isSavedStartPage
+        ? 'Your saved start task could not be found, so it was cleared and Tasks was opened.'
+        : 'That task could not be found, so Tasks was opened instead.',
+    });
+
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event('navigation-start'));
+      router.replace('/');
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [activeSkeletons, pathname, router, task, toast, uiConfig]);
+
   if (activeSkeletons || !uiConfig) {
     return <TaskDetailSkeleton />;
   }
@@ -1158,11 +1189,11 @@ const handleCopyDescription = () => {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center space-y-4">
-            <h1 className="text-2xl font-bold">Task not found</h1>
-            <p className="text-muted-foreground">The task you are looking for does not exist.</p>
-            <Button onClick={() => router.back()} className="mt-4">
+            <h1 className="text-2xl font-bold">Task unavailable</h1>
+            <p className="text-muted-foreground">This task could not be found. Redirecting to Tasks.</p>
+            <Button onClick={() => router.replace('/')} className="mt-4">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Go Back
+                Go to Tasks
             </Button>
         </div>
       </div>

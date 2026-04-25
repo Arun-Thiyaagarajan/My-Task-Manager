@@ -85,7 +85,8 @@ import {
     AlertTriangle,
     HelpCircle,
     MessageCircle,
-    Volume2
+    Volume2,
+    Home
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PeopleManagerDialog } from '@/components/people-manager-dialog';
@@ -330,6 +331,15 @@ export default function SettingsPage() {
     }
     handleUpdateConfig(updates);
     toast({ variant: 'success', title: 'Display settings saved.' });
+  };
+
+  const handleClearStartPage = async () => {
+    await updateUserPreferences({ startPage: null });
+    toast({
+      variant: 'success',
+      title: 'Start page cleared',
+      description: 'TaskFlow will open on Tasks by default.',
+    });
   };
 
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1195,6 +1205,26 @@ export default function SettingsPage() {
                                     onCheckedChange={(checked) => updateUserPreferences({ notificationSounds: checked })} 
                                 />
                             </div>
+                            <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/20">
+                                <div className="min-w-0 space-y-0.5">
+                                    <Label className="flex items-center gap-2 text-sm font-semibold">
+                                        <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                        Start page
+                                    </Label>
+                                    <p className="text-[11px] font-normal text-muted-foreground">
+                                        {preferences.startPage ? `${preferences.startPage.label} opens on app start.` : 'Tasks opens by default.'}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 shrink-0 rounded-lg px-3 text-[11px] font-medium"
+                                    onClick={handleClearStartPage}
+                                    disabled={!preferences.startPage}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 )}
@@ -1616,6 +1646,26 @@ export default function SettingsPage() {
                             checked={preferences.notificationSounds !== false} 
                             onCheckedChange={(checked) => updateUserPreferences({ notificationSounds: checked })} 
                         />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/20 border border-transparent hover:border-border transition-colors">
+                        <div className="min-w-0 space-y-0.5">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                                <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                                Start Page
+                            </Label>
+                            <p className="text-[11px] font-normal text-muted-foreground">
+                                {preferences.startPage ? `${preferences.startPage.label} opens on initial app load.` : 'Tasks opens by default.'}
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 shrink-0 rounded-xl px-3 text-xs font-medium"
+                            onClick={handleClearStartPage}
+                            disabled={!preferences.startPage}
+                        >
+                            Clear
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

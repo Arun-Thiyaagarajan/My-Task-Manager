@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
@@ -16,7 +16,8 @@ import { OfflineScreen } from '@/components/offline-screen';
 import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect-handler';
 import { AIAssistant } from '@/components/ai-assistant';
 import { DueReminderWatcher } from '@/components/due-reminder-watcher';
-import { clearExpiredReminders } from '@/lib/data';
+import { clearExpiredReminders, getUserPreferences } from '@/lib/data';
+import { normalizeStartPagePath } from '@/lib/start-page';
 
 /**
  * Handles client-side layout logic such as pathname-based conditional 
@@ -24,6 +25,9 @@ import { clearExpiredReminders } from '@/lib/data';
  */
 export function RootLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const initialPathnameRef = useRef<string | null>(pathname || null);
+  const hasHandledStartPageRef = useRef(false);
   const isSharedPage = pathname?.startsWith('/share/') || pathname?.startsWith('/s/');
   const isTaskDetailPage = Boolean(pathname?.match(/^\/tasks\/[^/]+$/));
   const isTaskForm =
@@ -57,6 +61,38 @@ export function RootLayoutClient({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (initialPathnameRef.current !== '/' || hasHandledStartPageRef.current) return;
+
+    const tryOpenStartPage = () => {
+      if (hasHandledStartPageRef.current) return;
+
+      const startPage = getUserPreferences().startPage;
+      const targetPath = normalizeStartPagePath(startPage?.path);
+
+      if (!startPage || targetPath === '/') return;
+
+      hasHandledStartPageRef.current = true;
+      window.dispatchEvent(new Event('navigation-start'));
+      router.replace(targetPath);
+    };
+
+    const firstTimer = window.setTimeout(tryOpenStartPage, 120);
+    const stopTimer = window.setTimeout(() => {
+      hasHandledStartPageRef.current = true;
+    }, 2500);
+
+    window.addEventListener('preferences-changed', tryOpenStartPage);
+    window.addEventListener('sync-complete', tryOpenStartPage);
+
+    return () => {
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(stopTimer);
+      window.removeEventListener('preferences-changed', tryOpenStartPage);
+      window.removeEventListener('sync-complete', tryOpenStartPage);
+    };
+  }, [router]);
 
   return (
     <Providers>

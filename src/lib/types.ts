@@ -1,5 +1,6 @@
 
 import type { TASK_STATUSES } from './constants';
+import type { StartPagePreference } from './start-page';
 
 export type TaskStatus = string;
 export type Repository = string;
@@ -181,6 +182,7 @@ export interface UserPreferences {
     dateFrom?: string;
     dateTo?: string;
   };
+  startPage?: StartPagePreference | null;
   sidebarPosition?: 'left' | 'right';
   favoritesOnly?: boolean;
   tutorialSeen?: boolean;

@@ -63,6 +63,12 @@ function getQuotaExceededMessage() {
         : 'Local storage is full. Please clear unused tasks, notes, logs, or switch to cloud mode before importing this file.';
 }
 
+function getSortableDateTime(value?: string | null): number {
+    if (!value) return 0;
+    const timestamp = new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 async function assertLocalImportCapacity(nextData: MyTaskManagerData) {
     if (typeof window === 'undefined' || getAuthMode() === 'authenticate') return;
 
@@ -2053,9 +2059,9 @@ export function getDeletedTaskTemplates(): TaskTemplate[] {
     const softDeleted = (appData.companyData[companyId].taskTemplates || []).filter(template => !!template.deletedAt);
     const legacyBin = appData.companyData[companyId].taskTemplateBin || [];
     return [...softDeleted, ...legacyBin].sort((a, b) => {
-        const aDate = a.deletedAt || a.updatedAt || a.createdAt;
-        const bDate = b.deletedAt || b.updatedAt || b.createdAt;
-        return bDate.localeCompare(aDate);
+        const aDate = getSortableDateTime(a.deletedAt || a.updatedAt || a.createdAt);
+        const bDate = getSortableDateTime(b.deletedAt || b.updatedAt || b.createdAt);
+        return bDate - aDate;
     });
 }
 
@@ -3170,7 +3176,11 @@ export function getBinnedTasks(): Task[] {
     const appData = getAppData();
     const companyId = getActiveCompanyId();
     if (!companyId || !appData.companyData[companyId]) return [];
-    return appData.companyData[companyId].trash || [];
+    return [...(appData.companyData[companyId].trash || [])].sort((a, b) => {
+        const aDate = getSortableDateTime(a.deletedAt || a.updatedAt || a.createdAt);
+        const bDate = getSortableDateTime(b.deletedAt || b.updatedAt || b.createdAt);
+        return bDate - aDate;
+    });
 }
 
 // Notes
