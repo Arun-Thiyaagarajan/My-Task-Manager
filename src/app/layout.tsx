@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   description: 'A sleek and simple task manager',
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/icon',
-    apple: '/apple-icon',
-    shortcut: '/favicon.ico',
+    icon: [{ url: '/workspace-icon.svg', type: 'image/svg+xml', sizes: 'any' }],
+    apple: [{ url: '/workspace-icon.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/workspace-icon.svg', type: 'image/svg+xml', sizes: 'any' }],
   },
 };
 
