@@ -567,7 +567,7 @@ export function TextareaToolbar({ onFormatClick, className, storageKey, textarea
         </div>
         {typeof document !== 'undefined' && refinePreview && previewPosition ? createPortal(
             <div
-                className="fixed z-[400] overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_28px_70px_-34px_rgba(15,23,42,0.32)] backdrop-blur-xl pointer-events-auto overscroll-contain dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(15,23,42,0.9))] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.78)]"
+                className="fixed z-[520] overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_28px_70px_-34px_rgba(15,23,42,0.32)] backdrop-blur-xl pointer-events-auto overscroll-contain dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(15,23,42,0.9))] dark:shadow-[0_28px_70px_-34px_rgba(0,0,0,0.78)]"
                 style={{
                     right: `${previewPosition.right}px`,
                     bottom: `${previewPosition.bottom}px`,
