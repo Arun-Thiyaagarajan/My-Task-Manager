@@ -8,7 +8,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, BookOpen, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookOpen, ExternalLink, GitMerge, Pencil, ListChecks, Paperclip, CheckCircle2, Clock, Box, Check, Code2, ClipboardCheck, Link2, Image, X, Ban, Share2, History, BellRing, MoreVertical, Trash2, Copy, Tag, Download, CalendarIcon, Save, Share, RotateCcw, Flag } from 'lucide-react';
 import { getStatusConfig, TaskStatusBadge } from '@/components/task-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -42,7 +42,7 @@ import {
 import { FavoriteToggleButton } from '@/components/favorite-toggle';
 import { TaskHistory } from '@/components/task-history';
 import { ReminderDialog } from '@/components/reminder-dialog';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { AppTooltip } from '@/components/ui/tooltip';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { RichTextViewer } from '@/components/ui/rich-text-viewer';
@@ -59,7 +59,7 @@ import { StatusIcon, getSortedStatusNames, getStatusDisplayName, getStatusStyles
 import { scheduleStatusUpdate } from '@/lib/status-update';
 import { getTaskRepositories, isRepositoryFieldActive, shouldShowPrLinks } from '@/lib/repository-config';
 import { TaskPriorityBadge } from '@/components/task-priority-badge';
-import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, hasCompletedDue, hasDueReminder, hasParkedDueReminder, parseTaskDate } from '@/lib/task-planning';
+import { buildDueCompletionUpdate, getDueReminderPresetLabel, getTaskDueBadgeLabel, getTaskDueLabel, getTaskDueToneClassName, getTaskPriorityBadgeClassName, getTaskPriorityLabel, hasCompletedDue, hasDueReminder, hasParkedDueReminder, parseTaskDate } from '@/lib/task-planning';
 import { TaskPlanningEditor } from '@/components/task-planning-editor';
 import { TaskRelationshipsSection } from '@/components/task-relationships-section';
 import { SearchableSingleSelect } from '@/components/ui/searchable-single-select';
@@ -1227,7 +1227,7 @@ const handleCopyDescription = () => {
     <>
       <div className="container relative isolate mx-auto overflow-hidden px-4 pb-10 pt-10 sm:px-6 sm:pb-12 sm:pt-12 lg:px-8">
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-56 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.05),transparent_62%)]" />
-        <div className="pointer-events-none absolute inset-x-6 top-24 -z-10 h-[calc(100%-6rem)] rounded-[2rem] border border-border/30 bg-muted/[0.035]" />
+        <div className="pointer-events-none absolute inset-x-1 top-24 -z-10 h-[calc(100%-6rem)] rounded-[1.5rem] border border-border/30 bg-muted/[0.035] sm:inset-x-6 sm:rounded-[2rem]" />
 
         <div className="mb-7 flex flex-row items-center justify-between sm:mb-8">
           <Button 
@@ -1281,26 +1281,21 @@ const handleCopyDescription = () => {
                     </Button>
                 </ShareMenu>
                 {uiConfig?.remindersEnabled && !isBinned && (
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size={isMobile ? "icon" : "sm"}
-                                    onClick={() => setIsReminderOpen(true)}
-                                    className={cn(
-                                      toolbarButtonClassName,
-                                      isMobile ? "h-10 w-10" : "h-9",
-                                      task.reminder && "border-amber-500/28 bg-amber-500/[0.08] text-amber-700 hover:border-amber-500/40 hover:bg-amber-500/[0.11] dark:text-amber-300"
-                                    )}
-                                >
-                                    <BellRing className={cn(isMobile ? "h-5 w-5" : "h-4 w-4 mr-2")} />
-                                    {!isMobile && (task.reminder ? "Note" : "Add Note")}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p className="font-normal">{task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}</p></TooltipContent>
-                    </Tooltip>
-                    </TooltipProvider>
+                    <AppTooltip content={<p className="font-normal">{task.reminder ? 'Edit Reminder Note' : 'Set Reminder Note'}</p>}>
+                      <Button
+                          variant="outline"
+                          size={isMobile ? "icon" : "sm"}
+                          onClick={() => setIsReminderOpen(true)}
+                          className={cn(
+                            toolbarButtonClassName,
+                            isMobile ? "h-10 w-10" : "h-9",
+                            task.reminder && "border-amber-500/28 bg-amber-500/[0.08] text-amber-700 hover:border-amber-500/40 hover:bg-amber-500/[0.11] dark:text-amber-300"
+                          )}
+                      >
+                          <BellRing className={cn(isMobile ? "h-5 w-5" : "h-4 w-4 mr-2")} />
+                          {!isMobile && (task.reminder ? "Note" : "Add Note")}
+                      </Button>
+                    </AppTooltip>
                 )}
 
                 <Button
@@ -1415,63 +1410,78 @@ const handleCopyDescription = () => {
         )}
 
 
-        <div id="task-detail-main" className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
-          <div className="lg:col-span-2 space-y-6">
-            <Card className={cn("group/card relative overflow-hidden rounded-[1.5rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.009),rgba(255,255,255,0.002))] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)]", cardClassName)} style={statusConfig.cardStyle}>
+        <div id="task-detail-main" className="grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
+          <div className="contents lg:block lg:min-w-0 lg:space-y-6 lg:col-span-2">
+            <Card className={cn("group/card relative order-1 min-w-0 overflow-hidden rounded-[1.5rem] border-border/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.009),rgba(255,255,255,0.002))] shadow-[0_1px_2px_rgba(15,23,42,0.05),0_24px_60px_-38px_rgba(15,23,42,0.3)] lg:order-none", cardClassName)} style={statusConfig.cardStyle}>
                 <StatusIcon status={task.status} uiConfig={uiConfig} className={cn('absolute -bottom-12 -right-12 h-48 w-48 pointer-events-none transition-transform duration-300 ease-in-out', !isStatusValue(task.status, 'in_progress', uiConfig) && 'group-hover/card:scale-110 group-hover/card:-rotate-6')} style={statusConfig.backgroundIconStyle} />
                 <div className="relative z-10 flex flex-col h-full">
                   <CardHeader className="px-5 pb-3 pt-5 sm:px-6 sm:pb-4 sm:pt-6">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1 space-y-3">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start gap-2">
-                          <TaskPriorityBadge priority={task.priority} />
+                          <AppTooltip
+                            content={<p className="text-xs font-normal">Priority: {getTaskPriorityLabel(task.priority)}</p>}
+                            side="top"
+                            align="start"
+                            className="max-w-[14rem]"
+                          >
+                            <button
+                              type="button"
+                              aria-label={`Priority: ${getTaskPriorityLabel(task.priority)}`}
+                              className={cn(
+                                'inline-flex h-8 w-8 items-center justify-center rounded-full border text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:hidden',
+                                getTaskPriorityBadgeClassName(task.priority)
+                              )}
+                            >
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                          </AppTooltip>
+                          <TaskPriorityBadge priority={task.priority} className="hidden sm:inline-flex" />
                           <div className="flex min-w-0 flex-col items-start gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  variant="outline"
-                                  className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium', getTaskDueToneClassName(task))}
-                                >
-                                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                                  {dueLabel}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" align="start" className="max-w-[16rem]">
+                            <AppTooltip
+                              content={
                                 <div className="space-y-1 text-xs font-normal">
                                   <p>{dueLabel}</p>
                                   {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
                                   {task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}</p> : null}
                                 </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 group/title" onDoubleClick={() => handleStartEditing('title', task.title)}>
-                        {editingSection === 'title' ? (
-                            <Input 
-                                ref={titleInputRef}
-                                value={editingValue} 
-                                onChange={e => setEditingValue(e.target.value)} 
-                                onBlur={() => handleSaveEditing('title', false)}
-                                onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
-                                className="h-auto border-0 p-0 text-[2rem] font-semibold tracking-tight focus-visible:ring-0 sm:text-[2.2rem]"
-                            />
-                        ) : (
-                          <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <CardTitle className="cursor-pointer text-[2rem] font-semibold leading-[1.15] tracking-tight text-foreground sm:text-[2.2rem]">
-                                    {task.title}
-                                </CardTitle>
-                                </TooltipTrigger>
-                                {!isBinned && (
-                                <TooltipContent>
-                                    <p className="font-normal">Double-click to edit</p>
-                                </TooltipContent>
+                              }
+                              side="top"
+                              align="start"
+                              className="max-w-[16rem]"
+                            >
+                              <Badge
+                                variant="outline"
+                                className={cn('hidden rounded-full border px-2.5 py-1 text-[11px] font-medium sm:inline-flex', getTaskDueToneClassName(task))}
+                              >
+                                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                                {dueLabel}
+                              </Badge>
+                            </AppTooltip>
+                            <AppTooltip
+                              content={
+                                <div className="space-y-1 text-xs font-normal">
+                                  <p>{dueLabel}</p>
+                                  {hasTaskDueReminder ? <p>Due reminder enabled</p> : null}
+                                  {task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}</p> : null}
+                                </div>
+                              }
+                              side="top"
+                              align="start"
+                              className="max-w-[16rem]"
+                            >
+                              <button
+                                type="button"
+                                aria-label={`Due: ${dueLabel}`}
+                                className={cn(
+                                  'inline-flex h-8 w-8 items-center justify-center rounded-full border text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:hidden',
+                                  getTaskDueToneClassName(task)
                                 )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </AppTooltip>
+                          </div>
                         </div>
                       </div>
                       <div className="flex-shrink-0 flex items-center gap-2">
@@ -1527,6 +1537,24 @@ const handleCopyDescription = () => {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      <div className="group/title flex min-w-0 basis-full items-center gap-2" onDoubleClick={() => handleStartEditing('title', task.title)}>
+                      {editingSection === 'title' ? (
+                          <Input 
+                              ref={titleInputRef}
+                              value={editingValue} 
+                              onChange={e => setEditingValue(e.target.value)} 
+                              onBlur={() => handleSaveEditing('title', false)}
+                              onKeyDown={e => e.key === 'Enter' && handleSaveEditing('title', false)}
+                              className="h-auto min-w-0 border-0 p-0 text-[2rem] font-semibold tracking-tight focus-visible:ring-0 sm:text-[2.2rem]"
+                          />
+                      ) : (
+                        <AppTooltip content={<p className="font-normal">Double-click to edit</p>} disabled={isBinned}>
+                          <CardTitle className="min-w-0 max-w-full cursor-pointer break-words text-[2rem] font-semibold leading-[1.15] tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-[2.2rem]">
+                              {task.title}
+                          </CardTitle>
+                        </AppTooltip>
+                      )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="group/description flex-grow px-5 pb-5 pt-1 sm:px-6 sm:pb-6" onDoubleClick={() => !isBinned && editingSection !== 'description' && handleStartEditing('description', task.description)}>
@@ -1540,21 +1568,16 @@ const handleCopyDescription = () => {
                     )}
                      <div className={cn("relative", !isBinned && "cursor-pointer")}>
                        {task.description && !isBinned && editingSection !== 'description' && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute right-0 top-0 h-8 w-8 rounded-lg text-muted-foreground opacity-0 transition-[opacity,background-color,color] duration-200 group-hover/description:opacity-100 hover:bg-muted/60 hover:text-foreground"
-                                            onClick={handleCopyDescription}
-                                        >
-                                            {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Copy description</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            <AppTooltip content="Copy description">
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute right-0 top-0 h-8 w-8 rounded-lg text-muted-foreground opacity-0 transition-[opacity,background-color,color] duration-200 group-hover/description:opacity-100 hover:bg-muted/60 hover:text-foreground"
+                                  onClick={handleCopyDescription}
+                              >
+                                  {isCopying ? <Check className="h-4 w-4 text-green-500 animate-in fade-in" /> : <Copy className="h-4 w-4" />}
+                              </Button>
+                            </AppTooltip>
                         )}
                         {editingSection === 'description' ? (
                           <div className="space-y-2">
@@ -1577,27 +1600,18 @@ const handleCopyDescription = () => {
                             </div>
                            </div>
                         ) : (
-                          <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <div className="font-normal leading-7 text-foreground/90">
-                                    <RichTextViewer text={task.description} />
-                                </div>
-                                </TooltipTrigger>
-                                {!isBinned && (
-                                <TooltipContent>
-                                    <p className="font-normal">Double-click to edit</p>
-                                </TooltipContent>
-                                )}
-                            </Tooltip>
-                          </TooltipProvider>
+                          <AppTooltip content={<p className="font-normal">Double-click to edit</p>} disabled={isBinned}>
+                            <div className="font-normal leading-7 text-foreground/90">
+                                <RichTextViewer text={task.description} />
+                            </div>
+                          </AppTooltip>
                         )}
                     </div>
                   </CardContent>
                 </div>
             </Card>
             
-            <div className={cn("grid grid-cols-1 gap-6", prField && visibleRepositories.length > 0 ? "md:grid-cols-2" : "")}>
+            <div className={cn("order-2 grid grid-cols-1 gap-6 lg:order-none", prField && visibleRepositories.length > 0 ? "md:grid-cols-2" : "")}>
                 {deploymentField && (
                   <Card id="task-detail-deployment" className={sectionCardClassName}>
                     <CardHeader className={sectionHeaderClassName}>
@@ -1641,7 +1655,7 @@ const handleCopyDescription = () => {
             </div>
             
             {customFields.length > 0 && (
-              <Card className={sectionCardClassName}>
+              <Card className={cn("order-4 lg:order-none", sectionCardClassName)}>
                 <CardHeader className={sectionHeaderClassName}>
                   <CardTitle className={cn("flex items-center gap-2", sectionTitleClassName)}><Box className="h-5 w-5 text-primary/80" />Other Details</CardTitle>
                 </CardHeader>
@@ -1726,7 +1740,7 @@ const handleCopyDescription = () => {
             )}
 
             {attachmentsField && (
-                <Card className={sectionCardClassName}>
+                <Card className={cn("order-5 lg:order-none", sectionCardClassName)}>
                     <CardHeader className={cn(sectionHeaderClassName, "pb-3")}>
                         <CardTitle className={cn("flex items-center justify-between gap-3", sectionTitleClassName)}>
                           <span className="flex items-center gap-2">
@@ -1927,8 +1941,8 @@ const handleCopyDescription = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6">
-            <Card className={cn('order-2 h-fit', sectionCardClassName)}>
+          <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
+            <Card className={cn('order-6 h-fit min-w-0 lg:order-2', sectionCardClassName)}>
               <CardHeader className={cn(sectionHeaderClassName, 'pb-4')}>
                 <CardTitle className={cn('flex items-center justify-between gap-3', sectionTitleClassName)}>
                   <span className="flex items-center gap-2">
@@ -1959,21 +1973,23 @@ const handleCopyDescription = () => {
                   <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Due Date</p>
                   <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={cn('inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium', getTaskDueToneClassName(task))}>
-                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                            <span className="max-w-[min(46vw,14rem)] truncate sm:max-w-[19rem]">{dueBadgeLabel}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                      <AppTooltip
+                        content={
                           <div className="space-y-1 text-xs font-normal">
                             <p>{dueLabel}</p>
                             {task.dueAt && !hasTaskDueCompleted ? <p>{formatTimestamp(task.dueAt, uiConfig.timeFormat)}</p> : null}
                             {task.dueCompletedAt ? <p>Completed at {formatTimestamp(task.dueCompletedAt, uiConfig.timeFormat)}</p> : null}
                           </div>
-                        </TooltipContent>
-                      </Tooltip>
+                        }
+                        side="top"
+                        align="start"
+                        className="max-w-[18rem]"
+                      >
+                        <div className={cn('inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium', getTaskDueToneClassName(task))}>
+                          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                          <span className="max-w-[min(46vw,14rem)] truncate sm:max-w-[19rem]">{dueBadgeLabel}</span>
+                        </div>
+                      </AppTooltip>
                       {task.dueCompletedAt ? (
                         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                           {task.dueAt ? (
@@ -1995,29 +2011,8 @@ const handleCopyDescription = () => {
                       ) : null}
                     </div>
                     {!isBinned ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="shrink-0">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              disabled={!hasTaskDueCompleted && shouldAskForDueCompletionTime}
-                              onClick={hasTaskDueCompleted || !shouldAskForDueCompletionTime ? handleToggleDueCompletion : undefined}
-                              className={cn(
-                                'h-11 w-11 rounded-2xl border',
-                                hasTaskDueCompleted
-                                  ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 hover:bg-emerald-500/[0.12] dark:text-emerald-300'
-                                  : shouldAskForDueCompletionTime
-                                    ? 'border-border/60 bg-background/60 text-muted-foreground/55 opacity-100'
-                                    : 'border-border/60 bg-background/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                              )}
-                            >
-                              {hasTaskDueCompleted ? <RotateCcw className="h-4.5 w-4.5" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
-                            </Button>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
+                      <AppTooltip
+                        content={
                           <p className="font-normal">
                             {hasTaskDueCompleted
                               ? 'Undo due completion'
@@ -2025,8 +2020,28 @@ const handleCopyDescription = () => {
                                 ? 'Set the actual completion time from Planning edit'
                                 : 'Mark due complete'}
                           </p>
-                        </TooltipContent>
-                      </Tooltip>
+                        }
+                      >
+                        <div className="shrink-0">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={!hasTaskDueCompleted && shouldAskForDueCompletionTime}
+                            onClick={hasTaskDueCompleted || !shouldAskForDueCompletionTime ? handleToggleDueCompletion : undefined}
+                            className={cn(
+                              'h-11 w-11 rounded-2xl border',
+                              hasTaskDueCompleted
+                                ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 hover:bg-emerald-500/[0.12] dark:text-emerald-300'
+                                : shouldAskForDueCompletionTime
+                                  ? 'border-border/60 bg-background/60 text-muted-foreground/55 opacity-100'
+                                  : 'border-border/60 bg-background/80 text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                            )}
+                          >
+                            {hasTaskDueCompleted ? <RotateCcw className="h-4.5 w-4.5" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
+                          </Button>
+                        </div>
+                      </AppTooltip>
                     ) : null}
                   </div>
                 </div>
@@ -2034,27 +2049,8 @@ const handleCopyDescription = () => {
                   <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">Due Reminder</p>
                   {hasTaskDueReminder && task.dueReminderAt ? (
                     <>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div
-                            className={cn(
-                              'mt-1 inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium',
-                              hasDueReminderAlerted
-                                ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300'
-                                : 'border-primary/18 bg-primary/[0.06] text-primary'
-                            )}
-                          >
-                            <BellRing className="mr-2 h-4 w-4 shrink-0" />
-                            <span className="max-w-[min(40vw,12rem)] truncate sm:max-w-[16rem]">
-                              {hasDueReminderAlerted
-                                ? 'Alerted'
-                                : task.dueReminderPreset
-                                  ? getDueReminderPresetLabel(task.dueReminderPreset)
-                                  : 'Scheduled'}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" align="start" className="max-w-[18rem]">
+                      <AppTooltip
+                        content={
                           <div className="space-y-1 text-xs font-normal">
                             <p>
                               {hasDueReminderAlerted
@@ -2065,8 +2061,29 @@ const handleCopyDescription = () => {
                             </p>
                             <p>{hasDueReminderAlerted ? 'Alerted at ' : 'Alerts at '}{formatTimestamp(task.dueReminderAt, uiConfig.timeFormat)}</p>
                           </div>
-                        </TooltipContent>
-                      </Tooltip>
+                        }
+                        side="top"
+                        align="start"
+                        className="max-w-[18rem]"
+                      >
+                        <div
+                          className={cn(
+                            'mt-1 inline-flex max-w-full items-center rounded-full border px-3 py-1.5 text-sm font-medium',
+                            hasDueReminderAlerted
+                              ? 'border-emerald-500/18 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300'
+                              : 'border-primary/18 bg-primary/[0.06] text-primary'
+                          )}
+                        >
+                          <BellRing className="mr-2 h-4 w-4 shrink-0" />
+                          <span className="max-w-[min(40vw,12rem)] truncate sm:max-w-[16rem]">
+                            {hasDueReminderAlerted
+                              ? 'Alerted'
+                              : task.dueReminderPreset
+                                ? getDueReminderPresetLabel(task.dueReminderPreset)
+                                : 'Scheduled'}
+                          </span>
+                        </div>
+                      </AppTooltip>
                       <p className="mt-2 text-xs text-muted-foreground">
                         {hasDueReminderAlerted ? 'Alerted at ' : 'Alerts at '}
                         {formatTimestamp(task.dueReminderAt, uiConfig.timeFormat)}
@@ -2089,7 +2106,7 @@ const handleCopyDescription = () => {
               </CardContent>
             </Card>
 
-            <Card className={cn("order-1 h-fit", sectionCardClassName)}>
+            <Card className={cn("order-3 h-fit min-w-0 lg:order-1", sectionCardClassName)}>
                 <CardHeader className={cn(sectionHeaderClassName, "pb-4")}>
                   <CardTitle className={cn("flex items-center justify-between", sectionTitleClassName)}>
                     <span className="flex items-center gap-2"><ListChecks className="h-5 w-5" />Task Details</span>
@@ -2233,7 +2250,7 @@ const handleCopyDescription = () => {
           </div>
         </div>
         
-        <div className="lg:hidden mt-8 space-y-6">
+        <div className="mt-8 min-w-0 space-y-6 lg:hidden">
             {commentsField && !isBinned && (
                 <CommentsSection taskId={task.id} comments={task.comments || []} onCommentsUpdate={handleCommentsUpdate} readOnly={isBinned} />
             )}
@@ -2243,8 +2260,8 @@ const handleCopyDescription = () => {
         </div>
 
         {shouldShowRelationshipsSection && (
-          <div id="task-detail-relationships" className="mt-8 scroll-mt-28 lg:mt-10">
-            <Card className={cn("h-fit w-full", sectionCardClassName)}>
+          <div id="task-detail-relationships" className="mt-8 min-w-0 scroll-mt-28 lg:mt-10">
+            <Card className={cn("h-fit w-full min-w-0", sectionCardClassName)}>
               <CardContent className="px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
                 {editingSection === 'relationships' ? (
                   <div className="space-y-5">
@@ -2381,37 +2398,33 @@ function TaskDetailSection({ title, people, setPersonInView, isDeveloper }: {
         <div className="flex flex-wrap gap-2.5">
             {people.length > 0 ? (
                 people.map((person, index) => (
-                  <TooltipProvider key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                        <button 
-                            className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)]"
-                            onClick={() => {
-                              const latestPerson =
-                                (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
-                              setPersonInView({ person: latestPerson, isDeveloper });
+                  <AppTooltip
+                    key={`${isDeveloper ? 'dev' : 'test'}-${person.id}-${index}`}
+                    content={<p className="font-normal">View and edit person details.</p>}
+                  >
+                    <button 
+                        className="flex items-center gap-2 rounded-[0.95rem] border border-transparent px-2.5 py-2 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-border/80 hover:bg-accent/55 hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.16)] dark:hover:border-border/70 dark:hover:bg-muted/[0.06] dark:hover:shadow-[0_10px_24px_-24px_rgba(15,23,42,0.22)]"
+                        onClick={() => {
+                          const latestPerson =
+                            (isDeveloper ? getDevelopers() : getTesters()).find((entry) => entry.id === person.id) || person;
+                          setPersonInView({ person: latestPerson, isDeveloper });
+                        }}
+                    >
+                        <Avatar className="h-8 w-8 ring-1 ring-border/35">
+                        <AvatarFallback
+                            className="text-[10px] font-semibold text-white"
+                            style={{
+                            backgroundColor: `#${getAvatarColor(person.name)}`,
                             }}
                         >
-                            <Avatar className="h-8 w-8 ring-1 ring-border/35">
-                            <AvatarFallback
-                                className="text-[10px] font-semibold text-white"
-                                style={{
-                                backgroundColor: `#${getAvatarColor(person.name)}`,
-                                }}
-                            >
-                                {getInitials(person.name)}
-                            </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium text-foreground/92">
-                            {person.name}
-                            </span>
-                        </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="font-normal">View and edit person details.</p>
-                        </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                            {getInitials(person.name)}
+                        </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium text-foreground/92">
+                        {person.name}
+                        </span>
+                    </button>
+                  </AppTooltip>
                 ))
             ) : (
             <p className="text-sm text-muted-foreground font-normal">
