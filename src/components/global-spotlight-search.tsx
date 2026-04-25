@@ -24,15 +24,21 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn, fuzzySearch } from '@/lib/utils';
-import { getDeletedTaskTemplates, getTaskTemplates, getUiConfig } from '@/lib/data';
+import { getDeletedTaskTemplates, getDevelopers, getTaskTemplates, getTesters, getUiConfig } from '@/lib/data';
 import { getCachedBinnedTasks as getBinnedTasks, getCachedNotes as getNotes, getCachedTasks as getTasks } from '@/lib/cached-data';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { useIsMobile } from '@/hooks/use-mobile';
-import type { Note, Task, TaskTemplate } from '@/lib/types';
+import { getTaskSearchableParts } from '@/lib/task-filtering';
+import type { Note, Person, Task, TaskTemplate } from '@/lib/types';
 
 const SPOTLIGHT_EVENT = 'open-global-search';
 const SPOTLIGHT_HISTORY_KEY = 'taskflow_spotlight_history';
 const MAX_HISTORY_ITEMS = 12;
+const MAX_SPOTLIGHT_QUERY_LENGTH = 160;
+const MAX_SPOTLIGHT_KEYWORD_PARTS = 500;
+const MAX_SPOTLIGHT_FUZZY_KEYWORD_PARTS = 150;
+const MAX_SPOTLIGHT_KEYWORD_PART_LENGTH = 500;
+const MAX_SPOTLIGHT_FUZZY_QUERY_LENGTH = 80;
 
 type SpotlightGroup = 'Tasks' | 'Notes' | 'Settings' | 'Others' | 'Recent' | 'Quick Access';
 type SpotlightKind = 'task' | 'note' | 'settings' | 'other';
@@ -63,9 +69,16 @@ type IndexedSpotlightItem = SpotlightItem & {
   normalizedTitle: string;
   normalizedSubLabel: string;
   normalizedKeywords: string;
+  normalizedKeywordParts: string[];
 };
 
-const toSpotlightItem = ({ normalizedTitle, normalizedSubLabel, normalizedKeywords, ...item }: IndexedSpotlightItem): SpotlightItem => item;
+const toSpotlightItem = ({ normalizedTitle, normalizedSubLabel, normalizedKeywords, normalizedKeywordParts, ...item }: IndexedSpotlightItem): SpotlightItem => item;
+
+const normalizeSpotlightQuery = (value: string) =>
+  value.trim().replace(/\s+/g, ' ').toLowerCase().slice(0, MAX_SPOTLIGHT_QUERY_LENGTH);
+
+const normalizeKeywordPart = (value: string) =>
+  value.trim().toLowerCase().slice(0, MAX_SPOTLIGHT_KEYWORD_PART_LENGTH);
 
 const SETTINGS_SECTIONS: Array<{
   id: string;
@@ -303,6 +316,8 @@ export function GlobalSpotlightSearch() {
   const [notes, setNotes] = React.useState<Note[]>([]);
   const [templates, setTemplates] = React.useState<TaskTemplate[]>([]);
   const [deletedTemplates, setDeletedTemplates] = React.useState<TaskTemplate[]>([]);
+  const [developers, setDevelopers] = React.useState<Person[]>([]);
+  const [testers, setTesters] = React.useState<Person[]>([]);
   const [commandKey, setCommandKey] = React.useState('Ctrl');
   const [historyEntries, setHistoryEntries] = React.useState<SpotlightHistoryEntry[]>([]);
   const [uiConfigVersion, setUiConfigVersion] = React.useState(0);
@@ -315,6 +330,8 @@ export function GlobalSpotlightSearch() {
     setNotes(getNotes());
     setTemplates(getTaskTemplates());
     setDeletedTemplates(getDeletedTaskTemplates());
+    setDevelopers(getDevelopers());
+    setTesters(getTesters());
     getUiConfig();
     setHistoryEntries(getHistory());
     setUiConfigVersion(version => version + 1);
@@ -394,6 +411,8 @@ export function GlobalSpotlightSearch() {
   }, [refreshData, startTransition]);
 
   const uiConfig = React.useMemo(() => getUiConfig(), [uiConfigVersion]);
+  const developersById = React.useMemo(() => new Map(developers.map((developer) => [developer.id, developer.name])), [developers]);
+  const testersById = React.useMemo(() => new Map(testers.map((tester) => [tester.id, tester.name])), [testers]);
 
   const searchableItems = React.useMemo<SpotlightItem[]>(() => {
     const taskItems: SpotlightItem[] = tasks.map(task => ({
@@ -405,7 +424,7 @@ export function GlobalSpotlightSearch() {
       href: `/tasks/${task.id}`,
       icon: FileText,
       accentClassName: 'text-primary',
-      keywords: [task.status, task.description, ...(task.tags || []), ...(task.repositories || [])].filter(Boolean) as string[],
+      keywords: getTaskSearchableParts(task, developersById, testersById, uiConfig),
       updatedAt: task.updatedAt,
     }));
 
@@ -418,7 +437,7 @@ export function GlobalSpotlightSearch() {
       href: `/tasks/${task.id}`,
       icon: FileText,
       accentClassName: 'text-zinc-500',
-      keywords: ['bin', 'deleted', 'trash', task.status, task.description, ...(task.tags || []), ...(task.repositories || [])].filter(Boolean) as string[],
+      keywords: ['bin', 'deleted', 'trash', ...getTaskSearchableParts(task, developersById, testersById, uiConfig)],
       updatedAt: task.deletedAt || task.updatedAt,
       isBinned: true,
     }));
@@ -529,16 +548,24 @@ export function GlobalSpotlightSearch() {
 
     return [...taskItems, ...binnedTaskItems, ...noteItems, ...templateItems, ...deletedTemplateItems, ...settingsItems, ...QUICK_LINKS]
       .filter(item => !(isMobile && item.desktopOnly));
-  }, [binnedTasks, deletedTemplates, isMobile, notes, tasks, templates, uiConfig]);
+  }, [binnedTasks, deletedTemplates, developersById, isMobile, notes, tasks, templates, testersById, uiConfig]);
 
   const searchableIndex = React.useMemo<IndexedSpotlightItem[]>(
     () =>
-      searchableItems.map(item => ({
-        ...item,
-        normalizedTitle: item.title.toLowerCase(),
-        normalizedSubLabel: item.subLabel.toLowerCase(),
-        normalizedKeywords: (item.keywords || []).join(' ').toLowerCase(),
-      })),
+      searchableItems.map(item => {
+        const normalizedKeywordParts = (item.keywords || [])
+          .slice(0, MAX_SPOTLIGHT_KEYWORD_PARTS)
+          .map(normalizeKeywordPart)
+          .filter(Boolean);
+
+        return {
+          ...item,
+          normalizedTitle: item.title.toLowerCase(),
+          normalizedSubLabel: item.subLabel.toLowerCase(),
+          normalizedKeywords: normalizedKeywordParts.join(' ').slice(0, MAX_SPOTLIGHT_KEYWORD_PARTS * 40),
+          normalizedKeywordParts,
+        };
+      }),
     [searchableItems]
   );
 
@@ -568,19 +595,27 @@ export function GlobalSpotlightSearch() {
       ].filter(section => section.items.length > 0);
     }
 
-    const normalizedQuery = debouncedQuery.toLowerCase();
+    const normalizedQuery = normalizeSpotlightQuery(debouncedQuery);
+    if (!normalizedQuery) return [];
 
     const scoredItems = searchableIndex
       .map(item => {
         let score = 0;
+        const keywordIncludesMatch = item.normalizedKeywordParts.some((keyword) => keyword.includes(normalizedQuery));
+        const keywordFuzzyMatch =
+          normalizedQuery.length <= MAX_SPOTLIGHT_FUZZY_QUERY_LENGTH &&
+          item.normalizedKeywordParts
+            .slice(0, MAX_SPOTLIGHT_FUZZY_KEYWORD_PARTS)
+            .some((keyword) => fuzzySearch(normalizedQuery, keyword));
 
         if (item.normalizedTitle === normalizedQuery) score += 400;
         if (item.normalizedTitle.startsWith(normalizedQuery)) score += 250;
         if (item.normalizedTitle.includes(normalizedQuery)) score += 150;
         if (item.normalizedSubLabel.includes(normalizedQuery)) score += 90;
-        if (item.normalizedKeywords.includes(normalizedQuery)) score += 80;
+        if (keywordIncludesMatch) score += 80;
         if (fuzzySearch(normalizedQuery, item.title)) score += 50;
         if (fuzzySearch(normalizedQuery, item.subLabel)) score += 30;
+        if (keywordFuzzyMatch) score += 25;
 
         const history = historyMap.get(item.id);
         if (history) {

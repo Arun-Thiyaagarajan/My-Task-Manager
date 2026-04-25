@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Person, Task, UiConfig } from '@/lib/types';
 import type { SearchSuggestion } from '@/components/home/types';
 import { fuzzySearch } from '@/lib/utils';
-import { getDeploymentScore, matchesTaskFilters, matchesTaskSearchQuery } from '@/lib/task-filtering';
+import { getDeploymentScore, getTaskSearchableParts, matchesTaskFilters, matchesTaskSearchQuery } from '@/lib/task-filtering';
 import { getStatusDisplayName } from '@/lib/status-config';
 import { getAuthMode, getActiveCompanyId, isInitialSyncComplete } from '@/lib/data';
 import { FileText, GitMerge, Tag, User } from 'lucide-react';
@@ -185,7 +185,7 @@ export function useTaskFiltering({
           setFilteredBinnedTasks([]);
         } else {
           const deletedMatches = binnedTasks.filter((task) =>
-            matchesTaskSearchQuery(task, executedSearchQuery, developersById, testersById)
+            matchesTaskSearchQuery(task, executedSearchQuery, developersById, testersById, uiConfig)
           );
           setFilteredBinnedTasks(deletedMatches);
         }
@@ -321,11 +321,28 @@ export function useTaskFiltering({
           matchType: 'description',
           isBinned: task.isBinned,
         });
+        return;
+      }
+
+      const matchedField = getTaskSearchableParts(task, developersById, testersById, uiConfig)
+        .find((part) => fuzzySearch(q, part));
+
+      if (matchedField) {
+        suggestions.push({
+          id: `task-field-${task.id}`,
+          title: task.title,
+          subLabel: `Matched: ${matchedField}`,
+          type: 'task',
+          icon: FileText,
+          taskId: task.id,
+          matchType: 'description',
+          isBinned: task.isBinned,
+        });
       }
     });
 
     return suggestions.slice(0, 10);
-  }, [searchQuery, tasks, binnedTasks, developersById]);
+  }, [searchQuery, tasks, binnedTasks, developersById, testersById, uiConfig]);
 
   return {
     filteredTasks,
