@@ -23,6 +23,22 @@ function buildTextIconDataUrl(value: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+function buildRoundedImageIconDataUrl(imageUrl: string) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+      <defs>
+        <clipPath id="taskflow-favicon-clip">
+          <rect x="6" y="6" width="168" height="168" rx="44"/>
+        </clipPath>
+      </defs>
+      <rect width="180" height="180" rx="44" fill="transparent"/>
+      <image href="${escapeSvgAttribute(imageUrl)}" x="6" y="6" width="168" height="168" preserveAspectRatio="xMidYMid slice" clip-path="url(#taskflow-favicon-clip)"/>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 function escapeSvgText(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -31,11 +47,19 @@ function escapeSvgText(value: string) {
     .replace(/"/g, '&quot;');
 }
 
+function escapeSvgAttribute(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function getCustomIconUrl(icon?: string | null) {
   const trimmedIcon = icon?.trim();
 
   if (!trimmedIcon) return null;
-  if (isImageUrl(trimmedIcon)) return trimmedIcon;
+  if (isImageUrl(trimmedIcon)) return buildRoundedImageIconDataUrl(trimmedIcon);
 
   return buildTextIconDataUrl(trimmedIcon);
 }
