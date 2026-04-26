@@ -491,16 +491,18 @@ export function Header() {
       <header id="main-header" className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 max-w-screen-2xl items-center justify-between relative px-4 sm:px-6">
           <div className="flex items-center gap-2 md:gap-4 lg:gap-8 min-w-0">
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0 min-w-0">
                 {uiConfig?.appIcon && isDataURI(uiConfig.appIcon) ? (
-                    <button onClick={() => setIsImagePreviewOpen(true)} className="flex-shrink-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform active:scale-95">
-                        <img src={uiConfig.appIcon} alt="App Icon" className="h-6 w-6 object-contain rounded-md shadow-sm" />
+                    <button onClick={() => setIsImagePreviewOpen(true)} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-transform active:scale-95">
+                        <img src={uiConfig.appIcon} alt="App Icon" className="h-7 w-7 object-contain rounded-md shadow-sm" />
                         <span className="sr-only">Show app icon preview</span>
                     </button>
                 ) : uiConfig?.appIcon ? (
-                     <span className="text-2xl h-6 w-6 flex items-center justify-center drop-shadow-sm">{uiConfig.appIcon}</span>
+                     <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center text-[1.65rem] leading-none drop-shadow-sm">{uiConfig.appIcon}</span>
                 ) : (
-                    <Icons.logo className="h-6 w-6 text-primary drop-shadow-sm" />
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                      <Icons.logo className="h-7 w-7 text-primary drop-shadow-sm" />
+                    </span>
                 )}
 
               <button 

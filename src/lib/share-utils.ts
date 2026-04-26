@@ -189,6 +189,85 @@ const renderCustomFieldValue = (fieldConfig: FieldConfig, value: any) => {
   }
 };
 
+type PdfInlineSegment = {
+    text: string;
+    font: 'helvetica' | 'courier';
+    fontStyle: 'normal' | 'bold' | 'italic' | 'bolditalic';
+    color: RgbTuple;
+    link?: string;
+    strike?: boolean;
+    underline?: boolean;
+    code?: boolean;
+    mention?: boolean;
+};
+
+const PDF_RICH_TEXT_REGEX = /(\*\*(.*?)\*\*|_(.*?)_|~(.*?)~|`(.*?)`|@<(.*?)>|https?:\/\/[^\s<]+|\[(.*?)\]\((.*?)\))/gm;
+
+const parsePdfInlineSegments = (line: string, colors: Record<string, RgbTuple>): PdfInlineSegment[] => {
+    const segments: PdfInlineSegment[] = [];
+    let lastIndex = 0;
+
+    PDF_RICH_TEXT_REGEX.lastIndex = 0;
+
+    let match: RegExpExecArray | null;
+    while ((match = PDF_RICH_TEXT_REGEX.exec(line)) !== null) {
+        const [fullMatch, , bold, italic, strike, code, mention, linkText, linkUrl] = match;
+        const startIndex = match.index;
+
+        if (startIndex > lastIndex) {
+            segments.push({
+                text: line.slice(lastIndex, startIndex),
+                font: 'helvetica',
+                fontStyle: 'normal',
+                color: colors.TEXT_PRIMARY,
+            });
+        }
+
+        if (bold) {
+            segments.push({ text: bold, font: 'helvetica', fontStyle: 'bold', color: colors.TEXT_PRIMARY });
+        } else if (italic) {
+            segments.push({ text: italic, font: 'helvetica', fontStyle: 'italic', color: colors.TEXT_PRIMARY });
+        } else if (strike) {
+            segments.push({ text: strike, font: 'helvetica', fontStyle: 'normal', color: colors.TEXT_PRIMARY, strike: true });
+        } else if (code) {
+            segments.push({ text: code, font: 'courier', fontStyle: 'normal', color: colors.TEXT_PRIMARY, code: true });
+        } else if (mention) {
+            segments.push({ text: `@${mention}`, font: 'helvetica', fontStyle: 'bold', color: [67, 56, 202], mention: true });
+        } else if (linkUrl !== undefined) {
+            segments.push({
+                text: linkText,
+                font: 'helvetica',
+                fontStyle: 'normal',
+                color: colors.LINK,
+                link: linkUrl,
+                underline: true,
+            });
+        } else if (fullMatch.startsWith('http')) {
+            segments.push({
+                text: fullMatch,
+                font: 'helvetica',
+                fontStyle: 'normal',
+                color: colors.LINK,
+                link: fullMatch,
+                underline: true,
+            });
+        }
+
+        lastIndex = startIndex + fullMatch.length;
+    }
+
+    if (lastIndex < line.length) {
+        segments.push({
+            text: line.slice(lastIndex),
+            font: 'helvetica',
+            fontStyle: 'normal',
+            color: colors.TEXT_PRIMARY,
+        });
+    }
+
+    return segments;
+};
+
 const buildRelationshipTaskPool = (task: Task, allTasks?: Task[]) => {
     const fallbackTasks = [...getTasks(), ...getBinnedTasks()];
     const combinedTasks = [...(allTasks || []), ...fallbackTasks, task];
@@ -408,6 +487,311 @@ const _drawTaskOnPage = async (
         y += requiredHeight + 2;
     };
 
+    type RichTextLayoutOptions = {
+        prefix?: string;
+        color?: RgbTuple;
+    };
+
+    type PositionedToken = { token: string; segment: PdfInlineSegment; width: number };
+
+    const layoutRichTextLines = (
+        rawLine: string,
+        availableWidth: number,
+        options: RichTextLayoutOptions = {}
+    ): PositionedToken[][] => {
+        const prefix = options.prefix ?? '';
+        const textColor = options.color || COLORS.TEXT_PRIMARY;
+
+        const segments: PdfInlineSegment[] = [];
+        if (prefix) {
+            segments.push({
+                text: prefix,
+                font: 'helvetica',
+                fontStyle: 'bold',
+                color: textColor,
+            });
+        }
+        segments.push(...parsePdfInlineSegments(rawLine, { ...COLORS, TEXT_PRIMARY: textColor }));
+
+        if (segments.length === 0) {
+            return [];
+        }
+
+        const lines: PositionedToken[][] = [[]];
+        let currentLineWidth = 0;
+
+        segments.forEach((segment) => {
+            const tokens = splitSegmentTokens(segment);
+
+            tokens.forEach((rawToken) => {
+                const normalizedTokens = measureTokenWidth(rawToken, segment) > availableWidth
+                    ? splitLongToken(rawToken, segment, availableWidth)
+                    : [rawToken];
+
+                normalizedTokens.forEach((token, tokenIndex) => {
+                    const width = measureTokenWidth(token, segment);
+                    const isWhitespace = /^\s+$/.test(token);
+
+                    if (!isWhitespace && currentLineWidth > 0 && currentLineWidth + width > availableWidth) {
+                        lines.push([]);
+                        currentLineWidth = 0;
+                    }
+
+                    if (!(isWhitespace && currentLineWidth === 0)) {
+                        lines[lines.length - 1].push({ token, segment, width });
+                        currentLineWidth += width;
+                    }
+
+                    const shouldBreakBetweenPieces = tokenIndex < normalizedTokens.length - 1 && !/^\s+$/.test(token);
+                    if (shouldBreakBetweenPieces) {
+                        lines.push([]);
+                        currentLineWidth = 0;
+                    }
+                });
+            });
+        });
+
+        return lines.filter(line => line.length > 0);
+    };
+
+    const applySegmentFont = (segment: PdfInlineSegment) => {
+        doc.setFont(segment.font, segment.fontStyle);
+        doc.setFontSize(FONT_SIZE_NORMAL);
+    };
+
+    const splitSegmentTokens = (segment: PdfInlineSegment) => {
+        if (segment.code || segment.mention || segment.link) {
+            return [segment.text];
+        }
+
+        return segment.text.split(/(\s+)/).filter(token => token.length > 0);
+    };
+
+    const measureTokenWidth = (token: string, segment: PdfInlineSegment) => {
+        applySegmentFont(segment);
+        const baseWidth = doc.getTextWidth(token);
+
+        if (segment.code) return baseWidth + 3;
+        if (segment.mention) return baseWidth + 2.5;
+        return baseWidth;
+    };
+
+    const splitLongToken = (token: string, segment: PdfInlineSegment, maxWidth: number) => {
+        const pieces: string[] = [];
+        let current = '';
+
+        for (const char of Array.from(token)) {
+            const next = current + char;
+            if (current && measureTokenWidth(next, segment) > maxWidth) {
+                pieces.push(current);
+                current = char;
+            } else {
+                current = next;
+            }
+        }
+
+        if (current) pieces.push(current);
+        return pieces;
+    };
+
+    const drawStyledToken = (token: string, segment: PdfInlineSegment, x: number, baselineY: number, lineHeight: number) => {
+        const tokenWidth = measureTokenWidth(token, segment);
+        const isWhitespace = /^\s+$/.test(token);
+
+        if (isWhitespace) return tokenWidth;
+
+        applySegmentFont(segment);
+        doc.setTextColor(...segment.color);
+
+        if (segment.code) {
+            doc.setFillColor(243, 244, 246);
+            doc.roundedRect(x - 0.7, baselineY - 4.5, tokenWidth, lineHeight - 0.5, 1.4, 1.4, 'F');
+            doc.text(token, x + 0.8, baselineY, { baseline: 'alphabetic' });
+        } else if (segment.mention) {
+            doc.setFillColor(238, 242, 255);
+            doc.roundedRect(x - 0.5, baselineY - 4.5, tokenWidth, lineHeight - 0.5, 1.4, 1.4, 'F');
+            doc.text(token, x + 0.8, baselineY, { baseline: 'alphabetic' });
+        } else {
+            doc.text(token, x, baselineY, { baseline: 'alphabetic' });
+        }
+
+        const textStartX = x + ((segment.code || segment.mention) ? 0.8 : 0);
+        const textWidth = doc.getTextWidth(token);
+
+        if (segment.underline) {
+            doc.setDrawColor(...segment.color);
+            doc.setLineWidth(0.3);
+            doc.line(textStartX, baselineY + 0.7, textStartX + textWidth, baselineY + 0.7);
+        }
+
+        if (segment.strike) {
+            doc.setDrawColor(...segment.color);
+            doc.setLineWidth(0.3);
+            doc.line(textStartX, baselineY - 1.9, textStartX + textWidth, baselineY - 1.9);
+        }
+
+        if (segment.link) {
+            doc.link(x, baselineY - 4.8, tokenWidth, lineHeight, { url: segment.link });
+        }
+
+        return tokenWidth;
+    };
+
+    const renderRichTextLine = (
+        rawLine: string,
+        options: {
+            startX?: number;
+            contentWidth?: number;
+            indent?: number;
+            prefix?: string;
+            blockquote?: boolean;
+            color?: RgbTuple;
+        } = {}
+    ) => {
+        const blockStartX = options.startX ?? PADDING;
+        const blockWidth = options.contentWidth ?? MAX_CONTENT_WIDTH;
+        const indent = options.indent ?? 0;
+        const prefix = options.prefix ?? '';
+        const startX = blockStartX + indent;
+        const contentWidth = blockWidth - indent;
+        const lineHeight = LINE_HEIGHT_NORMAL;
+        const leftBarWidth = options.blockquote ? 3.5 : 0;
+        const leftPadding = options.blockquote ? 4 : 0;
+        const contentStartX = startX + leftBarWidth + leftPadding;
+        const availableWidth = contentWidth - leftBarWidth - leftPadding;
+        const textColor = options.color || (options.blockquote ? COLORS.TEXT_MUTED : COLORS.TEXT_PRIMARY);
+
+        const renderedLines = layoutRichTextLines(rawLine, availableWidth, { prefix, color: textColor });
+
+        if (renderedLines.length === 0) {
+            y += lineHeight;
+            return;
+        }
+        const totalHeight = Math.max(renderedLines.length, 1) * lineHeight;
+        checkPageBreak(totalHeight + 2);
+
+        if (options.blockquote) {
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(startX, y - 4.2, contentWidth, totalHeight + 3.2, 2.5, 2.5, 'F');
+            doc.setFillColor(203, 213, 225);
+            doc.roundedRect(startX, y - 4.2, 1.4, totalHeight + 3.2, 1, 1, 'F');
+        }
+
+        renderedLines.forEach((lineTokens, lineIndex) => {
+            let cursorX = contentStartX;
+            const baselineY = y + lineIndex * lineHeight;
+
+            lineTokens.forEach(({ token, segment }) => {
+                cursorX += drawStyledToken(token, segment, cursorX, baselineY, lineHeight);
+            });
+        });
+
+        y += totalHeight;
+    };
+
+    const renderCodeBlock = (code: string, options: { startX?: number; contentWidth?: number } = {}) => {
+        const startX = options.startX ?? PADDING;
+        const contentWidth = options.contentWidth ?? MAX_CONTENT_WIDTH;
+        const codeLines = doc.splitTextToSize(code, contentWidth - 10);
+        const lineHeight = 5.2;
+        const blockHeight = Math.max(codeLines.length, 1) * lineHeight + 8;
+        checkPageBreak(blockHeight + 2);
+
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(startX, y - 3.5, contentWidth, blockHeight, 2.5, 2.5, 'F');
+        doc.setDrawColor(...COLORS.CARD_BORDER);
+        doc.roundedRect(startX, y - 3.5, contentWidth, blockHeight, 2.5, 2.5, 'S');
+
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...COLORS.TEXT_PRIMARY);
+        doc.text(codeLines, startX + 4, y + 1, { baseline: 'top' });
+
+        y += blockHeight + 2;
+    };
+
+    const estimateRichTextBlockHeight = (
+        text: string,
+        options: {
+            startX?: number;
+            contentWidth?: number;
+            indent?: number;
+            prefix?: string;
+            blockquote?: boolean;
+            color?: RgbTuple;
+        } = {}
+    ) => {
+        const blockWidth = options.contentWidth ?? MAX_CONTENT_WIDTH;
+        const indent = options.indent ?? 0;
+        const contentWidth = blockWidth - indent;
+        const leftBarWidth = options.blockquote ? 3.5 : 0;
+        const leftPadding = options.blockquote ? 4 : 0;
+        const availableWidth = contentWidth - leftBarWidth - leftPadding;
+        const lines = layoutRichTextLines(text, availableWidth, { prefix: options.prefix, color: options.color });
+        return Math.max(lines.length, 1) * LINE_HEIGHT_NORMAL;
+    };
+
+    const drawRichTextBlock = (
+        text: string,
+        options: {
+            startX?: number;
+            contentWidth?: number;
+        } = {}
+    ) => {
+        const startX = options.startX ?? PADDING;
+        const contentWidth = options.contentWidth ?? MAX_CONTENT_WIDTH;
+        const sections = text.split(/(```[\s\S]*?```)/g);
+        let previousLineWasBlank = false;
+
+        sections.forEach((section) => {
+            if (!section) return;
+
+            if (section.startsWith('```') && section.endsWith('```')) {
+                const codeContent = section.slice(3, -3).trim();
+                if (codeContent) {
+                    if (previousLineWasBlank) {
+                        checkPageBreak(6);
+                    }
+                    renderCodeBlock(codeContent, { startX, contentWidth });
+                    previousLineWasBlank = false;
+                }
+                return;
+            }
+
+            const lines = section.split('\n');
+            lines.forEach((line, index) => {
+                const trimmedStart = line.trimStart();
+                const blockQuoteMatch = trimmedStart.match(/^>\s?(.*)$/);
+                const bulletMatch = trimmedStart.match(/^-\s+(.+)$/);
+                const numberedMatch = trimmedStart.match(/^(\d+)\.\s+(.+)$/);
+
+                if (blockQuoteMatch) {
+                    renderRichTextLine(blockQuoteMatch[1], { startX, contentWidth, blockquote: true, indent: 1.5 });
+                    previousLineWasBlank = false;
+                } else if (bulletMatch) {
+                    renderRichTextLine(bulletMatch[1], { startX, contentWidth, prefix: '- ', indent: 3 });
+                    previousLineWasBlank = false;
+                } else if (numberedMatch) {
+                    renderRichTextLine(numberedMatch[2], { startX, contentWidth, prefix: `${numberedMatch[1]}. `, indent: 3 });
+                    previousLineWasBlank = false;
+                } else if (line.trim() === '') {
+                    if (!previousLineWasBlank) {
+                        checkPageBreak(4);
+                        y += 4;
+                    }
+                    previousLineWasBlank = true;
+                } else {
+                    renderRichTextLine(line, { startX, contentWidth });
+                    previousLineWasBlank = false;
+                }
+
+                if (index === lines.length - 1) {
+                    y += 1.2;
+                }
+            });
+        });
+    };
+
     // --- DATA PREPARATION ---
     const developersById = new Map(developers.map(d => [d.id, d.name]));
     const testersById = new Map(testers.map(t => [t.id, t.name]));
@@ -424,15 +808,8 @@ const _drawTaskOnPage = async (
 
     if (task.description) {
         drawSectionHeader(fieldLabels.get('description') || 'Description', 12);
-        const cleanDescription = task.description.replace(/(\*\*|_(.*?)_|\`|\~)/g, '');
-        const lines = doc.splitTextToSize(cleanDescription, MAX_CONTENT_WIDTH);
-        const descHeight = lines.length * LINE_HEIGHT_NORMAL;
-        checkPageBreak(descHeight + 5);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(FONT_SIZE_NORMAL);
-        doc.setTextColor(...COLORS.TEXT_PRIMARY);
-        doc.text(lines, PADDING, y);
-        y += descHeight + 10;
+        drawRichTextBlock(task.description);
+        y += 6;
     }
 
     const assignedDevs = (task.developers || []).map(id => developersById.get(id)).filter(Boolean).join(', ');
@@ -591,7 +968,20 @@ const _drawTaskOnPage = async (
         customFields.forEach(field => {
             const val = task.customFields![field.key];
             const display = renderCustomFieldValue(field, val);
-            drawKeyValue(field.label, display);
+            if (field.type === 'textarea' && typeof val === 'string' && val.trim()) {
+                const firstHeight = estimateRichTextBlockHeight(val, { startX: VALUE_COLUMN_X, contentWidth: VALUE_COLUMN_WIDTH });
+                checkPageBreak(firstHeight + 2);
+
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(...COLORS.TEXT_MUTED);
+                doc.setFontSize(FONT_SIZE_NORMAL);
+                doc.text(doc.splitTextToSize(`${field.label}:`, KEY_COLUMN_WIDTH - 5), PADDING, y, { baseline: 'top' });
+
+                drawRichTextBlock(val, { startX: VALUE_COLUMN_X, contentWidth: VALUE_COLUMN_WIDTH });
+                y += 2;
+            } else {
+                drawKeyValue(field.label, display);
+            }
         });
     }
 
@@ -599,10 +989,26 @@ const _drawTaskOnPage = async (
         const firstComment = task.comments[0];
         const firstCommentLabel = firstComment ? format(new Date(firstComment.timestamp), 'MMM d, h:mm a') : '';
         const firstCommentValue = firstComment?.text || '';
-        drawSectionHeader(fieldLabels.get('comments') || 'Comments', estimateKeyValueHeight(firstCommentLabel, firstCommentValue));
+        const firstCommentHeight = Math.max(
+            estimateKeyValueHeight(firstCommentLabel, ''),
+            estimateRichTextBlockHeight(firstCommentValue, { startX: VALUE_COLUMN_X, contentWidth: VALUE_COLUMN_WIDTH })
+        );
+        drawSectionHeader(fieldLabels.get('comments') || 'Comments', firstCommentHeight);
         task.comments.forEach(comment => {
             const date = format(new Date(comment.timestamp), 'MMM d, h:mm a');
-            drawKeyValue(date, comment.text);
+            const commentHeight = Math.max(
+                estimateKeyValueHeight(date, ''),
+                estimateRichTextBlockHeight(comment.text || '', { startX: VALUE_COLUMN_X, contentWidth: VALUE_COLUMN_WIDTH })
+            );
+            checkPageBreak(commentHeight + 2);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...COLORS.TEXT_MUTED);
+            doc.setFontSize(FONT_SIZE_NORMAL);
+            doc.text(doc.splitTextToSize(`${date}:`, KEY_COLUMN_WIDTH - 5), PADDING, y, { baseline: 'top' });
+
+            drawRichTextBlock(comment.text || '', { startX: VALUE_COLUMN_X, contentWidth: VALUE_COLUMN_WIDTH });
+            y += 2;
         });
     }
 
